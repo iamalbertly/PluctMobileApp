@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Pluct</string>
+    <string name="home_title">Home</string>
+    <string name="settings_title">Settings</string>
+    <string name="onboarding_title">Onboarding</string>
+    <string name="home_empty_state">Share a link from another app to start</string>
+    <string name="settings_api_key_placeholder">API Key (Coming Soon)</string>
+    <string name="onboarding_placeholder">Onboarding will be implemented later</string>
+    <string name="share_activity_label">Pluct</string>
+    <string name="ingest_title">Ingest</string>
+</resources>
