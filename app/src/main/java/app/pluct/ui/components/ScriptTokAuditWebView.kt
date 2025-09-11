@@ -13,16 +13,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.pluct.ui.utils.WebViewUtils
+import app.pluct.ui.utils.JavaScriptBridge
+import app.pluct.ui.utils.WebViewScripts
 
 /**
- * Simplified WebView component for transcript extraction
+ * Simplified WebView component for transcript extraction with performance optimization
  */
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScriptTokAuditWebView(
     videoUrl: String,
+    runId: String,
     onTranscriptReceived: (String) -> Unit,
+    onSaveTranscript: ((String, String, String) -> Unit)? = null,
     onClose: () -> Unit
 ) {
     var webView: WebView? by remember { mutableStateOf(null) }
@@ -44,23 +48,16 @@ fun ScriptTokAuditWebView(
                 WebView(ctx).apply {
                     webView = this
                     
-                    // Use the WebViewUtils to configure the WebView
+                    // Configure WebView with performance optimization
                     WebViewUtils.configureWebViewForTranscript(
-                        webView = this,
-                        videoUrl = videoUrl,
+                        this, 
+                        videoUrl, 
                         onTranscriptReceived = { transcript ->
-                            Log.d("ScriptTokAuditWebView", "Received transcript")
+                            Log.d("ScriptTokAuditWebView", "Transcript received via WebViewUtils")
                             onTranscriptReceived(transcript)
                         },
-                        onPageLoaded = {
-                            Log.d("ScriptTokAuditWebView", "Page loaded")
-                        },
                         onError = { error ->
-                            Log.e("ScriptTokAuditWebView", "Error: $error")
-                        },
-                        onProcessing = { processing ->
-                            Log.d("ScriptTokAuditWebView", "Processing state changed: $processing")
-                            isProcessing = processing
+                            Log.e("ScriptTokAuditWebView", "Error via WebViewUtils: $error")
                         }
                     )
                 }

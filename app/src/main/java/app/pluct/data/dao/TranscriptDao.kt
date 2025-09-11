@@ -13,14 +13,14 @@ interface TranscriptDao {
     fun getTranscriptFlow(videoId: String): Flow<Transcript?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTranscript(transcript: Transcript)
+    suspend fun insertTranscript(transcript: Transcript): Long
 
     @Update
     suspend fun updateTranscript(transcript: Transcript)
 
     @Transaction
-    suspend fun saveTranscript(transcript: Transcript) {
-        insertTranscript(transcript)
+    suspend fun saveTranscript(transcript: Transcript): Long {
+        return insertTranscript(transcript)
     }
 }
 

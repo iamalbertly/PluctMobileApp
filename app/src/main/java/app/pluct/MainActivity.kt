@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavController
 import app.pluct.ui.navigation.PluctNavigation
 import app.pluct.ui.theme.PluctTheme
+import app.pluct.utils.DebugLogger
 import app.pluct.utils.VerificationResult
 import app.pluct.utils.VerificationUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,6 +40,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Initialize file logger
+        DebugLogger.init(applicationContext)
+        DebugLogger.clear()
+        DebugLogger.log("MainActivity onCreate - intent: ${intent?.data}")
+        
         // Run verification as a bonus step
         runVerification()
         
@@ -58,7 +64,7 @@ class MainActivity : ComponentActivity() {
                         
                         // Handle the initial intent
                         intent?.let { initialIntent ->
-                            Log.d(TAG, "Handling initial deep link: ${initialIntent.data}")
+                            DebugLogger.log("Handling deep link: ${initialIntent.data}")
                             navController.handleDeepLink(initialIntent)
                         }
                     }
@@ -75,27 +81,13 @@ class MainActivity : ComponentActivity() {
     private fun runVerification() {
         lifecycleScope.launch {
             try {
-                Log.d(TAG, "Starting app verification")
+                DebugLogger.log("Running app verification")
                 when (val result = VerificationUtils.verifyAppFunctionality(applicationContext)) {
-                    is VerificationResult.Success -> {
-                        Log.d(TAG, "App verification successful in ${result.durationMs}ms")
-                        Toast.makeText(
-                            this@MainActivity,
-                            "App verification successful in ${result.durationMs}ms",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    is VerificationResult.Failure -> {
-                        Log.e(TAG, "App verification failed: ${result.message}")
-                        Toast.makeText(
-                            this@MainActivity,
-                            "App verification failed: ${result.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                    is VerificationResult.Success -> DebugLogger.log("Verification OK in ${result.durationMs}ms")
+                    is VerificationResult.Failure -> DebugLogger.log("Verification FAIL: ${result.message}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error during verification: ${e.message}", e)
+                DebugLogger.log("Verification exception: ${e.message}")
             }
         }
     }

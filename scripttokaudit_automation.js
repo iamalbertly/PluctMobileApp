@@ -101,6 +101,41 @@
     }
     
     /**
+     * Properly simulate user input to prevent URL from disappearing
+     */
+    function simulateProperInput(element, text) {
+        console.log('ScriptTokAudit: Simulating proper input for:', text);
+        
+        // Focus the element first
+        element.focus();
+        element.click();
+        
+        // Clear existing value
+        element.value = '';
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Use a more direct approach - set value and trigger events
+        element.value = text;
+        
+        // Dispatch all necessary events
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        element.dispatchEvent(new Event('keydown', { bubbles: true }));
+        element.dispatchEvent(new Event('keypress', { bubbles: true }));
+        element.dispatchEvent(new Event('keyup', { bubbles: true }));
+        element.dispatchEvent(new Event('blur', { bubbles: true }));
+        element.dispatchEvent(new Event('focus', { bubbles: true }));
+        
+        // Force the element to update its internal state
+        if (element.setSelectionRange) {
+            element.setSelectionRange(text.length, text.length);
+        }
+        
+        console.log('ScriptTokAudit: Completed input simulation, value:', element.value);
+    }
+    
+    /**
      * Fill the URL input field and click START
      */
     function fillAndSubmitUrl(url) {
@@ -112,14 +147,36 @@
             throw new Error('Could not find URL input field');
         }
         
-        // Clear and fill the textarea
-        textarea.value = url;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        textarea.dispatchEvent(new Event('change', { bubbles: true }));
-        textarea.dispatchEvent(new Event('keyup', { bubbles: true }));
+        // Use proper input simulation
+        simulateProperInput(textarea, url);
         
-        console.log('ScriptTokAudit: Filled URL into textarea');
-        
+        // Wait a bit and verify the URL was properly entered
+        setTimeout(() => {
+            console.log('ScriptTokAudit: URL filled, current value:', textarea.value);
+            
+            // Verify the URL was properly entered
+            if (textarea.value !== url) {
+                console.warn('ScriptTokAudit: URL not properly entered, retrying with different approach...');
+                
+                // Try a different approach - direct assignment
+                textarea.value = url;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                setTimeout(() => {
+                    console.log('ScriptTokAudit: After retry, value:', textarea.value);
+                    clickStartButton();
+                }, 500);
+            } else {
+                clickStartButton();
+            }
+        }, 500);
+    }
+    
+    /**
+     * Click the START button
+     */
+    function clickStartButton() {
         // Find and click the START button
         const startButton = document.querySelector(CONFIG.START_BUTTON_SELECTOR);
         if (!startButton) {
@@ -129,7 +186,10 @@
         startButton.click();
         console.log('ScriptTokAudit: Clicked START button');
         
-        return true;
+        // Notify Android app that processing has started
+        if (window.Android && window.Android.onProcessingUpdate) {
+            window.Android.onProcessingUpdate(true);
+        }
     }
     
     /**
@@ -308,6 +368,11 @@
                     clearInterval(checkInterval);
                     console.log('ScriptTokAudit: Success! Transcript found');
                     
+                    // Notify Android app that processing is complete
+                    if (window.Android && window.Android.onProcessingUpdate) {
+                        window.Android.onProcessingUpdate(false);
+                    }
+                    
                     // Step 6: Copy transcript to clipboard
                     setTimeout(() => {
                         try {
@@ -330,6 +395,11 @@
                     clearInterval(checkInterval);
                     console.log('ScriptTokAudit: No transcript available');
                     
+                    // Notify Android app that processing is complete
+                    if (window.Android && window.Android.onProcessingUpdate) {
+                        window.Android.onProcessingUpdate(false);
+                    }
+                    
                     // Notify Android app of no transcript
                     if (window.Android && window.Android.onNoTranscript) {
                         window.Android.onNoTranscript();
@@ -338,6 +408,11 @@
                 } else if (result.status === 'error') {
                     clearInterval(checkInterval);
                     console.error('ScriptTokAudit: Error occurred:', result.message);
+                    
+                    // Notify Android app that processing is complete
+                    if (window.Android && window.Android.onProcessingUpdate) {
+                        window.Android.onProcessingUpdate(false);
+                    }
                     
                     // Notify Android app of error
                     if (window.Android && window.Android.onError) {
@@ -348,6 +423,11 @@
                     clearInterval(checkInterval);
                     console.error('ScriptTokAudit: Timeout waiting for results');
                     
+                    // Notify Android app that processing is complete
+                    if (window.Android && window.Android.onProcessingUpdate) {
+                        window.Android.onProcessingUpdate(false);
+                    }
+                    
                     // Notify Android app of timeout
                     if (window.Android && window.Android.onError) {
                         window.Android.onError('Timeout waiting for transcript results');
@@ -357,6 +437,11 @@
             
         } catch (error) {
             console.error('ScriptTokAudit: Automation failed:', error);
+            
+            // Notify Android app that processing is complete
+            if (window.Android && window.Android.onProcessingUpdate) {
+                window.Android.onProcessingUpdate(false);
+            }
             
             // Notify Android app of error
             if (window.Android && window.Android.onError) {

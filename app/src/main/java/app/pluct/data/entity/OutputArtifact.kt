@@ -11,7 +11,8 @@ enum class ArtifactKind {
     PROMPT,
     SUMMARY,
     METADATA,
-    TRANSCRIPT
+    TRANSCRIPT,
+    VALUE_PROPOSITION
 }
 
 @Entity(

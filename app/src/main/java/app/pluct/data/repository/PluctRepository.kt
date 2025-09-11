@@ -61,6 +61,18 @@ class PluctRepository @Inject constructor(
         }
     }
     
+    suspend fun markUrlAsValid(videoId: String) {
+        // Update the video item to mark it as valid
+        val video = videoItemDao.getById(videoId)
+        if (video != null) {
+            val updatedVideo = video.copy(
+                isInvalid = false,
+                errorMessage = null
+            )
+            videoItemDao.updateVideo(updatedVideo)
+        }
+    }
+    
     suspend fun getVideoWithTranscript(videoId: String): Pair<VideoItem?, Transcript?> {
         val video = videoItemDao.getById(videoId)
         val transcript = transcriptDao.getByVideoId(videoId)
@@ -105,6 +117,29 @@ class PluctRepository @Inject constructor(
     suspend fun searchTranscripts(query: String): List<Transcript> {
         // Simple implementation - in a real app, you might use FTS or external search
         return emptyList() // TODO: Implement search functionality
+    }
+    
+    // Transcript operations for JavaScript bridge
+    suspend fun saveTranscript(transcriptData: Map<String, Any>): Long {
+        val runId = transcriptData["runId"] as String
+        val sourceUrl = transcriptData["sourceUrl"] as String
+        val text = transcriptData["text"] as String
+        val createdAt = transcriptData["createdAt"] as Long
+        val tags = transcriptData["tags"] as List<String>
+        
+        // Create or find video item
+        val videoId = upsertVideo(sourceUrl)
+        
+        // Create transcript
+        val transcript = Transcript(
+            id = UUID.randomUUID().toString(),
+            videoId = videoId,
+            text = text,
+            createdAt = createdAt
+        )
+        
+        // Save transcript and return row ID
+        return transcriptDao.saveTranscript(transcript)
     }
 }
 

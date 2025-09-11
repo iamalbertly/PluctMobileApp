@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ADB Wireless Connect</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 10px 0;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .qr-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            display: none;
+        }
+        .copy-button {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #666, #555);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .copy-button:hover {
+            background: linear-gradient(45deg, #777, #666);
+            transform: translateY(-1px);
+        }
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 ADB Wireless Connect</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <div class="step">1. Connect your phone via USB cable first</div>
+            <div class="step">2. Click "Enable ADB Wireless" below</div>
+            <div class="step">3. Copy the ADB command and run it on your PC</div>
+            <div class="step">4. Unplug USB cable when connected</div>
+        </div>
+
+        <button onclick="enableADB()" class="button">
+            🚀 Enable ADB Wireless
+        </button>
+
+        <div class="status" id="ipStatus">
+            Click "Enable ADB Wireless" to start...
+        </div>
+        
+        <div class="qr-container" id="qrcode"></div>
+        <button class="copy-button" id="copyCmd" style="display: none;">📋 Copy ADB Command</button>
+    </div>
+
+    <script>
+        function enableADB() {
+            document.getElementById('ipStatus').innerHTML = '🔄 Enabling ADB Wireless...';
+            
+            // Try to get IP address using JavaScript
+            fetch('file:///storage/emulated/0/Download/adb_ip.txt')
+                .then(response => response.text())
+                .then(ip => {
+                    if (ip.trim()) {
+                        updateDisplay(ip.trim());
+                    } else {
+                        // If no IP file, try to get it from the device
+                        document.getElementById('ipStatus').innerHTML = 
+                            '📱 Please run this command on your PC:<br><br>' +
+                            '<code>adb shell ip addr show wlan0 | grep -w inet | awk \'{print $2}\' | cut -d/ -f1</code><br><br>' +
+                            'Then click "Enable ADB Wireless" again after getting the IP.';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('ipStatus').innerHTML = 
+                        '📱 Please run this command on your PC:<br><br>' +
+                        '<code>adb shell ip addr show wlan0 | grep -w inet | awk \'{print $2}\' | cut -d/ -f1</code><br><br>' +
+                        'Then click "Enable ADB Wireless" again after getting the IP.';
+                });
+        }
+
+        function updateDisplay(ip) {
+            const command = `adb connect ${ip}:5555`;
+            document.getElementById('ipStatus').innerHTML = `
+                <strong>✅ ADB Wireless Ready!</strong><br><br>
+                📱 Device IP: <code>${ip}</code><br>
+                🔌 Port: <code>5555</code><br><br>
+                💻 Run this command on your PC:<br>
+                <code>${command}</code>
+            `;
+            
+            // Generate QR code
+            const qr = qrcode(0, 'L');
+            qr.addData(command);
+            qr.make();
+            document.getElementById('qrcode').innerHTML = qr.createImgTag(5);
+            document.getElementById('qrcode').style.display = 'block';
+            
+            // Show copy button
+            document.getElementById('copyCmd').style.display = 'inline-block';
+            document.getElementById('copyCmd').onclick = () => {
+                navigator.clipboard.writeText(command);
+                alert('✅ Command copied to clipboard!');
+            };
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            fetch('file:///storage/emulated/0/Download/adb_ip.txt')
+                .then(response => response.text())
+                .then(ip => {
+                    if (ip.trim()) {
+                        updateDisplay(ip.trim());
+                    }
+                })
+                .catch(() => {});
+        }, 5000);
+    </script>
+</body>
+</html>

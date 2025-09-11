@@ -6,11 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import app.pluct.ui.navigation.Screen
 
 @Composable
-fun ApiKeyBanner(navController: NavController) {
+fun ApiKeyBanner() {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -31,11 +29,11 @@ fun ApiKeyBanner(navController: NavController) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(
-                onClick = { navController.navigate(Screen.Settings.route) }
-            ) {
-                Text("Settings")
-            }
+            Text(
+                text = "Go to Settings → API Key",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            )
         }
     }
 }

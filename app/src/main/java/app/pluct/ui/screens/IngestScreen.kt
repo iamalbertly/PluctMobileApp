@@ -1,5 +1,6 @@
 package app.pluct.ui.screens
 
+import android.content.Context
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,16 +26,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.pluct.ui.components.NetworkStatusView
 import app.pluct.ui.screens.ingest.IngestErrorView
 import app.pluct.ui.screens.ingest.IngestPendingView
 import app.pluct.ui.screens.ingest.IngestReadyView
 import app.pluct.ui.screens.ingest.NeedsTranscriptView
+import app.pluct.ui.screens.ingest.TranscriptSuccessView
+import app.pluct.ui.utils.NetworkHandler
+import app.pluct.ui.utils.WebTranscriptResultHandler
+import app.pluct.utils.Constants
 import app.pluct.viewmodel.IngestState
 import app.pluct.viewmodel.IngestViewModel
 import app.pluct.web.WebTranscriptActivity
+import kotlinx.coroutines.delay
 
 /**
- * Main screen for the transcript ingestion process
+ * Main screen for the transcript ingestion process with enhanced network handling
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +55,13 @@ fun IngestScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
+    // Track processing state and timeout
+    var isProcessing by remember { mutableStateOf(false) }
+    var processingStartTime by remember { mutableStateOf(0L) }
+    var hasShownError by remember { mutableStateOf(false) }
+    var showNetworkStatus by remember { mutableStateOf(false) }
+    var networkQuality by remember { mutableStateOf(app.pluct.utils.NetworkUtils.NetworkQuality.UNRELIABLE) }
+    
     /**
      * Helper function to launch WebTranscriptActivity
      */
@@ -56,66 +70,115 @@ fun IngestScreen(
         processedUrl: String?,
         launcher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>
     ) {
-        if (videoId != null && processedUrl != null) {
-            Log.d("PluctIngest", "Launching WebTranscriptActivity for videoId: $videoId")
-            val intent = WebTranscriptActivity.createIntent(context, videoId, processedUrl)
-            launcher.launch(intent)
-        } else {
-            Log.e("PluctIngest", "Cannot launch WebTranscriptActivity: missing videoId or processedUrl")
+        WebTranscriptResultHandler.launchWebActivity(
+            context = context,
+            videoId = videoId,
+            processedUrl = processedUrl,
+            launcher = launcher
+        ) {
+            isProcessing = true
+            processingStartTime = System.currentTimeMillis()
+            hasShownError = false
+            // Set the provider being used
+            val provider = app.pluct.ui.utils.ProviderSettings.getSelectedProvider(context)
+            viewModel.setProviderUsed(provider.name)
         }
     }
     
-    // Track if we've already attempted to launch the WebTranscriptActivity
-    var hasAttemptedLaunch by remember { mutableStateOf(false) }
-    var lastLaunchTime by remember { mutableStateOf(0L) }
-    var launchAttemptCount by remember { mutableStateOf(0) }
+    /**
+     * Enhanced network connectivity check with quality assessment
+     */
+    fun checkNetworkConnectivity(): Boolean {
+        val result = NetworkHandler.checkNetworkConnectivity(context)
+        showNetworkStatus = result.showNetworkStatus
+        networkQuality = result.networkQuality
+        return result.isConnected
+    }
     
     // Activity result launcher for WebTranscriptActivity
     val webTranscriptLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        Log.d("PluctIngest", "WebTranscriptActivity returned with resultCode: ${result.resultCode}")
-        viewModel.handleWebTranscriptResult(result.resultCode, result.data)
-        
-        // Reset the attempt flag regardless of success/failure to allow retry on error
-        hasAttemptedLaunch = false
-        lastLaunchTime = 0L
-        
-        // Only reset the launch flag if the result was not successful
-        // This prevents re-launching after a successful transcript extraction
-        if (result.resultCode != android.app.Activity.RESULT_OK) {
-            Log.d("PluctIngest", "Resetting WebActivity launch flag due to unsuccessful result")
-            viewModel.resetWebActivityLaunch()
-        } else {
-            Log.d("PluctIngest", "Keeping WebActivity launch flag set due to successful result")
-        }
+        isProcessing = false
+        WebTranscriptResultHandler.handleWebTranscriptResult(
+            context = context,
+            resultCode = result.resultCode,
+            data = result.data,
+            viewModel = viewModel,
+            onErrorShown = { hasShownError = true }
+        )
     }
     
     // Monitor state changes for auto-launching WebTranscriptActivity
     LaunchedEffect(uiState.state, uiState.videoId) {
         Log.d("PluctIngest", "State changed to: ${uiState.state}, videoId: ${uiState.videoId}, hasLaunchedWebActivity: ${uiState.hasLaunchedWebActivity}")
         
-        // Only launch if we're in the right state and haven't launched yet
+        // Check network connectivity first with enhanced detection
+        if (!checkNetworkConnectivity()) {
+            // Save the URL for later processing when internet returns
+            viewModel.saveUrlForLaterProcessing(url)
+            return@LaunchedEffect
+        }
+        
+        // Immediately launch WebTranscriptActivity when we need a transcript
         if (uiState.state == IngestState.NEEDS_TRANSCRIPT && 
-            !uiState.hasLaunchedWebActivity && 
-            !hasAttemptedLaunch &&
-            uiState.webErrorCode == null &&
-            launchAttemptCount == 0 &&
-            (System.currentTimeMillis() - lastLaunchTime) > 5000) { // 5 second cooldown
+            uiState.videoId != null && 
+            uiState.processedUrl != null &&
+            !uiState.hasLaunchedWebActivity) {
             
-            Log.d("PluctIngest", "Auto-launching WebTranscriptActivity")
-            hasAttemptedLaunch = true
-            launchAttemptCount = 1
-            lastLaunchTime = System.currentTimeMillis()
+            Log.d("PluctIngest", "Auto-launching WebTranscriptActivity immediately")
             viewModel.markWebActivityLaunched()
             
             // Launch using helper function
             launchWebActivity(uiState.videoId, uiState.processedUrl, webTranscriptLauncher)
-        } else {
-            Log.d("PluctIngest", "Skipping WebTranscriptActivity launch: state=${uiState.state}, hasLaunched=${uiState.hasLaunchedWebActivity}, hasAttempted=$hasAttemptedLaunch, errorCode=${uiState.webErrorCode}, attemptCount=$launchAttemptCount, timeSinceLast=${System.currentTimeMillis() - lastLaunchTime}ms")
         }
     }
     
+    // Enhanced timeout detection for processing with network-aware timeouts
+    // Only timeout if WebView automation is not progressing
+    LaunchedEffect(isProcessing, uiState.hasLaunchedWebActivity) {
+        if (isProcessing && uiState.hasLaunchedWebActivity) {
+            // Use adaptive timeout based on network quality
+            val timeout = NetworkHandler.getAdaptiveTimeout(networkQuality)
+            
+            Log.d("PluctIngest", "Starting timeout timer for ${timeout}ms - WebView automation in progress")
+            
+            delay(timeout)
+            if (isProcessing && uiState.hasLaunchedWebActivity) {
+                Log.w("PluctIngest", "Processing timeout detected after ${timeout}ms - WebView automation may have stalled")
+                isProcessing = false
+                viewModel.resetWebActivityLaunch()
+                hasShownError = true
+                // Add a timeout error to the UI state
+                viewModel.handleWebTranscriptResult(
+                    android.app.Activity.RESULT_CANCELED,
+                    android.content.Intent().apply {
+                        putExtra(WebTranscriptActivity.EXTRA_ERROR_CODE, "timeout")
+                        putExtra(WebTranscriptActivity.EXTRA_ERROR_MESSAGE, "WebView automation timed out. The transcript service may be slow or unavailable.")
+                    }
+                )
+            }
+        }
+    }
+    
+    // Auto-navigate back on error after user has seen it
+    LaunchedEffect(hasShownError, uiState.error, uiState.webErrorCode) {
+        if (hasShownError && (uiState.error != null || uiState.webErrorCode != null)) {
+            delay(5000) // Wait 5 seconds for user to see error
+            if (hasShownError) {
+                Log.d("PluctIngest", "Auto-navigating back after error display")
+                onNavigateBack()
+            }
+        }
+    }
+    
+    // Auto-mark error as shown when any error appears (covers invalid URL case)
+    LaunchedEffect(uiState.error) {
+        if (uiState.error != null && !hasShownError) {
+            hasShownError = true
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -134,6 +197,25 @@ fun IngestScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+            // Show network status if there are connectivity issues
+            if (showNetworkStatus) {
+                NetworkStatusView(
+                    context = context,
+                    onRetry = {
+                        showNetworkStatus = false
+                        // Retry the current operation
+                        if (uiState.state == IngestState.NEEDS_TRANSCRIPT) {
+                            viewModel.resetWebActivityLaunch()
+                        }
+                    },
+                    onManualMode = {
+                        // Launch manual mode - placeholder for future implementation
+                        // viewModel.launchManualMode(url)
+                    },
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+            
             when (uiState.state) {
                 IngestState.PENDING -> {
                     IngestPendingView(url = url)
@@ -144,12 +226,25 @@ fun IngestScreen(
                         url = url,
                         uiState = uiState,
                         onSaveTranscript = { text, language ->
-                            viewModel.saveTranscript(text, language)
+                            viewModel.saveTranscript(text, language, setStateToReady = true)
                         },
                         onLaunchWebTranscript = {
                             launchWebActivity(uiState.videoId, uiState.processedUrl, webTranscriptLauncher)
                         },
                         onNavigateBack = onNavigateBack
+                    )
+                }
+                
+                IngestState.TRANSCRIPT_SUCCESS -> {
+                    TranscriptSuccessView(
+                        uiState = uiState,
+                        onGenerateValueProposition = {
+                            viewModel.generateValueProposition()
+                        },
+                        onNavigateBack = onNavigateBack,
+                        onTryAnotherProvider = {
+                            viewModel.tryAnotherProvider(context)
+                        }
                     )
                 }
                 
@@ -161,11 +256,14 @@ fun IngestScreen(
                 }
             }
             
-            // Error handling
+            // Error handling - always show errors regardless of state
             IngestErrorView(
                 uiState = uiState,
-                onClearError = { viewModel.clearError() },
-                                onRetryWebTranscript = {
+                onClearError = { 
+                    viewModel.clearError()
+                    hasShownError = false
+                },
+                onRetryWebTranscript = {
                     launchWebActivity(uiState.videoId, uiState.processedUrl, webTranscriptLauncher)
                 }
             )

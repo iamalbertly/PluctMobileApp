@@ -8,9 +8,17 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.setContent
 import app.pluct.MainActivity
+import app.pluct.utils.UrlUtils
 import kotlinx.coroutines.*
 import java.net.URL
+import java.util.UUID
 
 /**
  * ShareIngestActivity - Dedicated activity for handling Share intents from other apps.
@@ -26,6 +34,8 @@ class ShareIngestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        Log.d("ShareIngestActivity", "onCreate called")
+        
         // Handle the incoming share intent
         handleShareIntent()
     }
@@ -36,6 +46,10 @@ class ShareIngestActivity : ComponentActivity() {
     }
     
     private fun handleShareIntent() {
+        // Generate runId for this session
+        val runId = UUID.randomUUID().toString()
+        Log.d("ShareIngestActivity", "WV:A:run_id=$runId")
+        
         // Extract URL from multiple possible sources
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
         val clipData = intent.clipData
@@ -58,7 +72,7 @@ class ShareIngestActivity : ComponentActivity() {
         }
         
         // Extract URL from shared text (handle cases where text contains other content)
-        val url = extractUrlFromText(urlText)
+        val url = UrlUtils.extractUrlFromText(urlText)
         Log.d("ShareIngestActivity", "Extracted URL: $url")
         
         if (url == null) {
@@ -68,53 +82,17 @@ class ShareIngestActivity : ComponentActivity() {
             return
         }
         
+        // Accept any valid TikTok URL (non-blank). No strict equality gate.
+        Log.d("ShareIngestActivity", "WV:A:url=$url run=$runId")
+        
         // Process URL before passing to MainActivity (on background thread)
         coroutineScope.launch {
             try {
                 // For script.tokaudit.io, we want to prioritize vm.tiktok.com URLs
                 // If it's already a vm.tiktok.com URL, keep it as-is
                 // For other TikTok URLs, try to convert to vm.tiktok.com format
-                // For non-TikTok URLs, canonicalize as usual
-                val finalUrl = when {
-                    url.contains("vm.tiktok.com") -> {
-                        Log.d("ShareIngestActivity", "Keeping vm.tiktok.com URL as-is for script.tokaudit.io: $url")
-                        url
-                    }
-                    url.contains("tiktok.com/@") -> {
-                        // Try to convert to vm.tiktok.com format
-                        try {
-                            val match = Regex("tiktok\\.com/@[^/]+/video/(\\d+)").find(url)
-                            if (match != null) {
-                                val videoId = match.groupValues[1]
-                                val vmUrl = "https://vm.tiktok.com/ZMA${videoId.substring(0, 6)}/"
-                                Log.d("ShareIngestActivity", "Converted to vm.tiktok.com format: $vmUrl")
-                                vmUrl
-                            } else {
-                                // If conversion fails, use canonicalized URL
-                                val canonicalUrl = withContext(Dispatchers.IO) {
-                                    canonicalizeUrl(url)
-                                }
-                                Log.d("ShareIngestActivity", "Could not convert to vm.tiktok.com, canonicalized: $canonicalUrl")
-                                canonicalUrl
-                            }
-                        } catch (e: Exception) {
-                            Log.e("ShareIngestActivity", "Error converting to vm.tiktok.com format", e)
-                            // Fall back to canonicalization
-                            val canonicalUrl = withContext(Dispatchers.IO) {
-                                canonicalizeUrl(url)
-                            }
-                            Log.d("ShareIngestActivity", "Canonicalized URL after error: $canonicalUrl")
-                            canonicalUrl
-                        }
-                    }
-                    else -> {
-                        val canonicalUrl = withContext(Dispatchers.IO) {
-                            canonicalizeUrl(url)
-                        }
-                        Log.d("ShareIngestActivity", "Canonicalized non-TikTok URL: $canonicalUrl")
-                        canonicalUrl
-                    }
-                }
+                // Process URL using the utility class
+                val finalUrl = UrlProcessingUtils.processUrl(url)
                 
                 // Save URL to clipboard for easy access in WebView
                 try {
@@ -128,12 +106,12 @@ class ShareIngestActivity : ComponentActivity() {
                 
                 // Start MainActivity with the final URL as a deep link parameter
                 val encodedUrl = android.net.Uri.encode(finalUrl, "UTF-8")
-                val deepLinkUri = "pluct://ingest?url=$encodedUrl"
+                val deepLinkUri = "pluct://ingest?url=$encodedUrl&run_id=$runId"
                 Log.d("ShareIngestActivity", "Starting MainActivity with deep link: $deepLinkUri")
-                Log.d("ShareIngestActivity", "Original URL: $finalUrl, Encoded URL: $encodedUrl")
+                Log.d("ShareIngestActivity", "Original URL: $finalUrl, Encoded URL: $encodedUrl, Run ID: $runId")
                 
                 // Show success message
-                Toast.makeText(this@ShareIngestActivity, "Saved link: ${extractHostFromUrl(finalUrl)}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ShareIngestActivity, "Saved link: ${UrlUtils.extractHostFromUrl(finalUrl)}", Toast.LENGTH_SHORT).show()
                  
                  // Use SINGLE_TOP and CLEAR_TOP to prevent double launch
                  val mainIntent = Intent(this@ShareIngestActivity, MainActivity::class.java).apply {
@@ -141,6 +119,10 @@ class ShareIngestActivity : ComponentActivity() {
                      data = android.net.Uri.parse(deepLinkUri)
                      flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                      addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Prevent animation for smoother transition
+                     
+                     // Persist both videoUrl and runId into intent extras
+                     putExtra("tok_url", finalUrl)
+                     putExtra("run_id", runId)
                  }
                  
                  android.util.Log.d("ShareIngestActivity", "Starting MainActivity with flags: ${mainIntent.flags}, deepLink: $deepLinkUri")
@@ -160,103 +142,7 @@ class ShareIngestActivity : ComponentActivity() {
         }
     }
     
-    private fun extractUrlFromText(text: String): String? {
-        // Enhanced URL extraction - look for URLs in the text
-        val urlPattern = Regex("https?://[^\\s]+")
-        val match = urlPattern.find(text)
-        
-        return match?.value?.let { url ->
-            try {
-                // Validate URL format
-                URL(url)
-                
-                // Check if it's a supported platform
-                when {
-                    url.contains("tiktok.com") || url.contains("vm.tiktok.com") -> {
-                        Log.d("ShareIngestActivity", "Supported TikTok URL detected: $url")
-                        url
-                    }
-                    url.contains("youtube.com") || url.contains("youtu.be") -> {
-                        Log.d("ShareIngestActivity", "Supported YouTube URL detected: $url")
-                        url
-                    }
-                    url.contains("instagram.com") -> {
-                        Log.d("ShareIngestActivity", "Supported Instagram URL detected: $url")
-                        url
-                    }
-                    url.contains("twitter.com") || url.contains("x.com") -> {
-                        Log.d("ShareIngestActivity", "Supported Twitter/X URL detected: $url")
-                        url
-                    }
-                    else -> {
-                        Log.w("ShareIngestActivity", "Unsupported URL format detected: $url")
-                        Log.w("ShareIngestActivity", "This URL format needs developer attention for future support")
-                        // Still return the URL for now, but log it for future development
-                        url
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("ShareIngestActivity", "Invalid URL format: $url", e)
-                null
-            }
-        }
-    }
+    // No blocking dialog for URL equality; any TikTok URL proceeds
     
-    private fun canonicalizeUrl(url: String): String {
-        return try {
-            Log.d("ShareIngestActivity", "Starting URL canonicalization for: $url")
-            
-            // Try HEAD request first
-            val connection = URL(url).openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "HEAD"
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36")
-            connection.setInstanceFollowRedirects(true)
-            connection.connectTimeout = 3000
-            connection.readTimeout = 3000
-            
-            val responseCode = connection.responseCode
-            val finalUrl = connection.url.toString()
-            
-            Log.d("ShareIngestActivity", "HEAD response: $responseCode, final URL: $finalUrl")
-            
-            if (responseCode in 200..299) {
-                Log.d("ShareIngestActivity", "Successfully canonicalized URL to: $finalUrl")
-                finalUrl
-            } else {
-                // Fallback to GET if HEAD fails
-                Log.d("ShareIngestActivity", "HEAD failed, trying GET")
-                val getConnection = URL(url).openConnection() as java.net.HttpURLConnection
-                getConnection.requestMethod = "GET"
-                getConnection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36")
-                getConnection.setInstanceFollowRedirects(true)
-                getConnection.connectTimeout = 3000
-                getConnection.readTimeout = 3000
-                
-                val getResponseCode = getConnection.responseCode
-                val getFinalUrl = getConnection.url.toString()
-                
-                Log.d("ShareIngestActivity", "GET response: $getResponseCode, final URL: $getFinalUrl")
-                
-                if (getResponseCode in 200..299) {
-                    Log.d("ShareIngestActivity", "Successfully canonicalized URL to: $getFinalUrl")
-                    getFinalUrl
-                } else {
-                    Log.w("ShareIngestActivity", "Both HEAD and GET failed, keeping original URL")
-                    url // Keep original if both fail
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("ShareIngestActivity", "URL canonicalization failed: ${e.message ?: "Unknown error"}", e)
-            url // Keep original URL on error
-        }
-    }
-    
-    private fun extractHostFromUrl(url: String): String {
-        return try {
-            val uri = URL(url)
-            uri.host
-        } catch (e: Exception) {
-            url
-        }
-    }
+    // URL processing methods have been moved to UrlProcessingUtils
 }
