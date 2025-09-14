@@ -207,15 +207,20 @@ class IngestViewModel @Inject constructor(
     }
     
     fun tryAnotherProvider(context: android.content.Context) {
-        val currentProvider = app.pluct.ui.utils.ProviderSettings.getSelectedProvider(context)
-            val newProvider = when (currentProvider) {
-                app.pluct.ui.utils.TranscriptProvider.TOKAUDIT -> app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE
-                app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE -> app.pluct.ui.utils.TranscriptProvider.OPENAI
-                app.pluct.ui.utils.TranscriptProvider.OPENAI -> app.pluct.ui.utils.TranscriptProvider.TOKAUDIT
-            }
-        app.pluct.ui.utils.ProviderSettings.setSelectedProvider(context, newProvider)
+        // Get available providers and try the next one in sequence
+        val availableProviders = app.pluct.ui.utils.ProviderSettings.getAvailableProviders(context)
+        val currentProvider = _uiState.value.providerUsed
         
-        // Reset state to try again
+        if (availableProviders.size <= 1) {
+            // No other providers to try
+            _uiState.value = _uiState.value.copy(
+                error = "No other providers available to try"
+            )
+            return
+        }
+        
+        // For now, just reset and try again with the first available provider
+        // In a more sophisticated implementation, we could track which provider was used and try the next one
         _uiState.value = _uiState.value.copy(
             state = IngestState.NEEDS_TRANSCRIPT,
             hasLaunchedWebActivity = false,

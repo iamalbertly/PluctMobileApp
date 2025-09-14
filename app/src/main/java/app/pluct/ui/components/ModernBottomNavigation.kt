@@ -1,5 +1,6 @@
 package app.pluct.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -50,16 +51,17 @@ fun ModernBottomNavigation(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -100,29 +102,42 @@ private fun NavigationButton(
     ) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier
+                .size(56.dp)
+                .then(
+                    if (isSelected) {
+                        Modifier.background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            MaterialTheme.shapes.medium
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.description,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(28.dp),
                 tint = if (isSelected) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 }
             )
         }
         
+        Spacer(modifier = Modifier.height(4.dp))
+        
         Text(
             text = item.label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             color = if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             },
-            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }

@@ -36,19 +36,13 @@ import app.pluct.ui.utils.TranscriptProvider
 @Composable
 fun SettingsScreen(navController: NavController) {
     val context = LocalContext.current
-    var selectedProvider by remember { mutableStateOf(ProviderSettings.getSelectedProvider(context)) }
-    var tokauditApiKey by remember { mutableStateOf(ProviderSettings.getApiKey(context, TranscriptProvider.TOKAUDIT) ?: "") }
-    var getTranscribeApiKey by remember { mutableStateOf(ProviderSettings.getApiKey(context, TranscriptProvider.GETTRANSCRIBE) ?: "") }
     var openaiApiKey by remember { mutableStateOf(ProviderSettings.getApiKey(context, TranscriptProvider.OPENAI) ?: "") }
     var tokauditEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.TOKAUDIT)) }
     var getTranscribeEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.GETTRANSCRIBE)) }
     var openaiEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.OPENAI)) }
     var showOpenAiApiKeyDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(selectedProvider, tokauditApiKey, getTranscribeApiKey, openaiApiKey, tokauditEnabled, getTranscribeEnabled, openaiEnabled) {
-        ProviderSettings.setSelectedProvider(context, selectedProvider)
-        ProviderSettings.setApiKey(context, TranscriptProvider.TOKAUDIT, tokauditApiKey.ifBlank { null })
-        ProviderSettings.setApiKey(context, TranscriptProvider.GETTRANSCRIBE, getTranscribeApiKey.ifBlank { null })
+    LaunchedEffect(openaiApiKey, tokauditEnabled, getTranscribeEnabled, openaiEnabled) {
         ProviderSettings.setApiKey(context, TranscriptProvider.OPENAI, openaiApiKey.ifBlank { null })
         ProviderSettings.setProviderEnabled(context, TranscriptProvider.TOKAUDIT, tokauditEnabled)
         ProviderSettings.setProviderEnabled(context, TranscriptProvider.GETTRANSCRIBE, getTranscribeEnabled)
@@ -92,7 +86,7 @@ fun SettingsScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Choose which services to use for transcript extraction",
+                        text = "Enable services in order of preference (app will try them in sequence)",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -133,109 +127,38 @@ fun SettingsScreen(navController: NavController) {
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Default Provider Selection
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "⚙️ Default Provider",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+            // OpenAI API Key Section (only when OpenAI is enabled)
+            if (openaiEnabled) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Select your preferred transcription service",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    if (tokauditEnabled) {
-                        ProviderRadioItem(
-                            name = "TokAudit.io",
-                            selected = selectedProvider == TranscriptProvider.TOKAUDIT,
-                            onClick = { selectedProvider = TranscriptProvider.TOKAUDIT }
-                        )
-                    }
-                    
-                    if (getTranscribeEnabled) {
-                        ProviderRadioItem(
-                            name = "GetTranscribe.ai",
-                            selected = selectedProvider == TranscriptProvider.GETTRANSCRIBE,
-                            onClick = { selectedProvider = TranscriptProvider.GETTRANSCRIBE }
-                        )
-                    }
-                    
-                    if (openaiEnabled) {
-                        ProviderRadioItem(
-                            name = "OpenAI",
-                            selected = selectedProvider == TranscriptProvider.OPENAI,
-                            onClick = { selectedProvider = TranscriptProvider.OPENAI }
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // API Keys Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "🔑 API Keys",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Optional: Add API keys for enhanced features",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    if (tokauditEnabled) {
-                        OutlinedTextField(
-                            value = tokauditApiKey,
-                            onValueChange = { tokauditApiKey = it },
-                            label = { Text("TokAudit API Key") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = tokauditEnabled
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "🔑 OpenAI API Key",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    
-                    if (getTranscribeEnabled) {
-                        OutlinedTextField(
-                            value = getTranscribeApiKey,
-                            onValueChange = { getTranscribeApiKey = it },
-                            label = { Text("GetTranscribe API Key") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = getTranscribeEnabled
+                        Text(
+                            text = "Required for OpenAI transcription service",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    
-                    if (openaiEnabled) {
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
                         OutlinedTextField(
                             value = openaiApiKey,
                             onValueChange = { openaiApiKey = it },
                             label = { Text("OpenAI API Key") },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = openaiEnabled
+                            enabled = openaiEnabled,
+                            placeholder = { Text("sk-...") }
                         )
                     }
                 }
@@ -304,29 +227,6 @@ private fun ProviderToggleItem(
         Switch(
             checked = enabled,
             onCheckedChange = onToggle
-        )
-    }
-}
-
-@Composable
-private fun ProviderRadioItem(
-    name: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = onClick
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
         )
     }
 }

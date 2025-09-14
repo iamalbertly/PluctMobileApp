@@ -58,8 +58,7 @@ object WebViewUtils {
             // Add JavaScript bridge
             webView.addJavascriptInterface(JavaScriptBridge(onTranscriptReceived, onError), "AndroidBridge")
             
-            // Load selected provider (only if enabled)
-            val provider = ProviderSettings.getSelectedProvider(webView.context)
+            // Load first available provider (in order of preference)
             val availableProviders = ProviderSettings.getAvailableProviders(webView.context)
             
             if (availableProviders.isEmpty()) {
@@ -68,11 +67,7 @@ object WebViewUtils {
                 return
             }
             
-            val selectedProvider = if (availableProviders.contains(provider)) {
-                provider
-            } else {
-                availableProviders.first()
-            }
+            val selectedProvider = availableProviders.first()
             
             val baseUrl = when (selectedProvider) {
                 TranscriptProvider.TOKAUDIT -> "https://script.tokaudit.io/"
