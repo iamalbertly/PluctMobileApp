@@ -184,7 +184,10 @@ fun IngestScreen(
             TopAppBar(
                 title = { Text("Process Video") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        Log.d("IngestScreen", "Back button clicked - navigating back")
+                        onNavigateBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }

@@ -107,75 +107,6 @@ Pluct is a professional video-to-data pipeline designed for AI builders, researc
 ## Automation Testing Framework
 
 The project includes a comprehensive modular test framework designed for easy maintenance and extension.
-
-### Test Structure
-```
-ClipForge/
-├── master_test.ps1                # Main test runner
-├── Master_test_common.ps1         # Common functions and utilities
-├── Master_test_clipboard.ps1      # Clipboard functionality tests
-├── Master_test_webview.ps1        # WebView automation tests
-├── Master_test_transcript.ps1     # Transcript generation tests
-├── Master_test_error.ps1          # Error handling tests
-```
-
-### Usage Examples
-```powershell
-# Run all tests with default settings
-.\master_test.ps1
-
-# Skip build and installation
-.\master_test.ps1 -SkipBuild
-
-# Run only clipboard tests
-.\master_test.ps1 -ClipboardOnly
-
-# Run only WebView tests
-.\master_test.ps1 -WebViewOnly
-
-# Run only transcript tests
-.\master_test.ps1 -TranscriptOnly
-
-# Run only error handling tests
-.\master_test.ps1 -ErrorOnly
-
-# Specify a custom test URL
-.\master_test.ps1 -TestUrl "https://vm.tiktok.com/your-custom-url/"
-
-# Set custom timeout
-.\master_test.ps1 -TimeoutSeconds 300
-
-# Run multiple reliability tests
-.\master_test.ps1 -TestRuns 5
-```
-
-## Playwright Automation
-
-The project includes Playwright tests for comprehensive web automation testing of the ScriptTokAudit.io integration.
-
-### Key Features
-- **Automatic modal closing** - Closes any popups or modals that might interfere
-- **Smart URL handling** - Normalizes TikTok URLs for optimal processing
-- **Robust input filling** - Reliably fills the URL input field
-- **Intelligent result monitoring** - Waits for and detects transcript results
-- **Comprehensive error handling** - Handles various error scenarios gracefully
-- **Processing indicators** - Shows loading state during automation
-
-### Running Playwright Tests
-```bash
-# Install Playwright
-npm install -g playwright
-
-# Run the complete workflow test
-npx playwright test scripttokaudit_complete_workflow.spec.ts
-
-# Run with UI mode for debugging
-npx playwright test scripttokaudit_complete_workflow.spec.ts --ui
-
-# Run with headed browser
-npx playwright test scripttokaudit_complete_workflow.spec.ts --headed
-```
-
 ## Project Architecture
 
 ### Design Decisions
@@ -250,13 +181,7 @@ ClipForge/
 - Professional branding and copy
 - Performance optimization
 
-## Success Metrics
 
-- **Quantitative Goals**:
-  - Median time-to-value: < 20 seconds
-  - Pilot deal conversion rate: 8-15%
-  - Week-four retention rate: > 35%
-- **Ultimate Proof Point**: Users requesting API keys/webhooks for automation integration
 
 ## Troubleshooting
 
@@ -270,22 +195,6 @@ ClipForge/
 2. **Navigation not working**: Verify Compose Navigation dependencies are included
 3. **Theme not applying**: Check Material3 theme implementation
 
-### Test Issues
-1. **Test fails with "No device connected"**: Ensure an Android device is connected and visible to ADB
-2. **Build failures**: Run `./gradlew clean` before building
-3. **Timeout errors**: Increase the timeout value with `-TimeoutSeconds`
-4. **Script errors**: Make sure all module files are in the same directory
-
-## Build Status
-
-- **Project Structure**: ✅ Complete
-- **Basic Compilation**: ✅ Success
-- **APK Generation**: ✅ Success (APK created)
-- **Full Compilation**: ✅ Success (migrated from KAPT to KSP)
-- **Device Testing**: ✅ **SUCCESSFUL** - App installed and running on connected device
-- **App Launch**: ✅ **WORKING** - MainActivity launches correctly, app in focus
-- **Package Info**: ✅ Version 1.0, Code 1, MinSDK 26, TargetSDK 34
-- **Automated Testing**: ✅ All tests pass successfully
 
 ## License
 

@@ -5,7 +5,7 @@ import android.webkit.WebView
 import org.json.JSONObject
 
 /**
- * Simplified WebView script injection utilities
+ * WebView script injection utilities with proper tokaudit flow
  */
 object WebViewScripts {
     private const val TAG = "WebViewScripts"
@@ -23,6 +23,7 @@ object WebViewScripts {
             RunRingBuffer.addLog(runId, "INFO", "injecting_script url=$videoUrl", "WV")
             
             val script = buildAutomationScript(videoUrl, runId)
+            Log.d(TAG, "WV:A:script_built length=${script.length} run=$runId")
             
             webView.evaluateJavascript(script) { result ->
                 Log.d(TAG, "WV:A:script_injected result=$result run=$runId")
@@ -35,7 +36,7 @@ object WebViewScripts {
     }
     
     /**
-     * Build comprehensive automation script
+     * Build proper tokaudit automation script
      */
     private fun buildAutomationScript(videoUrl: String, runId: String): String {
         val escapedUrl = JSONObject.quote(videoUrl)
@@ -44,550 +45,740 @@ object WebViewScripts {
             (function() {
                 const RUN_ID = '$runId';
                 const TARGET_URL = $escapedUrl;
-                const PROVIDER = (function(){
-                  try { return (window.location.hostname||'').toLowerCase(); } catch(e){ return ''; }
-                })();
+                let automationState = 'INIT';
+                let isCompleted = false;
+                let retryCount = 0;
+                const MAX_RETRIES = 3;
                 
-                // Console proxy to ensure errors/warnings reach Android
+                // Console proxy
                 (function(){
                     try {
                         const _log = console.log.bind(console);
-                        const _warn = console.warn.bind(console);
                         const _error = console.error.bind(console);
-                        const _debug = console.debug ? console.debug.bind(console) : _log;
                         console.log = function(){
                             try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('L:' + Array.from(arguments).join(' ')); } catch(_){}
                             return _log.apply(null, arguments);
-                        };
-                        console.warn = function(){
-                            try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('W:' + Array.from(arguments).join(' ')); } catch(_){}
-                            return _warn.apply(null, arguments);
                         };
                         console.error = function(){
                             try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('E:' + Array.from(arguments).join(' ')); } catch(_){}
                             return _error.apply(null, arguments);
                         };
-                        console.debug = function(){
-                            try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('D:' + Array.from(arguments).join(' ')); } catch(_){}
-                            return _debug.apply(null, arguments);
-                        };
-                        window.addEventListener('error', function(ev){
-                            try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('E:window_error ' + (ev.message||'') + ' at ' + (ev.filename||'') + ':' + (ev.lineno||'') ); } catch(_){}
-                        });
-                        window.addEventListener('unhandledrejection', function(ev){
-                            try { if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('E:unhandled_rejection ' + (ev.reason && (ev.reason.stack||ev.reason.message||ev.reason.toString())) ); } catch(_){}
-                        });
                     } catch(_){}
                 })();
 
                 function log(message) {
                     try {
-                        console.log('WV:J:' + message + ' run=' + RUN_ID);
+                        console.log('WV:J:' + message + ' run=' + RUN_ID + ' state=' + automationState);
                         if (window.AndroidBridge && window.AndroidBridge.onLogMessage) window.AndroidBridge.onLogMessage('I:' + message);
                     } catch (e) {
                         console.error('Log error:', e);
                     }
                 }
                 
-                // Early validation
-                if (!TARGET_URL || TARGET_URL.trim() === '') {
-                    log('fatal_blank_url');
+                function setState(newState) {
+                    automationState = newState;
+                    log('state_change_to=' + newState);
+                }
+                
+                function completeAutomation() {
+                    if (isCompleted) return;
+                    isCompleted = true;
+                    setState('COMPLETED');
+                    log('automation_completed');
+                }
+                
+                function failAutomation(error) {
+                    if (isCompleted) return;
+                    isCompleted = true;
+                    setState('FAILED');
+                    log('automation_failed error=' + error);
                     try {
-                        window.AndroidBridge.onError('blank_url');
+                        window.AndroidBridge.onError(error);
                     } catch (e) {
                         log('bridge_error: ' + e.message);
                     }
+                }
+                
+                // Early validation
+                if (!TARGET_URL || TARGET_URL.trim() === '') {
+                    log('fatal_blank_url');
+                    failAutomation('blank_url');
                     return;
                 }
                 
                 log('url=' + TARGET_URL);
                 
-                // Domain and readiness guard
-                function checkDomainAndReady() {
+                // Check if we're on the right domain
+                function checkDomain() {
                     if (location.href === 'about:blank') {
                         log('about_blank_wait');
-                        setTimeout(checkDomainAndReady, 250);
+                        setTimeout(checkDomain, 250);
                         return;
                     }
                     
                     const isTokAudit = location.hostname.endsWith('tokaudit.io');
                     const isGetTranscribe = location.hostname.includes('gettranscribe.ai');
+                    
                     if (!(isTokAudit || isGetTranscribe)) {
                         log('wrong-domain host=' + location.hostname);
-                        setTimeout(checkDomainAndReady, 500);
+                        setTimeout(checkDomain, 500);
                         return;
                     }
                     
                     if (document.readyState !== 'complete') {
                         log('wait_for_ready');
-                        window.addEventListener('load', checkDomainAndReady, { once: true });
+                        window.addEventListener('load', checkDomain, { once: true });
                         return;
                     }
                     
-                    // Ready to proceed
                     log('page_ready');
-                    if (location.hostname.endsWith('tokaudit.io')) startTokAudit();
-                    else startGetTranscribe();
+                    setState('READY');
+                    
+                    if (isTokAudit) {
+                        startTokAuditFlow();
+                    } else {
+                        startGetTranscribeFlow();
+                    }
                 }
                 
-                function startTokAudit() {
-                    try {
-                        // Dismiss modals
-                        dismissModals();
-                        
-                        // Find and fill input
-                        const input = findInput();
-                        if (input) {
-                            log('input_found sel=' + input.tagName.toLowerCase());
-                            fillInput(input);
-                        } else {
-                            log('input_not_found');
-                            window.AndroidBridge.onError('input_not_found');
-                        return;
+                // Global input focus keeper to prevent controlled input reset
+                let inputFocusKeeper = null;
+                
+                function startInputFocusKeeper(inputElement, targetValue) {
+                    if (inputFocusKeeper) {
+                        clearInterval(inputFocusKeeper);
                     }
                     
-                        // Submit form
-                        submitForm();
-                        
-                        // Monitor results
-                        monitorTokAuditResults();
-                        
-                    } catch (e) {
-                        log('automation_failed msg=' + e.message);
-                        window.AndroidBridge.onError('automation_failed');
-                    }
-                }
-
-                function startGetTranscribe() {
-                    try {
-                        log('gt:start');
-                        // Simple flow: ensure page ready, attempt to paste URL if input exists, then observe transcript area
-                        const input = document.querySelector('input[type="url"], input[placeholder*="url" i], textarea');
-                        if (input) {
-                            const d = Object.getOwnPropertyDescriptor(input.__proto__, 'value');
-                            if (d && d.set) { d.set.call(input, TARGET_URL); input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); }
-                            log('gt:input_set');
-                            // Try submit: prefer the green "Get Transcript" button; fallback to Enter
-                            const btns = Array.from(document.querySelectorAll('button, [role="button"], a[role="button"]'));
-                            const submitBtn = btns.find(b=>/\bget\s*transcript\b/i.test((b.textContent||'').trim()))
-                                  || btns.find(b=>/(transcribe|start|submit|analyze)/i.test((b.textContent||'').trim()));
-                            if (submitBtn) {
-                                try { submitBtn.scrollIntoView({block:'center'}); } catch(e){}
-                                try { submitBtn.click(); log('gt:submit_clicked'); } catch(e){ log('gt:submit_click_failed ' + e.message); }
+                    inputFocusKeeper = setInterval(() => {
+                        try {
+                            // Only maintain if we're still in the input phase
+                            if (currentState === 'INPUT_FILLING' || currentState === 'INPUT_FILLED' || currentState === 'START_CLICKED') {
+                                if (inputElement && inputElement.value !== targetValue) {
+                                    log('tokaudit_input_value_reset_detected, restoring');
+                                    inputElement.value = targetValue;
+                                    inputElement.dispatchEvent(new Event('input', { 
+                                        bubbles: true, 
+                                        inputType: 'insertText',
+                                        data: targetValue
+                                    }));
+                                    
+                                    // Keep it focused
+                                    if (document.activeElement !== inputElement) {
+                                        inputElement.focus();
+                                    }
+                                }
                             } else {
-                                input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); log('gt:enter_fired');
+                                // Stop maintaining when we move to other phases
+                                clearInterval(inputFocusKeeper);
+                                inputFocusKeeper = null;
                             }
+                        } catch (e) {
+                            log('input_focus_keeper_error: ' + e.message);
                         }
-                        monitorGetTranscribeResults();
-                            } catch (e) {
-                        log('gt:failed msg=' + e.message);
-                        window.AndroidBridge.onError('automation_failed');
-                    }
+                    }, 100); // Check every 100ms
                 }
                 
-                function dismissModals() {
-                    const closeSelectors = [
-                        'button[aria-label*="close" i]',
-                        'button[aria-label*="dismiss" i]',
-                        '.close',
-                        '.modal-close',
-                        '[data-dismiss="modal"]'
-                    ];
-                    
-                    for (const selector of closeSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element && element.offsetParent !== null) {
-                            element.click();
-                            log('modal_dismissed');
+                function startTokAuditFlow() {
+                    try {
+                        setState('TOKAUDIT_START');
+                        log('tokaudit_flow_started');
+                        
+                        // Step 1: Find and fill input field
+                        const input = findTokAuditInput();
+                        if (!input) {
+                            log('tokaudit_input_not_found');
+                            failAutomation('input_not_found');
                             return;
                         }
+                        
+                        log('tokaudit_input_found');
+                        setState('INPUT_FILLING');
+                        
+                        // Fill input with URL
+                        if (!fillTokAuditInput(input)) {
+                            log('tokaudit_input_fill_failed');
+                            failAutomation('input_fill_failed');
+                            return;
+                        }
+                        
+                        log('tokaudit_input_filled');
+                        setState('INPUT_FILLED');
+                        
+                        // Step 2: Click START button
+                        setTimeout(() => {
+                            if (!clickStartButton()) {
+                                log('tokaudit_start_button_not_found');
+                                failAutomation('start_button_not_found');
+                                return;
+                            }
+                            
+                            log('tokaudit_start_clicked');
+                            setState('START_CLICKED');
+                            
+                            // Step 3: Monitor for results
+                            monitorTokAuditResults();
+                        }, 1000);
+                        
+                    } catch (e) {
+                        log('tokaudit_flow_error: ' + e.message);
+                        failAutomation('flow_error');
                     }
-                    
-                    log('no_modal');
                 }
                 
-                    function findInput() {
-                        const selectors = [
-                            'textarea[placeholder*="Video" i]',
-                            'input[type="url"]',
+                function findTokAuditInput() {
+                    const selectors = [
+                        'textarea[placeholder*="Video" i]',
+                        'input[type="url"]',
                         'input[placeholder*="url" i]',
-                            'input[placeholder*="link" i]',
-                        'input[placeholder*="tiktok" i]'
+                        'input[placeholder*="link" i]',
+                        'input[placeholder*="tiktok" i]',
+                        'textarea',
+                        'input[type="text"]'
+                    ];
+                    
+                    for (const selector of selectors) {
+                        const element = document.querySelector(selector);
+                        if (element && element.offsetParent !== null) {
+                            return element;
+                        }
+                    }
+                    return null;
+                }
+                
+                function fillTokAuditInput(input) {
+                    try {
+                        log('tokaudit_input_filling_started');
+                        
+                        // Use native setter with proper event dispatching
+                        function nativeSet(element, value) {
+                            try {
+                                // Get the native value setter
+                                const proto = Object.getPrototypeOf(element);
+                                const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+                                
+                                if (desc && desc.set) {
+                                    // Use the native setter
+                                    desc.set.call(element, value);
+                                    log('tokaudit_native_setter_used');
+                                } else {
+                                    // Fallback to direct assignment
+                                    element.value = value;
+                                    log('tokaudit_direct_assignment_used');
+                                }
+                                
+                                // Dispatch events that frameworks listen for
+                                element.dispatchEvent(new Event('input', { bubbles: true }));
+                                element.dispatchEvent(new Event('change', { bubbles: true }));
+                                
+                                log('tokaudit_events_dispatched');
+                                return true;
+                            } catch (e) {
+                                log('tokaudit_native_set_error: ' + e.message);
+                                return false;
+                            }
+                        }
+                        
+                        // Focus the input first
+                        input.focus();
+                        input.click();
+                        
+                        // Set the value using native setter
+                        if (nativeSet(input, TARGET_URL)) {
+                            log('tokaudit_input_value_set_success');
+                            
+                            // Verify the value was set
+                            setTimeout(() => {
+                                if (input.value === TARGET_URL) {
+                                    log('tokaudit_input_value_verified');
+                                } else {
+                                    log('tokaudit_input_value_not_set value=' + input.value);
+                                }
+                            }, 100);
+                            
+                            return true;
+                        } else {
+                            log('tokaudit_input_value_set_failed');
+                            return false;
+                        }
+                        
+                    } catch (e) {
+                        log('tokaudit_input_fill_error: ' + e.message);
+                        return false;
+                    }
+                }
+                
+                function clickStartButton() {
+                    // Prefer submit buttons over generic buttons
+                    const buttonSelectors = [
+                        'button[type="submit"]',
+                        'button[aria-label*="submit" i]',
+                        'button[aria-label*="search" i]',
+                        'button[aria-label*="start" i]',
+                        'button[aria-label*="analyze" i]'
+                    ];
+                    
+                    // Try specific selectors first
+                    for (const selector of buttonSelectors) {
+                        try {
+                            const button = document.querySelector(selector);
+                            if (button && button.offsetParent !== null) {
+                                button.scrollIntoView({ block: 'center' });
+                                button.focus();
+                                button.click();
+                                log('tokaudit_submit_button_clicked selector=' + selector);
+                                return true;
+                            }
+                        } catch (e) {
+                            log('tokaudit_button_selector_error selector=' + selector + ' error=' + e.message);
+                        }
+                    }
+                    
+                    // Fallback: find button by text content
+                    const buttons = Array.from(document.querySelectorAll('button'));
+                    const startButton = buttons.find(btn => 
+                        /(start|analyze|check|go|submit|get transcript)/i.test(btn.textContent || '')
+                    );
+                    
+                    if (startButton && startButton.offsetParent !== null) {
+                        startButton.scrollIntoView({ block: 'center' });
+                        startButton.focus();
+                        startButton.click();
+                        log('tokaudit_text_button_clicked');
+                        return true;
+                    }
+                    
+                    // Final fallback: try Enter key on input
+                    log('tokaudit_no_submit_button_found_trying_enter');
+                    const input = findTokAuditInput();
+                    if (input) {
+                        const evOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
+                        input.dispatchEvent(new KeyboardEvent('keydown', evOpts));
+                        input.dispatchEvent(new KeyboardEvent('keyup', evOpts));
+                        log('tokaudit_enter_key_fired');
+                        return true;
+                    }
+                    
+                    return false;
+                }
+                
+                function monitorTokAuditResults() {
+                    setState('MONITORING');
+                    log('tokaudit_monitoring_started');
+                    
+                    let checkCount = 0;
+                    const maxChecks = 120; // 120 seconds (2 minutes) for processing
+                    let processingAnimationSeen = false;
+                    let processingAnimationCleared = false;
+                    let transcriptFound = false;
+                    let errorFound = false;
+                    
+                    function checkForResults() {
+                        if (transcriptFound || errorFound || isCompleted) return;
+                        checkCount++;
+                        
+                        log('tokaudit_check_attempt=' + checkCount);
+                        
+                        const bodyText = document.body.textContent || '';
+                        
+                        // Step 1: Check for "Getting Video Info..." animation
+                        if (!processingAnimationSeen) {
+                            if (/Getting Video Info/i.test(bodyText) || /Processing/i.test(bodyText) || /Loading/i.test(bodyText)) {
+                                processingAnimationSeen = true;
+                                log('tokaudit_processing_animation_detected');
+                                setState('PROCESSING_ANIMATION');
+                            }
+                        }
+                        
+                        // Step 2: Wait for processing animation to clear
+                        if (processingAnimationSeen && !processingAnimationCleared) {
+                            if (!(/Getting Video Info/i.test(bodyText) || /Processing/i.test(bodyText) || /Loading/i.test(bodyText))) {
+                                processingAnimationCleared = true;
+                                log('tokaudit_processing_animation_cleared');
+                                setState('PROCESSING_COMPLETE');
+                            } else {
+                                log('tokaudit_still_processing');
+                                setTimeout(checkForResults, 1000);
+                                return;
+                            }
+                        }
+                        
+                        // Step 3: Only check for results after processing animation is cleared
+                        if (!processingAnimationCleared) {
+                            setTimeout(checkForResults, 1000);
+                            return;
+                        }
+                        
+                        // Step 4: Check for error messages
+                        if (/No valid TikTok data found for this link/i.test(bodyText)) {
+                            log('tokaudit_error_invalid_data');
+                            errorFound = true;
+                            failAutomation('invalid_data');
+                            return;
+                        }
+                        
+                        if (/Invalid URL/i.test(bodyText)) {
+                            log('tokaudit_error_invalid_url');
+                            errorFound = true;
+                            failAutomation('invalid_url');
+                            return;
+                        }
+                        
+                        if (/Subtitles Not Available/i.test(bodyText)) {
+                            log('tokaudit_error_no_subtitles');
+                            errorFound = true;
+                            failAutomation('no_subtitles');
+                            return;
+                        }
+                        
+                        // Step 5: Check for COPY button (indicates transcript is ready)
+                        const copyButton = findCopyButton();
+                        if (copyButton && copyButton.offsetParent !== null) {
+                            log('tokaudit_copy_button_found');
+                            setState('COPY_BUTTON_FOUND');
+                            
+                            // Find the transcript text near the copy button
+                            const transcriptText = findTranscriptNearCopyButton(copyButton);
+                            if (transcriptText && isValidTranscript(transcriptText)) {
+                                log('tokaudit_transcript_found len=' + transcriptText.length);
+                                transcriptFound = true;
+                                setState('TRANSCRIPT_FOUND');
+                                
+                                // Click the COPY button
+                                if (clickCopyButton()) {
+                                    log('tokaudit_copy_button_clicked_successfully');
+                                    // Copy transcript to bridge
+                                    copyTranscript(transcriptText);
+                                    return;
+                                } else {
+                                    log('tokaudit_copy_button_click_failed');
+                                    // Still try to copy the transcript
+                                    copyTranscript(transcriptText);
+                                    return;
+                                }
+                            } else {
+                                log('tokaudit_no_valid_transcript_near_copy_button');
+                            }
+                        }
+                        
+                        // Step 6: Check for transcript content in various elements
+                        const transcriptText = findTranscriptInPage();
+                        if (transcriptText && isValidTranscript(transcriptText)) {
+                            log('tokaudit_transcript_found_in_page len=' + transcriptText.length);
+                            transcriptFound = true;
+                            setState('TRANSCRIPT_FOUND');
+                            
+                            // Try to click COPY button if available
+                            clickCopyButton();
+                            
+                            // Copy transcript to bridge
+                            copyTranscript(transcriptText);
+                            return;
+                        }
+                        
+                        // Continue monitoring
+                        if (checkCount < maxChecks) {
+                            setTimeout(checkForResults, 1000);
+                        } else {
+                            log('tokaudit_timeout_after_checks=' + checkCount);
+                            failAutomation('timeout');
+                        }
+                    }
+                    
+                    // Start checking after a delay
+                    setTimeout(checkForResults, 3000);
+                }
+                
+                function findCopyButton() {
+                    try {
+                        // Strategy 1: Look for buttons with copy-related classes
+                        const classSelectors = [
+                            'button[class*="copy"]',
+                            'button[class*="Copy"]', 
+                            'button[class*="COPY"]',
+                            '[role="button"][class*="copy"]',
+                            'div[class*="copy"]'
                         ];
                         
-                        for (const selector of selectors) {
-                                const element = document.querySelector(selector);
-                                if (element && element.offsetParent !== null) {
-                                    return element;
+                        for (const selector of classSelectors) {
+                            const copyButton = document.querySelector(selector);
+                            if (copyButton && copyButton.offsetParent !== null) {
+                                return copyButton;
+                            }
+                        }
+                        
+                        // Strategy 2: Look for buttons with copy text content
+                        const buttons = document.querySelectorAll('button, [role="button"], div[onclick]');
+                        for (const btn of buttons) {
+                            if (btn.textContent && btn.textContent.toLowerCase().includes('copy')) {
+                                return btn;
+                            }
+                        }
+                        
+                        // Strategy 3: Look for common copy button patterns
+                        const commonSelectors = [
+                            'button[aria-label*="copy" i]',
+                            'button[title*="copy" i]',
+                            '[data-testid*="copy"]',
+                            '[data-cy*="copy"]'
+                        ];
+                        
+                        for (const selector of commonSelectors) {
+                            const copyButton = document.querySelector(selector);
+                            if (copyButton && copyButton.offsetParent !== null) {
+                                return copyButton;
                             }
                         }
                         
                         return null;
-                    }
-                    
-                function fillInput(input) {
-                    const descriptor = Object.getOwnPropertyDescriptor(input.__proto__, 'value');
-                                if (descriptor && descriptor.set) {
-                        descriptor.set.call(input, TARGET_URL);
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        
-                        // Verify value
-                                setTimeout(() => {
-                            input.focus();
-                                    setTimeout(() => {
-                                input.blur();
-                                            setTimeout(() => {
-                                    input.focus();
-                                    if (input.value === TARGET_URL) {
-                                        log('value_verified');
-                                                setTimeout(() => {
-                                            log('pre_submit_wait');
-                                        }, 700);
-                                    } else {
-                                        log('value_reset');
-                                        fillInput(input); // Retry
-                                                                        }
-                                                                    }, 100);
-                                    }, 100);
-                        }, 500);
+                    } catch (e) {
+                        log('find_copy_button_error: ' + e.message);
+                        return null;
                     }
                 }
                 
-                function submitForm() {
-                        const buttonSelectors = [
-                        'button:contains("Start")',
-                        'button:contains("Analyze")',
-                        'button:contains("Check")',
-                        'button:contains("Go")',
-                        'button:contains("Submit")',
-                        'button:contains("Get transcript")'
-                    ];
-                    
-                    let button = null;
-                        for (const selector of buttonSelectors) {
-                        const elements = Array.from(document.querySelectorAll('button'));
-                        button = elements.find(btn => 
-                            /(start|analyze|check|go|submit|get transcript)/i.test(btn.textContent || '')
-                        );
-                        if (button && button.offsetParent !== null) break;
-                    }
-                    
-                    if (button) {
-                                            button.click();
-                        log('submit_clicked');
-                    } else {
-                        const input = document.querySelector('input, textarea');
-                        if (input) {
-                            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-                            log('enter_fired');
+                function clickCopyButton() {
+                    try {
+                        const copyButton = findCopyButton();
+                        if (copyButton && copyButton.offsetParent !== null) {
+                            copyButton.scrollIntoView({ block: 'center' });
+                            copyButton.focus();
+                            copyButton.click();
+                            log('tokaudit_copy_button_clicked');
+                            return true;
+                        } else {
+                            log('tokaudit_copy_button_not_found');
                         }
+                    } catch (e) {
+                        log('tokaudit_copy_button_error: ' + e.message);
+                    }
+                    return false;
+                }
+                
+                function findTranscriptNearCopyButton(copyButton) {
+                    try {
+                        // Look for transcript text near the copy button
+                        const parent = copyButton.closest('div');
+                        if (parent) {
+                            const textElements = parent.querySelectorAll('pre, textarea, code, div[class*="transcript"], div[class*="result"], div[class*="content"]');
+                            for (const element of textElements) {
+                                if (element && element.textContent && element.textContent.length >= 100) {
+                                    const text = element.textContent.trim();
+                                    if (isValidTranscript(text)) {
+                                        return text;
+                                    }
+                                }
+                            }
+                        }
+                        return null;
+                    } catch (e) {
+                        log('find_transcript_near_copy_error: ' + e.message);
+                        return null;
                     }
                 }
                 
-                function monitorTokAuditResults() {
-                    let networkCount = 0;
-                    let resultFound = false;
-                    
-                    // Network monitoring
-                        const originalFetch = window.fetch;
-                        window.fetch = function(...args) {
-                        networkCount++;
-                        log('net+1 url=' + args[0]);
-                        return originalFetch.apply(this, args).finally(() => {
-                            networkCount--;
-                            log('net-1 url=' + args[0]);
-                            if (networkCount === 0) {
-                                log('network_idle');
-                            }
-                                });
-                        };
-                        
-                    // DOM monitoring
-                    const observer = new MutationObserver(() => {
-                        if (resultFound) return;
-                        
-                        // Check for transcript
-                                                const transcriptSelectors = [
-                                                    'pre',
-                                                    'textarea',
-                                                    '[data-testid*="transcript"]',
-                                                    'code',
-                                                    'div'
-                                                ];
-                                                
-                                                for (const selector of transcriptSelectors) {
-                            const element = document.querySelector(selector);
-                            if (element && element.textContent && element.textContent.length >= 30) {
-                                resultFound = true;
-                                log('result_node_found');
-                                copyTranscript(element.textContent);
-                                return;
-                            }
-                        }
-                        
-                        // Periodic HTML snapshot for diagnostics
-                        try {
-                            if (window.AndroidBridge && window.AndroidBridge.onHtmlSnapshot) {
-                                const head = (document.body && document.body.innerText) ? document.body.innerText.slice(0, 1200) : '';
-                                window.AndroidBridge.onHtmlSnapshot(head);
-                            }
-                        } catch (e) { log('html_snapshot_error ' + e.message); }
-
-                        // Check for errors (expired/invalid)
-                        const errorText = document.body.textContent || '';
-                        if (/No valid TikTok data found for this link/i.test(errorText)) {
-                            log('tokaudit_invalid_data');
-                            try { window.AndroidBridge.onError('invalid_data'); } catch(e){}
-                            // Dump snapshot html head for diagnosis
-                            try { log('html_head=' + (document.body.innerText||'').slice(0,800)); } catch(e){}
-                            return;
-                        }
-                        if (/Invalid URL/i.test(errorText)) {
-                            log('invalid_url');
-                                return;
-                            }
-                        if (/Subtitles Not Available/i.test(errorText)) {
-                            log('subs_not_available');
-                            window.AndroidBridge.onError('no_subtitles');
-                                return;
-                            }
-                        if (/Service Unavailable/i.test(errorText)) {
-                            log('service_unavailable');
-                                return;
-                            }
-                        // Copy button missing signal
-                        const hasCopy = !!document.querySelector('button, [role="button"]');
-                        if (!hasCopy) { log('tokaudit_copy_missing'); }
-                    });
-                    
-                    observer.observe(document.body, { childList: true, subtree: true });
-                    
-                    // Timeout
-                    setTimeout(() => {
-                        if (!resultFound) {
-                            log('still_waiting inflight=' + networkCount + ' nodes=0');
-                        }
-                    }, 10000);
-                }
-
-                function monitorGetTranscribeResults() {
-                    let resultFound = false;
-                    let checkCount = 0;
-                    const maxChecks = 60; // Check for up to 60 seconds
-                    
-                    function checkForTranscript() {
-                        if (resultFound) return;
-                        checkCount++;
-                        
-                        log('gt:check_attempt=' + checkCount);
-                        
-                        // First, try the specific selector you mentioned
-                        const specificSelectors = [
-                            'body > div.flex.min-h-screen.flex-col.bg-black.text-white > main > div > div.flex-grow.w-full.bg-\\[\\#EAEAEA\\].py-12 > div > div > div > div:nth-child(1) > div > div.flex-1 > div > div.bg-\\[\\#EAEAEA\\].p-5.rounded-xl.border.border-\\[\\#081428\\]\\/10.max-h-\\[300px\\].overflow-y-auto > div > p',
-                            'div.bg-\\[\\#EAEAEA\\].p-5.rounded-xl.border.border-\\[\\#081428\\]\\/10.max-h-\\[300px\\].overflow-y-auto p',
-                            'div.bg-\\[\\#EAEAEA\\].p-5.rounded-xl p',
-                            'div.max-h-\\[300px\\].overflow-y-auto p',
-                            'div[class*="bg-\\[\\#EAEAEA\\]"] p',
-                            'div[class*="rounded-xl"] p'
+                function findTranscriptInPage() {
+                    try {
+                        const transcriptSelectors = [
+                            'pre',
+                            'textarea',
+                            'code',
+                            'div[class*="transcript"]',
+                            'div[class*="result"]',
+                            'div[class*="content"]'
                         ];
                         
-                        for (const selector of specificSelectors) {
-                            try {
-                                const elements = document.querySelectorAll(selector);
-                                for (const el of elements) {
-                                    const t = (el.textContent||'').trim();
-                                    if (t.length > 50) {
-                                        log('gt:found_candidate selector=' + selector + ' len=' + t.length);
-                                        log('gt:candidate_content=' + t.substring(0, 200));
-                                        
-                                        if (isValidTranscript(t)) {
-                                            resultFound = true;
-                                            log('gt:result_node_found specific selector=' + selector);
-                                            log('gt:final_transcript=' + t.substring(0, 500));
-                                            copyTranscript(t);
-                                            return;
-                                        }
-                                    }
+                        for (const selector of transcriptSelectors) {
+                            const element = document.querySelector(selector);
+                            if (element && element.textContent && element.textContent.length >= 100) {
+                                const text = element.textContent.trim();
+                                
+                                // Validate it's not the input URL
+                                if (text.includes('vm.tiktok.com') || text.includes('tiktok.com') || /^https?:\/\//.test(text)) {
+                                    continue;
                                 }
-                            } catch(e) {
-                                log('gt:selector_error=' + selector + ' error=' + e.message);
+                                
+                                // Validate it looks like a transcript
+                                if (isValidTranscript(text)) {
+                                    return text;
+                                }
                             }
                         }
+                        return null;
+                    } catch (e) {
+                        log('find_transcript_in_page_error: ' + e.message);
+                        return null;
+                    }
+                }
+                
+                function startGetTranscribeFlow() {
+                    try {
+                        setState('GETTRANSCRIBE_START');
+                        log('gettranscribe_flow_started');
                         
-                        // Also check for any paragraph elements that might contain transcript
-                        const allParagraphs = document.querySelectorAll('p');
-                        for (const p of allParagraphs) {
-                            const t = (p.textContent||'').trim();
-                            if (t.length > 100 && isValidTranscript(t)) {
-                                resultFound = true;
-                                log('gt:result_node_found paragraph len=' + t.length);
-                                log('gt:paragraph_content=' + t.substring(0, 200));
-                                copyTranscript(t);
-                                return;
-                            }
-                        }
-                        
-                        // Log current page state for debugging
-                        try {
-                            const bodyText = document.body ? document.body.innerText : '';
-                            const bodyLength = bodyText.length;
-                            log('gt:page_state body_len=' + bodyLength);
+                        // Similar flow for gettranscribe.ai
+                        const input = document.querySelector('input[type="url"], input[placeholder*="url" i], textarea');
+                        if (input) {
+                            input.focus();
+                            input.value = TARGET_URL;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
                             
-                            // Look for any elements with substantial text
-                            const allDivs = document.querySelectorAll('div');
-                            for (const div of allDivs) {
-                                const text = (div.textContent||'').trim();
-                                if (text.length > 200 && text.length < 5000) {
-                                    const hasTranscriptKeywords = /transcript|transcription|subtitle|caption/i.test(text);
-                                    if (hasTranscriptKeywords) {
-                                        log('gt:potential_transcript_div len=' + text.length);
-                                        log('gt:div_content=' + text.substring(0, 300));
-                                    }
+                            log('gettranscribe_input_filled');
+                            
+                            // Click submit button
+                            const submitBtn = document.querySelector('button:contains("Get Transcript"), button:contains("Start")');
+                            if (submitBtn) {
+                                submitBtn.click();
+                                log('gettranscribe_submit_clicked');
+                                
+                                // Monitor for results
+                                monitorGetTranscribeResults();
+                            } else {
+                                failAutomation('submit_button_not_found');
+                            }
+                        } else {
+                            failAutomation('input_not_found');
+                        }
+                    } catch (e) {
+                        log('gettranscribe_flow_error: ' + e.message);
+                        failAutomation('flow_error');
+                    }
+                }
+                
+                function monitorGetTranscribeResults() {
+                    setState('MONITORING');
+                    log('gettranscribe_monitoring_started');
+                    
+                    let checkCount = 0;
+                    const maxChecks = 60;
+                    let transcriptFound = false;
+                    
+                    function checkForTranscript() {
+                        if (transcriptFound || isCompleted) return;
+                        checkCount++;
+                        
+                        log('gettranscribe_check_attempt=' + checkCount);
+                        
+                        // Look for transcript in specific selectors
+                        const selectors = [
+                            'div.bg-\\[\\#EAEAEA\\].p-5.rounded-xl p',
+                            'div[class*="transcript"] p',
+                            'div[class*="result"] p',
+                            'pre',
+                            'textarea[readonly]'
+                        ];
+                        
+                        for (const selector of selectors) {
+                            const elements = document.querySelectorAll(selector);
+                            for (const el of elements) {
+                                const text = (el.textContent || '').trim();
+                                if (text.length > 100 && isValidTranscript(text)) {
+                                    log('gettranscribe_transcript_found len=' + text.length);
+                                    transcriptFound = true;
+                                    setState('TRANSCRIPT_FOUND');
+                                    copyTranscript(text);
+                                    return;
                                 }
                             }
-                        } catch(e) {
-                            log('gt:debug_error=' + e.message);
                         }
                         
-                        // Continue checking if we haven't found anything yet
-                        if (!resultFound && checkCount < maxChecks) {
-                            setTimeout(checkForTranscript, 1000); // Check every second
-                        } else if (!resultFound) {
-                            log('gt:timeout_after_checks=' + checkCount);
+                        if (checkCount < maxChecks) {
+                            setTimeout(checkForTranscript, 1000);
+                        } else {
+                            log('gettranscribe_timeout_after_checks=' + checkCount);
+                            failAutomation('timeout');
                         }
                     }
                     
-                    // Wait a bit for the transcription to start, then check every second
-                    setTimeout(() => {
-                        checkForTranscript();
-                    }, 5000); // Wait 5 seconds before starting to check
-                    
-                    // Also set up a mutation observer for immediate detection
-                    const observer = new MutationObserver(() => {
-                        if (!resultFound) {
-                            checkForTranscript();
-                        }
-                    });
-                    observer.observe(document.body, { childList: true, subtree: true });
+                    setTimeout(checkForTranscript, 5000);
                 }
                 
                 function isValidTranscript(text) {
                     if (!text || text.length < 100) return false;
                     
-                    // Must not contain common UI elements or marketing content
+                    // Must not be a URL
+                    if (/^https?:\/\//.test(text.trim()) || text.includes('vm.tiktok.com') || text.includes('tiktok.com')) {
+                        return false;
+                    }
+                    
+                    // Must not contain UI elements
                     const excludeKeywords = [
                         'GetTranscribe', 'Pricing', 'Support', 'Login', 'Signup',
                         'Loading', 'Token', 'User:', 'API Documentation',
                         'Terms of Service', 'Privacy Policy', '© 2025',
-                        'Transcribing your video', '% complete',
-                        'AI delivers', 'accuracy', 'languages', 'learning models',
-                        'subscription', 'wallet', 'credits', 'per minute',
-                        'simple pricing', 'monthly subscription', 'wallet balance'
+                        'TikTok Transcript Generator', 'Turn speech into text'
                     ];
                     
                     for (const keyword of excludeKeywords) {
                         if (text.includes(keyword)) return false;
                     }
                     
-                    // Must not contain JavaScript code patterns
-                    const jsPatterns = [
-                        /function\s+\w+\s*\(/,
-                        /var\s+\w+\s*=/,
-                        /let\s+\w+\s*=/,
-                        /const\s+\w+\s*=/,
-                        /document\./,
-                        /window\./,
-                        /addEventListener/,
-                        /querySelector/,
-                        /getElementById/,
-                        /innerHTML/,
-                        /textContent/,
-                        /\.js/,
-                        /\.css/,
-                        /<script/,
-                        /<\/script>/,
-                        /console\./,
-                        /alert\(/,
-                        /setTimeout/,
-                        /setInterval/
-                    ];
-                    
-                    for (const pattern of jsPatterns) {
-                        if (pattern.test(text)) return false;
-                    }
-                    
-                    // Must not be mostly HTML tags or attributes
-                    const htmlTagCount = (text.match(/<[^>]+>/g) || []).length;
-                    const htmlAttributeCount = (text.match(/="[^"]*"/g) || []).length;
-                    if (htmlTagCount > 5 || htmlAttributeCount > 10) return false;
-                    
-                    // Should contain substantial natural language
+                    // Must contain natural language
                     const wordCount = text.split(/\s+/).length;
                     if (wordCount < 20) return false;
                     
-                    // Should contain sentence endings or common words
                     const hasNaturalLanguage = /[.!?]/.test(text) || 
                                              /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|have|has|had|will|would|could|should)\b/i.test(text);
                     
-                    // Should not be mostly numbers or special characters
-                    const alphaCount = (text.match(/[a-zA-Z]/g) || []).length;
-                    const totalChars = text.length;
-                    const alphaRatio = alphaCount / totalChars;
-                    
-                    // Additional check: should look like actual speech/transcript content
-                    const hasSpeechPatterns = /\b(I|you|we|they|he|she|it|this|that|here|there|now|then|so|well|okay|right|yeah|yes|no)\b/i.test(text);
-                    
-                    return hasNaturalLanguage && alphaRatio > 0.6 && hasSpeechPatterns;
-                }
-                
-                function isPageUI(text) {
-                    const uiPatterns = [
-                        /GetTranscribe/i,
-                        /Pricing|Support|Login|Signup/i,
-                        /Loading|Token|User:/i,
-                        /API Documentation/i,
-                        /Terms of Service|Privacy Policy/i,
-                        /© \d{4}/i,
-                        /Transcribing your video/i,
-                        /% complete/i
-                    ];
-                    
-                    return uiPatterns.some(pattern => pattern.test(text));
+                    return hasNaturalLanguage;
                 }
                 
                 function copyTranscript(text) {
-                    if (text && text.length >= 30) {
-                        // Prefer site Copy Transcript button if available
-                        try {
-                            const buttons = Array.from(document.querySelectorAll('button, [role="button"], a[role="button"]'));
-                            const copyBtn = buttons.find(b => /\bcopy\s*transcript\b/i.test((b.textContent||'').trim()));
-                            if (copyBtn) {
-                                try { copyBtn.scrollIntoView({block:'center'}); } catch(e){}
-                                try { copyBtn.click(); log('gt:copy_button_clicked'); } catch(e){ log('gt:copy_button_click_failed ' + e.message); }
-                            }
-                        } catch(e) { log('gt:copy_button_lookup_failed ' + e.message); }
-
-                        // Redundant clipboard write via Web Clipboard API
-                        try {
-                            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-                                navigator.clipboard.writeText(text).then(()=>log('gt:clipboard_write_ok')).catch(err=>log('gt:clipboard_write_err ' + err));
-                            }
-                        } catch(e) { log('gt:clipboard_access_err ' + e.message); }
-
-                        log('copied_length=' + text.length);
+                    if (isCompleted) return;
+                    
+                    try {
+                        setState('COPYING');
+                        log('copying_transcript len=' + text.length);
+                        
+                        // Skip clipboard operations and directly pass to Android bridge
+                        // This avoids permission issues with WebView clipboard access
+                        log('bypassing_clipboard_direct_bridge');
+                        completeAutomation();
+                        
                         try {
                             window.AndroidBridge.onTranscript(text);
                             window.AndroidBridge.onTranscriptComplete();
-                            log('returned');
+                            log('transcript_sent_to_bridge_success');
+                        } catch (e) {
+                            log('bridge_error: ' + e.message);
+                            failAutomation('bridge_failed');
+                        }
+                        
+                    } catch (e) {
+                        log('copy_error: ' + e.message);
+                        failAutomation('copy_failed');
+                    }
+                }
+                
+                function fallbackCopy(text) {
+                    try {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.style.position = 'absolute';
+                        textarea.style.left = '-9999px';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.focus();
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        
+                        log('fallback_copy_success');
+                        completeAutomation();
+                        try {
+                            window.AndroidBridge.onTranscript(text);
+                            window.AndroidBridge.onTranscriptComplete();
                         } catch (e) {
                             log('bridge_error: ' + e.message);
                         }
+                    } catch (e) {
+                        log('fallback_copy_error: ' + e.message);
+                        failAutomation('copy_failed');
                     }
                 }
                 
                 // Start the automation
-                checkDomainAndReady();
+                checkDomain();
             })();
         """.trimIndent()
     }

@@ -12,6 +12,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import app.pluct.ui.components.EmptyStateView
+import app.pluct.ui.components.ModernBottomNavigation
 import app.pluct.ui.screens.components.*
 import app.pluct.viewmodel.HomeViewModel
 
@@ -29,13 +30,11 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pluct - TikTok Transcripts") },
-                actions = {
-                    IconButton(onClick = { navController.navigate(app.pluct.ui.navigation.Screen.Settings.route) }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                }
+                title = { Text("Pluct - TikTok Transcripts") }
             )
+        },
+        bottomBar = {
+            ModernBottomNavigation(navController = navController)
         }
     ) { paddingValues ->
         Column(

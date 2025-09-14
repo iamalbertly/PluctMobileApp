@@ -208,10 +208,11 @@ class IngestViewModel @Inject constructor(
     
     fun tryAnotherProvider(context: android.content.Context) {
         val currentProvider = app.pluct.ui.utils.ProviderSettings.getSelectedProvider(context)
-        val newProvider = when (currentProvider) {
-            app.pluct.ui.utils.TranscriptProvider.TOKAUDIT -> app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE
-            app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE -> app.pluct.ui.utils.TranscriptProvider.TOKAUDIT
-        }
+            val newProvider = when (currentProvider) {
+                app.pluct.ui.utils.TranscriptProvider.TOKAUDIT -> app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE
+                app.pluct.ui.utils.TranscriptProvider.GETTRANSCRIBE -> app.pluct.ui.utils.TranscriptProvider.OPENAI
+                app.pluct.ui.utils.TranscriptProvider.OPENAI -> app.pluct.ui.utils.TranscriptProvider.TOKAUDIT
+            }
         app.pluct.ui.utils.ProviderSettings.setSelectedProvider(context, newProvider)
         
         // Reset state to try again

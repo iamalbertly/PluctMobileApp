@@ -40,7 +40,7 @@ class JavaScriptBridge(
                 Log.d(TAG, "WV:A:transcript_complete")
                 RunRingBuffer.addLog("", "INFO", "transcript_complete", "WV")
                 // Transcript processing is complete
-        } catch (e: Exception) {
+            } catch (e: Exception) {
                 Log.e(TAG, "Error completing transcript: ${e.message}", e)
                 onError("transcript_complete_error")
             }

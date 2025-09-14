@@ -77,6 +77,7 @@ object WebViewUtils {
             val baseUrl = when (selectedProvider) {
                 TranscriptProvider.TOKAUDIT -> "https://script.tokaudit.io/"
                 TranscriptProvider.GETTRANSCRIBE -> "https://www.gettranscribe.ai"
+                TranscriptProvider.OPENAI -> "https://platform.openai.com/" // OpenAI doesn't have direct web interface, but we can handle it differently
             }
             val headers = mapOf("Accept-Language" to "en-US,en;q=0.9")
             webView.loadUrl(baseUrl, headers)

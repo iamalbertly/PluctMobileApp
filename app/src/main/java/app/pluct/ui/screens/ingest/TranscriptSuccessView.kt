@@ -81,12 +81,13 @@ fun TranscriptSuccessView(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                    Text(
-                        text = when (provider) {
-                            "TOKAUDIT" -> "TokAudit.io"
-                            "GETTRANSCRIBE" -> "GetTranscribe.ai"
-                            else -> provider
-                        },
+                            Text(
+                                text = when (provider) {
+                                    "TOKAUDIT" -> "TokAudit.io"
+                                    "GETTRANSCRIBE" -> "GetTranscribe.ai"
+                                    "OPENAI" -> "OpenAI"
+                                    else -> provider
+                                },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold

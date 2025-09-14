@@ -13,6 +13,45 @@ object WebViewConfiguration {
     private const val TAG = "WebViewConfiguration"
     
     /**
+     * Expand TikTok short URLs to canonical format
+     */
+    fun expandShortUrl(shortUrl: String): String {
+        return try {
+            if (shortUrl.isBlank() || !shortUrl.contains("vm.tiktok.com")) {
+                Log.d(TAG, "WV:A:url_no_expansion_needed url=$shortUrl")
+                return shortUrl
+            }
+            
+            Log.d(TAG, "WV:A:url_expansion_started url=$shortUrl")
+            
+            val conn = java.net.URL(shortUrl).openConnection() as java.net.HttpURLConnection
+            conn.instanceFollowRedirects = false
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
+            
+            val responseCode = conn.responseCode
+            val expandedUrl = if (responseCode in 300..399) {
+                val location = conn.getHeaderField("Location")
+                if (location != null && location.isNotBlank()) {
+                    location
+                } else {
+                    shortUrl
+                }
+            } else {
+                shortUrl
+            }
+            
+            Log.d(TAG, "WV:A:url_expanded from=$shortUrl to=$expandedUrl responseCode=$responseCode")
+            expandedUrl
+        } catch (e: Exception) {
+            Log.e(TAG, "Error expanding URL '$shortUrl': ${e.message}", e)
+            shortUrl
+        }
+    }
+    
+    /**
      * Configure WebView with SSL fixes and performance optimizations
      */
     fun configureWebView(webView: WebView, runId: String) {
@@ -32,8 +71,26 @@ object WebViewConfiguration {
                 setGeolocationEnabled(false)
                 setRenderPriority(WebSettings.RenderPriority.HIGH)
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                userAgentString = "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+                userAgentString = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                // Focus and interaction settings
+                setSupportZoom(false)
+                setBuiltInZoomControls(false)
+                setDisplayZoomControls(false)
+                setLoadWithOverviewMode(true)
+                setUseWideViewPort(true)
+                // Enhanced settings for better interaction
+                setSupportMultipleWindows(true)
+                setJavaScriptCanOpenWindowsAutomatically(true)
+                setNeedInitialFocus(true)
+                setLightTouchEnabled(true)
+                setSaveFormData(true)
+                setSavePassword(false)
             }
+            
+            // Ensure WebView can receive focus
+            webView.isFocusable = true
+            webView.isFocusableInTouchMode = true
+            webView.requestFocus()
             
             // Configure cookies
             CookieManager.getInstance().apply {
@@ -88,6 +145,12 @@ object WebViewConfiguration {
                 RunRingBuffer.addLog(runId, "INFO", "page_finished url=$url host=$finishedHost", "WV")
                 dumpHtml(view, "onPageFinished")
                 
+                // Ensure WebView maintains focus after page load
+                view?.post {
+                    view.requestFocus()
+                    view.requestFocusFromTouch()
+                }
+                
                 // Inject automation script for TokAudit
                 val isTokAudit = finishedHost.endsWith("tokaudit.io")
                 val isGetTranscribe = finishedHost.contains("gettranscribe.ai")
@@ -107,10 +170,31 @@ object WebViewConfiguration {
                             }
 
                             if (videoUrl.isNotEmpty()) {
-                                view?.let { WebViewScripts.injectAutomationScript(it, videoUrl, scriptRunId) }
+                                Log.d(TAG, "WV:A:video_url_found url=$videoUrl run=$scriptRunId")
+                                
+                                // Expand short URL to canonical format
+                                val expandedUrl = expandShortUrl(videoUrl)
+                                Log.d(TAG, "WV:A:url_expansion_complete expanded=$expandedUrl run=$scriptRunId")
+                                
+                                // Ensure focus before script injection
+                                view?.requestFocus()
+                                view?.requestFocusFromTouch()
+                                
+                                // Prepare WebView for clipboard operations
+                                view?.let { WebViewFocusManager.prepareForClipboard(it, scriptRunId) }
+                                
+                                // Start automation with expanded URL
+                                Log.d(TAG, "WV:A:about_to_inject_script run=$scriptRunId")
+                                view?.let { WebViewScripts.injectAutomationScript(it, expandedUrl, scriptRunId) }
                                 alreadyInjected = true
-                                Log.d(TAG, "WV:A:inject_auto host=$finishedHost run=$scriptRunId")
-                                RunRingBuffer.addLog(scriptRunId, "INFO", "inject_auto host=$finishedHost", "WV")
+                                Log.d(TAG, "WV:A:inject_auto host=$finishedHost run=$scriptRunId expanded_url=$expandedUrl")
+                                RunRingBuffer.addLog(scriptRunId, "INFO", "inject_auto host=$finishedHost expanded_url=$expandedUrl", "WV")
+                                
+                                // Ensure automation starts by requesting focus again
+                                view?.postDelayed({
+                                    view?.requestFocus()
+                                    view?.requestFocusFromTouch()
+                                }, 1000)
                             } else {
                                 Log.e(TAG, "WV:A:fatal_blank_url run=$scriptRunId")
                                 RunRingBuffer.addLog(scriptRunId, "ERROR", "fatal_blank_url", "WV")
@@ -119,7 +203,7 @@ object WebViewConfiguration {
                             Log.e(TAG, "Error injecting script: ${e.message}", e)
                             RunRingBuffer.addLog(runId, "ERROR", "script_injection_error: ${e.message}", "WV")
                         }
-                    }, 750) // 600-900ms delay
+                    }, 500) // Reduced delay for faster automation start
                 } else {
                     val reason = when {
                         finishedHost.isEmpty() -> "no_host"

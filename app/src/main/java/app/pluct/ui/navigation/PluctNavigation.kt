@@ -62,7 +62,17 @@ fun PluctNavigation(navController: NavHostController) {
             val url = backStackEntry.arguments?.getString("url") ?: ""
             IngestScreen(
                 url = url,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { 
+                    android.util.Log.d("PluctNavigation", "IngestScreen onNavigateBack called - popping back stack")
+                    if (!navController.popBackStack()) {
+                        android.util.Log.d("PluctNavigation", "Nothing to pop, navigating to home screen")
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
             )
         }
     }
