@@ -26,7 +26,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.pluct.ui.components.NetworkStatusView
+import app.pluct.ui.components.SimpleNetworkStatus
+import app.pluct.ui.components.SimpleBottomNavigation
 import app.pluct.ui.screens.ingest.IngestErrorView
 import app.pluct.ui.screens.ingest.IngestPendingView
 import app.pluct.ui.screens.ingest.IngestReadyView
@@ -192,6 +193,16 @@ fun IngestScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            SimpleBottomNavigation(
+                onHomeClick = onNavigateBack,
+                onSettingsClick = {
+                    // Navigate to settings - we'll need to pass navController or use a different approach
+                    // For now, just navigate back to home where user can access settings
+                    onNavigateBack()
+                }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -200,20 +211,14 @@ fun IngestScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Show network status if there are connectivity issues
+            // Show simple network status only if there are connectivity issues
             if (showNetworkStatus) {
-                NetworkStatusView(
-                    context = context,
+                SimpleNetworkStatus(
                     onRetry = {
                         showNetworkStatus = false
-                        // Retry the current operation
                         if (uiState.state == IngestState.NEEDS_TRANSCRIPT) {
                             viewModel.resetWebActivityLaunch()
                         }
-                    },
-                    onManualMode = {
-                        // Launch manual mode - placeholder for future implementation
-                        // viewModel.launchManualMode(url)
                     },
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
