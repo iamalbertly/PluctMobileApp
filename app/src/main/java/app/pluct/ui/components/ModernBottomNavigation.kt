@@ -51,17 +51,17 @@ fun ModernBottomNavigation(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-        shape = MaterialTheme.shapes.large
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -98,17 +98,17 @@ private fun NavigationButton(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .padding(vertical = 8.dp)
+            .padding(vertical = 4.dp)
     ) {
         IconButton(
             onClick = onClick,
             modifier = Modifier
-                .size(56.dp)
+                .size(44.dp)
                 .then(
                     if (isSelected) {
                         Modifier.background(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.shapes.medium
+                            MaterialTheme.shapes.small
                         )
                     } else {
                         Modifier
@@ -118,7 +118,7 @@ private fun NavigationButton(
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.description,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(22.dp),
                 tint = if (isSelected) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -127,11 +127,11 @@ private fun NavigationButton(
             )
         }
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         
         Text(
             text = item.label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
