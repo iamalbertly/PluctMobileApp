@@ -11,6 +11,13 @@ import app.pluct.data.service.HuggingFaceTranscriptionService
 import app.pluct.data.manager.PluctTranscriptionManagerCoordinator
 import app.pluct.data.manager.UserManager
 import app.pluct.data.provider.PluctHuggingFaceProviderCoordinator
+import app.pluct.data.service.ApiService
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -81,9 +88,40 @@ object AppModule {
     @Provides
     @Singleton
     fun provideUserManager(
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        apiService: ApiService
     ): UserManager {
-        return UserManager(context)
+        return UserManager(context, apiService)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY // Log API calls for debugging
+            })
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi {
+        return Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideApiService(okHttpClient: OkHttpClient, moshi: Moshi): ApiService {
+        // We need a dummy base URL for Retrofit, even though we use full URLs in the interface.
+        return Retrofit.Builder()
+            .baseUrl("https://placeholder.com/") 
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(ApiService::class.java)
     }
 }
 

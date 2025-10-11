@@ -96,6 +96,14 @@ class PluctRepository @Inject constructor(
         transcriptDao.saveTranscript(transcript)
     }
     
+    // Save transcript by userId (for new simplified flow)
+    suspend fun saveTranscript(userId: String, transcript: String) {
+        // For now, we'll create a simple video entry and save the transcript
+        // In a real implementation, you might want to link this to a specific video
+        val videoId = upsertVideo("transcript_$userId") // Create a placeholder video
+        saveTranscript(videoId, transcript)
+    }
+    
     fun getTranscriptFlow(videoId: String): Flow<Transcript?> = transcriptDao.getTranscriptFlow(videoId)
     
     // Artifact operations

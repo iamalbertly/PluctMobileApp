@@ -262,6 +262,25 @@ fun IngestScreen(
                         onNavigateBack = onNavigateBack
                     )
                 }
+                
+                IngestState.IDLE -> {
+                    IngestPendingView(url = url)
+                }
+                
+                IngestState.LOADING -> {
+                    IngestPendingView(url = url)
+                }
+                
+                IngestState.SUCCESS -> {
+                    IngestReadyView(
+                        uiState = uiState,
+                        onNavigateBack = onNavigateBack
+                    )
+                }
+                
+                IngestState.ERROR -> {
+                    IngestPendingView(url = url)
+                }
             }
             
             // Error handling - always show errors regardless of state

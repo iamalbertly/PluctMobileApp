@@ -3,10 +3,10 @@ package app.pluct.data.manager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import app.pluct.data.service.ApiService
+import app.pluct.data.service.CreateUserRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,7 +17,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
  */
 @Singleton
 class UserManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val apiService: ApiService // Inject ApiService
 ) {
     companion object {
         private const val TAG = "UserManager"
@@ -71,45 +72,22 @@ class UserManager @Inject constructor(
      * Register user with business engine
      */
     private suspend fun registerUserWithBusinessEngine(userId: String) {
-        withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "Registering user with business engine: $userId")
-                
-                val url = URL(BUSINESS_ENGINE_URL)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.setRequestProperty("Accept", "application/json")
-                connection.doOutput = true
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
-                
-                val requestBody = """
-                    {
-                        "userId": "$userId",
-                        "initialCredits": $INITIAL_CREDITS
-                    }
-                """.trimIndent()
-                
-                connection.outputStream.use { outputStream ->
-                    outputStream.write(requestBody.toByteArray())
-                }
-                
-                val responseCode = connection.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
-                    Log.d(TAG, "User registered successfully with business engine")
-                    
-                    // Save credits locally
-                    prefs.edit()
-                        .putInt(KEY_CREDITS, INITIAL_CREDITS)
-                        .apply()
-                } else {
-                    Log.e(TAG, "Failed to register user with business engine. Response code: $responseCode")
-                }
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Error registering user with business engine: ${e.message}", e)
+        try {
+            Log.d(TAG, "Registering user with business engine: $userId")
+            val request = CreateUserRequest(userId = userId, initialCredits = INITIAL_CREDITS)
+            val response = apiService.createUser(request) // CLEAN API CALL
+
+            if (response.isSuccessful) {
+                Log.d(TAG, "User registered successfully.")
+                // Save initial credits locally if needed
+                prefs.edit()
+                    .putInt(KEY_CREDITS, INITIAL_CREDITS)
+                    .apply()
+            } else {
+                Log.e(TAG, "Failed to register user. Code: ${response.code()}, Body: ${response.errorBody()?.string()}")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registering user: ${e.message}", e)
         }
     }
     

@@ -7,7 +7,11 @@ enum class IngestState {
     PENDING,
     NEEDS_TRANSCRIPT,
     READY,
-    TRANSCRIPT_SUCCESS
+    TRANSCRIPT_SUCCESS,
+    IDLE,
+    LOADING,
+    SUCCESS,
+    ERROR
 }
 
 data class IngestUiState(
@@ -23,5 +27,6 @@ data class IngestUiState(
     val hasLaunchedWebActivity: Boolean = false,
     val showPostProcessingOptions: Boolean = false,
     val runId: String = "",
-    val providerUsed: String? = null
+    val providerUsed: String? = null,
+    val message: String = ""
 )

@@ -104,6 +104,12 @@ dependencies {
     // WebView for in-app browser
     implementation("androidx.webkit:webkit:1.8.0")
     
+    // Networking - Retrofit for API calls
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.14.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0") // For debugging
+    
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.11.1")
