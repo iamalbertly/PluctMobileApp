@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.activity.compose.setContent
 import app.pluct.MainActivity
 import app.pluct.utils.UrlUtils
+import app.pluct.utils.UrlProcessingUtils
 import kotlinx.coroutines.*
 import java.net.URL
 import java.util.UUID
@@ -37,6 +38,13 @@ class ShareIngestActivity : ComponentActivity() {
         Log.d("ShareIngestActivity", "onCreate called")
         
         // Handle the incoming share intent
+        handleShareIntent()
+    }
+    
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        Log.d("ShareIngestActivity", "onNewIntent called with new intent")
+        setIntent(intent)
         handleShareIntent()
     }
     
@@ -126,10 +134,6 @@ class ShareIngestActivity : ComponentActivity() {
                  }
                  
                  android.util.Log.d("ShareIngestActivity", "Starting MainActivity with flags: ${mainIntent.flags}, deepLink: $deepLinkUri")
-                 
-                 // Set a flag in shared preferences to prevent duplicate launches
-                 val prefs = getSharedPreferences("app.pluct.prefs", Context.MODE_PRIVATE)
-                 prefs.edit().putLong("last_launch_timestamp", System.currentTimeMillis()).apply()
                  
                  startActivity(mainIntent)
                  Log.d("ShareIngestActivity", "MainActivity started with single top flag, finishing ShareIngestActivity")

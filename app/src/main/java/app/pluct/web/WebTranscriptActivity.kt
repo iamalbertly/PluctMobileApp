@@ -113,6 +113,44 @@ class WebTranscriptActivity : ComponentActivity() {
                                 Log.e(TAG, "Failed to close after transcript: ${e.message}", e)
                             }
                         },
+                        onError = { errorCode ->
+                            // Human-readable message
+                            val readable = when (errorCode) {
+                                "invalid_data" -> "TokAudit reported: No valid TikTok data for this link."
+                                "invalid_url" -> "The link appears invalid for transcription."
+                                "no_subtitles" -> "No subtitles available for this video."
+                                else -> "Provider reported an error: $errorCode"
+                            }
+                            // Ask user to try next provider if available
+                            val available = app.pluct.ui.utils.ProviderSettings.getAvailableProviders(this)
+                            val current = app.pluct.ui.utils.ProviderSettings.getSelectedProvider(this)
+                            val next = available.dropWhile { it == current }.firstOrNull()
+                            if (next != null) {
+                                android.app.AlertDialog.Builder(this)
+                                    .setTitle("Try another provider?")
+                                    .setMessage(readable + "\n\nWould you like to try " + next.name + " instead?")
+                                    .setPositiveButton("Try " + next.name) { _, _ ->
+                                        app.pluct.ui.utils.ProviderSettings.setSelectedProvider(this, next)
+                                        // Relaunch current activity with same params
+                                        val relaunch = createIntent(this, videoId, videoUrl).apply {
+                                            putExtra("run_id", runId)
+                                        }
+                                        startActivity(relaunch)
+                                        finish()
+                                    }
+                                    .setNegativeButton("Cancel") { _, _ ->
+                                        // Return error to caller
+                                        setResult(RESULT_CANCELED, WebTranscriptInitializer.createErrorIntent(errorCode, readable))
+                                        finish()
+                                    }
+                                    .setCancelable(false)
+                                    .show()
+                            } else {
+                                // No other providers enabled, return error
+                                setResult(RESULT_CANCELED, WebTranscriptInitializer.createErrorIntent(errorCode, readable))
+                                finish()
+                            }
+                        },
                         onSaveTranscript = { runId, videoUrl, transcript ->
                             // Save transcript via repository
                             // This will be handled by the JavaScriptBridge

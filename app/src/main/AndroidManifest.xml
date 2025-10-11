@@ -43,6 +43,7 @@
         <activity
             android:name=".share.ShareIngestActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Pluct"
             android:label="@string/share_activity_label"
             android:icon="@mipmap/ic_launcher">

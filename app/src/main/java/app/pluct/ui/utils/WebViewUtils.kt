@@ -70,6 +70,7 @@ object WebViewUtils {
             val selectedProvider = availableProviders.first()
             
             val baseUrl = when (selectedProvider) {
+                TranscriptProvider.HUGGINGFACE -> "https://iamromeoly-tttranscibe.hf.space/" // New primary provider
                 TranscriptProvider.TOKAUDIT -> "https://script.tokaudit.io/"
                 TranscriptProvider.GETTRANSCRIBE -> "https://www.gettranscribe.ai"
                 TranscriptProvider.OPENAI -> "https://platform.openai.com/" // OpenAI doesn't have direct web interface, but we can handle it differently

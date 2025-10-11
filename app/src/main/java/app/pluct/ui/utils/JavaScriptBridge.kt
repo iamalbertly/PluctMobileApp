@@ -14,6 +14,9 @@ class JavaScriptBridge(
 ) {
     private val TAG = "JavaScriptBridge"
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var lastError: String? = null
+    private var lastErrorTime: Long = 0
+    private val ERROR_REPEAT_THRESHOLD_MS = 1000 // Prevent same error within 1 second
     
     @android.webkit.JavascriptInterface
     fun onTranscript(transcript: String?) {
@@ -51,8 +54,26 @@ class JavaScriptBridge(
     fun onError(error: String) {
             scope.launch {
                 try {
-                Log.e(TAG, "WV:A:js_error=$error")
-                RunRingBuffer.addLog("", "ERROR", "js_error=$error", "WV")
+                    val currentTime = System.currentTimeMillis()
+                    
+                    // Check if this is a repeat error within the threshold
+                    if (error == lastError && (currentTime - lastErrorTime) < ERROR_REPEAT_THRESHOLD_MS) {
+                        // Skip repeated error
+                        return@launch
+                    }
+                    
+                    // Update last error tracking
+                    lastError = error
+                    lastErrorTime = currentTime
+                    
+                if (error == "invalid_data") {
+                    // Critical Warning, not a hard error
+                    Log.w(TAG, "WV:A:js_warning=$error")
+                    RunRingBuffer.addLog("", "WARN", "js_warning=$error", "WV")
+                } else {
+                    Log.e(TAG, "WV:A:js_error=$error")
+                    RunRingBuffer.addLog("", "ERROR", "js_error=$error", "WV")
+                }
                     onError(error)
                 } catch (e: Exception) {
                 Log.e(TAG, "Error handling JS error: ${e.message}", e)

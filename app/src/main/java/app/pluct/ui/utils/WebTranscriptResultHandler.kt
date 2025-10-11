@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.pluct.web.WebTranscriptActivity
-import app.pluct.viewmodel.IngestViewModel
+import app.pluct.viewmodel.PluctIngestViewModelCoordinator
 
 /**
  * Handles WebTranscriptActivity result processing and clipboard operations
@@ -20,7 +20,7 @@ object WebTranscriptResultHandler {
         context: Context,
         resultCode: Int,
         data: Intent?,
-        viewModel: IngestViewModel,
+        viewModel: PluctIngestViewModelCoordinator,
         onErrorShown: () -> Unit
     ) {
         Log.d("PluctIngest", "WebTranscriptActivity returned with resultCode: $resultCode")

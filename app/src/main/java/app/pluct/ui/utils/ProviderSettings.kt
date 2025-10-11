@@ -3,10 +3,11 @@ package app.pluct.ui.utils
 import android.content.Context
 import android.preference.PreferenceManager
 
-enum class TranscriptProvider { TOKAUDIT, GETTRANSCRIBE, OPENAI }
+enum class TranscriptProvider { HUGGINGFACE, TOKAUDIT, GETTRANSCRIBE, OPENAI }
 
 object ProviderSettings {
     private const val KEY_PROVIDER = "transcript_provider"
+    private const val KEY_HUGGINGFACE_ENABLED = "huggingface_enabled"
     private const val KEY_TOKAUDIT_API_KEY = "tokaudit_api_key"
     private const val KEY_GETTRANSCRIBE_API_KEY = "gettranscribe_api_key"
     private const val KEY_OPENAI_API_KEY = "openai_api_key"
@@ -16,8 +17,8 @@ object ProviderSettings {
 
     fun getSelectedProvider(context: Context): TranscriptProvider {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        val raw = prefs.getString(KEY_PROVIDER, TranscriptProvider.GETTRANSCRIBE.name) ?: TranscriptProvider.GETTRANSCRIBE.name
-        return runCatching { TranscriptProvider.valueOf(raw) }.getOrDefault(TranscriptProvider.GETTRANSCRIBE)
+        val raw = prefs.getString(KEY_PROVIDER, TranscriptProvider.HUGGINGFACE.name) ?: TranscriptProvider.HUGGINGFACE.name
+        return runCatching { TranscriptProvider.valueOf(raw) }.getOrDefault(TranscriptProvider.HUGGINGFACE)
     }
 
     fun setSelectedProvider(context: Context, provider: TranscriptProvider) {
@@ -28,6 +29,7 @@ object ProviderSettings {
     fun getApiKey(context: Context, provider: TranscriptProvider): String? {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return when (provider) {
+            TranscriptProvider.HUGGINGFACE -> null // No API key needed for Hugging Face
             TranscriptProvider.TOKAUDIT -> prefs.getString(KEY_TOKAUDIT_API_KEY, null)
             TranscriptProvider.GETTRANSCRIBE -> prefs.getString(KEY_GETTRANSCRIBE_API_KEY, null)
             TranscriptProvider.OPENAI -> prefs.getString(KEY_OPENAI_API_KEY, null)
@@ -38,6 +40,7 @@ object ProviderSettings {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val editor = prefs.edit()
         when (provider) {
+            TranscriptProvider.HUGGINGFACE -> { /* No API key needed */ }
             TranscriptProvider.TOKAUDIT -> editor.putString(KEY_TOKAUDIT_API_KEY, apiKey)
             TranscriptProvider.GETTRANSCRIBE -> editor.putString(KEY_GETTRANSCRIBE_API_KEY, apiKey)
             TranscriptProvider.OPENAI -> editor.putString(KEY_OPENAI_API_KEY, apiKey)
@@ -48,6 +51,7 @@ object ProviderSettings {
     fun isProviderEnabled(context: Context, provider: TranscriptProvider): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return when (provider) {
+            TranscriptProvider.HUGGINGFACE -> prefs.getBoolean(KEY_HUGGINGFACE_ENABLED, true) // Default on as primary
             TranscriptProvider.TOKAUDIT -> prefs.getBoolean(KEY_TOKAUDIT_ENABLED, true)
             TranscriptProvider.GETTRANSCRIBE -> prefs.getBoolean(KEY_GETTRANSCRIBE_ENABLED, true)
             TranscriptProvider.OPENAI -> prefs.getBoolean(KEY_OPENAI_ENABLED, false) // Default off
@@ -58,6 +62,7 @@ object ProviderSettings {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val editor = prefs.edit()
         when (provider) {
+            TranscriptProvider.HUGGINGFACE -> editor.putBoolean(KEY_HUGGINGFACE_ENABLED, enabled)
             TranscriptProvider.TOKAUDIT -> editor.putBoolean(KEY_TOKAUDIT_ENABLED, enabled)
             TranscriptProvider.GETTRANSCRIBE -> editor.putBoolean(KEY_GETTRANSCRIBE_ENABLED, enabled)
             TranscriptProvider.OPENAI -> editor.putBoolean(KEY_OPENAI_ENABLED, enabled)

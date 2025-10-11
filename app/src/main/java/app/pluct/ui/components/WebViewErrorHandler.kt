@@ -63,9 +63,75 @@ fun WebViewErrorHandler(
             ErrorDisplayData(
                 icon = Icons.Default.LinkOff,
                 title = "Invalid URL",
-                message = "The provided URL is not valid or not supported. Please check the URL and try again.",
+                message = Constants.ErrorMessages.INVALID_URL,
                 color = MaterialTheme.colorScheme.error,
                 showRetry = false,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "invalid_data" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.VideoLibrary,
+                title = "Video Not Found",
+                message = Constants.ErrorMessages.INVALID_DATA,
+                color = MaterialTheme.colorScheme.error,
+                showRetry = false,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "no_subtitles" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.ClosedCaptionOff,
+                title = "No Subtitles Available",
+                message = Constants.ErrorMessages.NO_SUBTITLES,
+                color = MaterialTheme.colorScheme.tertiary,
+                showRetry = false,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "processing_timeout" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.Schedule,
+                title = "Processing Timeout",
+                message = Constants.ErrorMessages.PROCESSING_TIMEOUT,
+                color = MaterialTheme.colorScheme.tertiary,
+                showRetry = true,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "generic_error" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.Error,
+                title = "Processing Error",
+                message = Constants.ErrorMessages.GENERIC_ERROR,
+                color = MaterialTheme.colorScheme.error,
+                showRetry = true,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "red_error_text" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.Warning,
+                title = "Service Error",
+                message = Constants.ErrorMessages.RED_ERROR_TEXT,
+                color = MaterialTheme.colorScheme.error,
+                showRetry = true,
+                showManual = true,
+                showReturn = true
+            )
+        }
+        "error_container" -> {
+            ErrorDisplayData(
+                icon = Icons.Default.Warning,
+                title = "Service Error",
+                message = Constants.ErrorMessages.ERROR_CONTAINER,
+                color = MaterialTheme.colorScheme.error,
+                showRetry = true,
                 showManual = true,
                 showReturn = true
             )
@@ -238,6 +304,10 @@ private fun getHelpfulTips(errorCode: String?): String {
         "network_error", "webview_error" -> "• Check your internet connection\n• Try switching between WiFi and mobile data\n• Restart the app if the problem persists"
         "service_unavailable" -> "• The service may be temporarily down\n• Try again in a few minutes\n• Use manual mode as an alternative"
         "invalid_url" -> "• Make sure the URL is from a supported platform\n• Check that the video is public and accessible\n• Try copying the URL again"
+        "invalid_data" -> "• The video may be private or deleted\n• Try a different video link\n• Make sure the video is public and accessible"
+        "no_subtitles" -> "• This video may not have captions enabled\n• Try a different video with captions\n• Use manual mode to enter text directly"
+        "processing_timeout" -> "• The video may be too long or complex\n• Try a shorter video\n• Check your internet connection"
+        "generic_error", "red_error_text", "error_container" -> "• Try a different video link\n• Check your internet connection\n• Use manual mode as an alternative"
         "webview_crash" -> "• Close other apps to free up memory\n• Restart the app\n• Try manual mode which uses less resources"
         else -> "• Check your internet connection\n• Try again in a few moments\n• Use manual mode if automatic processing fails"
     }

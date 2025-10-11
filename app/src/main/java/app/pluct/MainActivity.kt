@@ -20,8 +20,10 @@ import app.pluct.ui.theme.PluctTheme
 import app.pluct.utils.DebugLogger
 import app.pluct.utils.VerificationResult
 import app.pluct.utils.VerificationUtils
+import app.pluct.data.manager.UserManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * MainActivity - Single activity design for stability on low-end hardware.
@@ -37,6 +39,9 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
     }
     
+    @Inject
+    lateinit var userManager: UserManager
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -44,6 +49,9 @@ class MainActivity : ComponentActivity() {
         DebugLogger.init(applicationContext)
         DebugLogger.clear()
         DebugLogger.log("MainActivity onCreate - intent: ${intent?.data}")
+        
+        // Handle first-time user onboarding
+        handleFirstTimeUser()
         
         // Run verification as a bonus step
         runVerification()
@@ -69,8 +77,42 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     
+                    // Handle new intents when they arrive
+                    LaunchedEffect(intent) {
+                        intent?.let { currentIntent ->
+                            DebugLogger.log("LaunchedEffect handling intent: ${currentIntent.data}")
+                            navController.handleDeepLink(currentIntent)
+                        }
+                    }
+                    
                     PluctNavigation(navController = navController)
                 }
+            }
+        }
+    }
+    
+    /**
+     * Handle first-time user onboarding
+     */
+    private fun handleFirstTimeUser() {
+        lifecycleScope.launch {
+            try {
+                if (userManager.isFirstTimeUser()) {
+                    DebugLogger.log("First-time user detected, initializing onboarding")
+                    
+                    // Get or create user ID and register with business engine
+                    val userId = userManager.getOrCreateUserId()
+                    DebugLogger.log("User ID: $userId")
+                    
+                    // Mark user as no longer first-time
+                    userManager.markUserAsReturning()
+                    
+                    DebugLogger.log("First-time user onboarding completed")
+                } else {
+                    DebugLogger.log("Returning user detected")
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("Error in first-time user handling: ${e.message}")
             }
         }
     }
@@ -104,33 +146,21 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         
-        // Check for duplicate launches
-        val prefs = getSharedPreferences("app.pluct.prefs", Context.MODE_PRIVATE)
-        val lastLaunchTime = prefs.getLong("last_launch_timestamp", 0)
-        val currentTime = System.currentTimeMillis()
-        
-        if (currentTime - lastLaunchTime < 1000) { // Within 1 second
-            Log.w(TAG, "Detected duplicate launch within 1 second, ignoring")
-            return
-        }
-        
-        // Update the timestamp
-        prefs.edit().putLong("last_launch_timestamp", currentTime).apply()
+        android.util.Log.d(TAG, "onNewIntent called with intent: ${intent?.action}, data: ${intent?.data}")
         
         // Set the new intent
         setIntent(intent)
         
-        // Handle subsequent deep links
+        // Always handle subsequent deep links (even if URL matches) to ensure E2E automation starts
         intent?.let { newIntent ->
-            android.util.Log.d("MainActivity", "Received new intent: ${newIntent.action}, data: ${newIntent.data}")
-            
-            // Use the stored NavController reference
+            android.util.Log.d("MainActivity", "Handling incoming intent: ${newIntent.action}, data: ${newIntent.data}")
+
             navControllerRef?.let { navController ->
-                android.util.Log.d("MainActivity", "Handling deep link with NavController")
+                android.util.Log.d("MainActivity", "Handling deep link with NavController (no URL equality gate)")
                 navController.handleDeepLink(newIntent)
             } ?: run {
                 android.util.Log.w("MainActivity", "NavController not available yet, will handle deep link when UI is ready")
-                // The deep link will be handled when the UI is ready via LaunchedEffect
+                // Will be handled by LaunchedEffect(intent)
             }
         }
     }

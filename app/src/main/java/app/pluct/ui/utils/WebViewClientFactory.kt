@@ -64,7 +64,7 @@ object WebViewClientFactory {
                             
                             if (videoUrl.isNotEmpty()) {
                                 Log.d(TAG, "WebViewClientFactory: Injecting script with videoUrl: $videoUrl")
-                                WebViewScripts.injectAutomationScript(v, videoUrl, currentRunId)
+                                PluctWebViewScriptCoordinator.injectAutomationScript(v, videoUrl, currentRunId)
                                 alreadyInjected = true
                                 Log.d(TAG, "WV:A:inject_auto run=$currentRunId")
                             } else {

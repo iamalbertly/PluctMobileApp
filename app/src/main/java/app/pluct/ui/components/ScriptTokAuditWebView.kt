@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.pluct.ui.utils.WebViewUtils
 import app.pluct.ui.utils.JavaScriptBridge
-import app.pluct.ui.utils.WebViewScripts
+import app.pluct.ui.utils.PluctWebViewScriptCoordinator
 
 /**
  * Simplified WebView component for transcript extraction with performance optimization
@@ -27,6 +27,7 @@ fun ScriptTokAuditWebView(
     runId: String,
     onTranscriptReceived: (String) -> Unit,
     onSaveTranscript: ((String, String, String) -> Unit)? = null,
+    onError: (String) -> Unit,
     onClose: () -> Unit
 ) {
     var webView: WebView? by remember { mutableStateOf(null) }
@@ -56,9 +57,7 @@ fun ScriptTokAuditWebView(
                             Log.d("ScriptTokAuditWebView", "Transcript received via WebViewUtils")
                             onTranscriptReceived(transcript)
                         },
-                        onError = { error ->
-                            Log.e("ScriptTokAuditWebView", "Error via WebViewUtils: $error")
-                        }
+                        onError = { error -> onError(error) }
                     )
                 }
             }

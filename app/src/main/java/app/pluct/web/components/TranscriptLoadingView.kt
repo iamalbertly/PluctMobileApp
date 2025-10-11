@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.pluct.ui.utils.WebViewUtils
 import app.pluct.ui.utils.JavaScriptBridge
-import app.pluct.ui.utils.WebViewScripts
+import app.pluct.ui.utils.PluctWebViewScriptCoordinator
 import androidx.compose.ui.platform.LocalContext
 
 private const val TAG = "TranscriptLoadingView"

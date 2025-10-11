@@ -37,7 +37,7 @@ import app.pluct.ui.utils.NetworkHandler
 import app.pluct.ui.utils.WebTranscriptResultHandler
 import app.pluct.utils.Constants
 import app.pluct.viewmodel.IngestState
-import app.pluct.viewmodel.IngestViewModel
+import app.pluct.viewmodel.PluctIngestViewModelCoordinator
 import app.pluct.web.WebTranscriptActivity
 import kotlinx.coroutines.delay
 
@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
 fun IngestScreen(
     url: String,
     onNavigateBack: () -> Unit,
-    viewModel: IngestViewModel = hiltViewModel()
+    viewModel: PluctIngestViewModelCoordinator = hiltViewModel()
 ) {
     
     // Context needs to be defined before using it in helper functions

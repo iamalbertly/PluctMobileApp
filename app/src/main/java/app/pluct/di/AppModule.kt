@@ -7,6 +7,10 @@ import app.pluct.data.dao.TranscriptDao
 import app.pluct.data.dao.VideoItemDao
 import app.pluct.data.service.VideoMetadataService
 import app.pluct.data.service.VideoMetadataExtractor
+import app.pluct.data.service.HuggingFaceTranscriptionService
+import app.pluct.data.manager.PluctTranscriptionManagerCoordinator
+import app.pluct.data.manager.UserManager
+import app.pluct.data.provider.PluctHuggingFaceProviderCoordinator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,6 +53,37 @@ object AppModule {
     @Singleton
     fun provideVideoMetadataExtractor(): VideoMetadataExtractor {
         return VideoMetadataExtractor()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideHuggingFaceTranscriptionService(
+        provider: PluctHuggingFaceProviderCoordinator
+    ): HuggingFaceTranscriptionService {
+        return HuggingFaceTranscriptionService(provider)
+    }
+    
+    @Provides
+    @Singleton
+    fun providePluctTranscriptionManagerCoordinator(
+        @ApplicationContext context: Context,
+        huggingFaceService: HuggingFaceTranscriptionService
+    ): PluctTranscriptionManagerCoordinator {
+        return PluctTranscriptionManagerCoordinator(context, huggingFaceService)
+    }
+    
+    @Provides
+    @Singleton
+    fun providePluctHuggingFaceProviderCoordinator(): PluctHuggingFaceProviderCoordinator {
+        return PluctHuggingFaceProviderCoordinator()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideUserManager(
+        @ApplicationContext context: Context
+    ): UserManager {
+        return UserManager(context)
     }
 }
 

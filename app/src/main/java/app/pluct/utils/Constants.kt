@@ -105,5 +105,14 @@ object Constants {
         const val WEBVIEW_ERROR = "A browser error occurred. Please try again or use manual entry."
         const val NETWORK_ERROR = "Network error occurred. Please check your connection and try again."
         const val UNKNOWN_ERROR = "An unexpected error occurred. Please try again."
+        
+        // TokAudit specific error messages
+        const val INVALID_DATA = "No valid TikTok data found for this link. The video may be private, deleted, or the link may be invalid."
+        const val INVALID_URL = "Invalid URL format. Please check the link and try again."
+        const val NO_SUBTITLES = "Subtitles are not available for this video. The video may not have captions enabled."
+        const val PROCESSING_TIMEOUT = "The video processing is taking too long. This may indicate an issue with the video or service."
+        const val GENERIC_ERROR = "An error occurred while processing the video. Please try again or use a different video."
+        const val RED_ERROR_TEXT = "An error was detected in the transcript service. Please try again or use a different video."
+        const val ERROR_CONTAINER = "An error was detected in the transcript service. Please try again or use a different video."
     }
 }

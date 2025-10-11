@@ -37,13 +37,15 @@ import app.pluct.ui.utils.TranscriptProvider
 fun SettingsScreen(navController: NavController) {
     val context = LocalContext.current
     var openaiApiKey by remember { mutableStateOf(ProviderSettings.getApiKey(context, TranscriptProvider.OPENAI) ?: "") }
+    var huggingfaceEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.HUGGINGFACE)) }
     var tokauditEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.TOKAUDIT)) }
     var getTranscribeEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.GETTRANSCRIBE)) }
     var openaiEnabled by remember { mutableStateOf(ProviderSettings.isProviderEnabled(context, TranscriptProvider.OPENAI)) }
     var showOpenAiApiKeyDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(openaiApiKey, tokauditEnabled, getTranscribeEnabled, openaiEnabled) {
+    LaunchedEffect(openaiApiKey, huggingfaceEnabled, tokauditEnabled, getTranscribeEnabled, openaiEnabled) {
         ProviderSettings.setApiKey(context, TranscriptProvider.OPENAI, openaiApiKey.ifBlank { null })
+        ProviderSettings.setProviderEnabled(context, TranscriptProvider.HUGGINGFACE, huggingfaceEnabled)
         ProviderSettings.setProviderEnabled(context, TranscriptProvider.TOKAUDIT, tokauditEnabled)
         ProviderSettings.setProviderEnabled(context, TranscriptProvider.GETTRANSCRIBE, getTranscribeEnabled)
         ProviderSettings.setProviderEnabled(context, TranscriptProvider.OPENAI, openaiEnabled)
@@ -94,6 +96,15 @@ fun SettingsScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Provider Toggles
+                    ProviderToggleItem(
+                        name = "🤗 Hugging Face (Primary)",
+                        description = "Advanced AI transcription service - No API key required",
+                        enabled = huggingfaceEnabled,
+                        onToggle = { huggingfaceEnabled = it }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
                     ProviderToggleItem(
                         name = "TokAudit.io",
                         description = "Fast TikTok transcript extraction",
