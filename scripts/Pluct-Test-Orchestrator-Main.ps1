@@ -87,24 +87,24 @@ function Start-TestOrchestrator {
                         $captureResult = Test-CaptureJourney
                         $completeResult = Test-CompleteJourney
                         $enhancementsResult = Test-EnhancementsJourney
-                        $overallSuccess = $intentResult -and $captureResult -and $completeResult -and $enhancementsResult
+                        $overallSuccess = [bool]($intentResult -and $captureResult -and $completeResult -and $enhancementsResult)
                     }
                     "journey" {
                         $intentResult = Test-IntentJourney
                         $captureResult = Test-CaptureJourney
-                        $overallSuccess = $intentResult -and $captureResult
+                        $overallSuccess = [bool]($intentResult -and $captureResult)
                     }
                     "capture" {
-                        $overallSuccess = Test-CaptureJourney
+                        $overallSuccess = [bool](Test-CaptureJourney)
                     }
                     "complete" {
-                        $overallSuccess = Test-CompleteJourney
+                        $overallSuccess = [bool](Test-CompleteJourney)
                     }
                     "enhancements" {
-                        $overallSuccess = Test-EnhancementsJourney
+                        $overallSuccess = [bool](Test-EnhancementsJourney)
                     }
                     "api" {
-                        $overallSuccess = Test-IntentJourney
+                        $overallSuccess = [bool](Test-IntentJourney)
                     }
                 }
     

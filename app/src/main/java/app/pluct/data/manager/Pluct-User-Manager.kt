@@ -3,8 +3,8 @@ package app.pluct.data.manager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import app.pluct.data.service.ApiService
-import app.pluct.data.service.CreateUserRequest
+import app.pluct.api.PluctCoreApiService
+import app.pluct.api.CreateUserRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -18,7 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 @Singleton
 class UserManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val apiService: ApiService // Inject ApiService
+    private val apiService: PluctCoreApiService // Inject PluctCoreApiService
 ) {
     companion object {
         private const val TAG = "UserManager"

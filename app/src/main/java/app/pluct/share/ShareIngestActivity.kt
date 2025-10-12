@@ -15,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.activity.compose.setContent
 import app.pluct.MainActivity
-import app.pluct.utils.UrlUtils
+import app.pluct.utils.PluctUrlUtils
 import app.pluct.utils.UrlProcessingUtils
 import kotlinx.coroutines.*
 import java.net.URL
@@ -80,7 +80,7 @@ class ShareIngestActivity : ComponentActivity() {
         }
         
         // Extract URL from shared text (handle cases where text contains other content)
-        val url = UrlUtils.extractUrlFromText(urlText)
+        val url = PluctUrlUtils.extractUrlFromText(urlText)
         Log.d("ShareIngestActivity", "Extracted URL: $url")
         
         if (url == null) {

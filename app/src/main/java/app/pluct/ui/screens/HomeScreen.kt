@@ -36,73 +36,47 @@ fun HomeScreen(
     val videos by viewModel.videos.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
-    // Handle capture request from MainActivity
-    LaunchedEffect(Unit) {
+    // Handle capture request from MainActivity - check for new intents continuously
+    LaunchedEffect(context) {
         if (context is MainActivity) {
-            val intent = context.intent
-            android.util.Log.d("HomeScreen", "Initial intent check: action=${intent?.action}")
+            var lastProcessedUrl: String? = null
             
-            var attempts = 0
-            while (attempts < 10) {
+            while (true) {
                 val currentIntent = context.intent
-                android.util.Log.d("HomeScreen", "Checking intent attempt $attempts: action=${currentIntent?.action}")
+                android.util.Log.d("HomeScreen", "Checking intent: action=${currentIntent?.action}")
                 
                 if (currentIntent?.action == "app.pluct.action.CAPTURE_INSIGHT") {
                     val url = currentIntent.getStringExtra("capture_url")
                     val caption = currentIntent.getStringExtra("capture_caption")
                     android.util.Log.d("HomeScreen", "CAPTURE_INSIGHT detected: url=$url, caption=$caption")
-                    android.util.Log.i("HomeScreen", "Processing capture request for URL: $url")
                     
-                    if (url != null) {
+                    // Only process if this is a new URL (prevent reprocessing same URL)
+                    if (url != null && url != lastProcessedUrl) {
+                        android.util.Log.i("HomeScreen", "Processing capture request for URL: $url")
                         android.util.Log.d("HomeScreen", "Setting capture request in ViewModel...")
                         viewModel.setCaptureRequest(url, caption)
                         android.util.Log.i("HomeScreen", "Capture request set in ViewModel successfully")
-                        break
+                        lastProcessedUrl = url
+                    } else if (url == lastProcessedUrl) {
+                        android.util.Log.d("HomeScreen", "Skipping reprocessing of same URL: $url")
                     } else {
                         android.util.Log.e("HomeScreen", "ERROR: URL is null in CAPTURE_INSIGHT intent")
                     }
                 }
                 
-                attempts++
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(1000) // Check every second
             }
         }
     }
     
-    // Show capture sheet if there's a capture request
-    uiState.captureRequest?.let { captureRequest ->
-        android.util.Log.i("HomeScreen", "Displaying capture sheet for URL: ${captureRequest.url}")
-        CaptureInsightSheet(
-            captureRequest = captureRequest,
-            onDismiss = { 
-                android.util.Log.d("HomeScreen", "Capture sheet dismissed")
-                viewModel.clearCaptureRequest() 
-            },
-            onTierSelected = { tier ->
-                android.util.Log.i("HomeScreen", "Tier selected: $tier")
-                try {
-                    val message = when (tier) {
-                        ProcessingTier.QUICK_SCAN -> "✅ Queued for Quick Scan. We'll notify you shortly."
-                        ProcessingTier.AI_ANALYSIS -> "✨ Queued for AI Analysis. We'll notify you when your insights are ready."
-                    }
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                    
-                    viewModel.createVideoWithTier(captureRequest.url, tier)
-                    android.util.Log.i("HomeScreen", "Tier selection completed successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("HomeScreen", "Error in tier selection: ${e.message}", e)
-                    Toast.makeText(context, "Error processing selection. Please try again.", Toast.LENGTH_LONG).show()
-                }
-            },
-            viewModel = viewModel
-        )
-    }
     
     // Debug logging for UI state
     LaunchedEffect(uiState.captureRequest) {
         android.util.Log.d("HomeScreen", "UI State changed - captureRequest: ${uiState.captureRequest}")
         if (uiState.captureRequest == null) {
             android.util.Log.w("HomeScreen", "WARNING: captureRequest is null - this might be causing the issue")
+        } else {
+            android.util.Log.i("HomeScreen", "Capture request is present: ${uiState.captureRequest?.url}")
         }
     }
     
@@ -193,5 +167,34 @@ fun HomeScreen(
                 }
             }
         }
+    }
+    
+    // Show capture sheet if there's a capture request - render on top of everything
+    uiState.captureRequest?.let { captureRequest ->
+        android.util.Log.i("HomeScreen", "Displaying capture sheet for URL: ${captureRequest.url}")
+        CaptureInsightSheet(
+            captureRequest = captureRequest,
+            onDismiss = { 
+                android.util.Log.d("HomeScreen", "Capture sheet dismissed")
+                viewModel.clearCaptureRequest() 
+            },
+            onTierSelected = { tier ->
+                android.util.Log.i("HomeScreen", "Tier selected: $tier")
+                try {
+                    val message = when (tier) {
+                        ProcessingTier.QUICK_SCAN -> "✅ Queued for Quick Scan. We'll notify you shortly."
+                        ProcessingTier.AI_ANALYSIS -> "✨ Queued for AI Analysis. We'll notify you when your insights are ready."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    
+                    viewModel.createVideoWithTier(captureRequest.url, tier)
+                    android.util.Log.i("HomeScreen", "Tier selection completed successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeScreen", "Error in tier selection: ${e.message}", e)
+                    Toast.makeText(context, "Error processing selection. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            },
+            viewModel = viewModel
+        )
     }
 }

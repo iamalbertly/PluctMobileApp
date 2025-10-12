@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.pluct.data.manager.UserManager
 import app.pluct.data.repository.PluctRepository
-import app.pluct.data.service.ApiService
-import app.pluct.data.service.TranscribeRequest
-import app.pluct.data.service.VendTokenRequest
+import app.pluct.api.PluctCoreApiService
+import app.pluct.api.VendTokenRequest
+import app.pluct.transcription.PluctTranscriptionCoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class IngestViewModel @Inject constructor(
-    private val apiService: ApiService,
+    private val apiService: PluctCoreApiService,
+    private val transcriptionManager: PluctTranscriptionCoreManager,
     private val userManager: UserManager,
     private val repository: PluctRepository,
     savedStateHandle: SavedStateHandle
@@ -58,24 +59,88 @@ class IngestViewModel @Inject constructor(
                 }
                 val jwt = "Bearer ${tokenResponse.body()!!.token}"
 
-                // Step 2: Use the token to call the TTTranscribe service
-                _uiState.value = _uiState.value.copy(state = IngestState.LOADING, message = "Transcribing video...")
-                val transcribeResponse = apiService.transcribe(jwt, TranscribeRequest(url = url))
-
-                if (!transcribeResponse.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "Transcription failed: ${transcribeResponse.message()}")
-                    return@launch
-                }
-                val transcript = transcribeResponse.body()!!.transcript
+                    // Step 2: Use TTTranscribe service for transcription
+                    _uiState.value = _uiState.value.copy(state = IngestState.PROCESSING, message = "Transcribing video with TTTranscribe...")
+                    
+                    var transcript = ""
+                    var transcriptionSuccess = false
+                    
+                    transcriptionManager.executeTranscriptionWithTTTranscribe(
+                        videoUrl = url,
+                        onProgress = { progress ->
+                            _uiState.value = _uiState.value.copy(message = progress)
+                        },
+                        onSuccess = { result ->
+                            transcript = result
+                            transcriptionSuccess = true
+                        },
+                        onError = { error ->
+                            _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "TTTranscribe failed: $error")
+                        }
+                    )
+                    
+                    if (!transcriptionSuccess) {
+                        return@launch
+                    }
 
                 // Step 3: Save and show the result
                 _uiState.value = _uiState.value.copy(state = IngestState.LOADING, message = "Saving...")
-                repository.saveTranscript(userId, transcript) // Implement this in your repo
-                _uiState.value = _uiState.value.copy(state = IngestState.SUCCESS, transcript = transcript, message = "Success!")
+                repository.saveTranscript(userId, transcript)
+                _uiState.value = _uiState.value.copy(
+                    state = IngestState.SUCCESS, 
+                    transcript = transcript, 
+                    message = "Transcription completed successfully!"
+                )
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "An error occurred: ${e.message}")
             }
         }
+    }
+    
+    fun setProviderUsed(provider: String) {
+        _uiState.value = _uiState.value.copy(providerUsed = provider)
+    }
+    
+    fun markWebActivityLaunched() {
+        _uiState.value = _uiState.value.copy(isWebActivityLaunched = true)
+    }
+    
+    fun resetWebActivityLaunch() {
+        _uiState.value = _uiState.value.copy(isWebActivityLaunched = false)
+    }
+    
+    fun saveTranscript(transcript: String, setStateToReady: Boolean = false) {
+        _uiState.value = _uiState.value.copy(transcript = transcript)
+        if (setStateToReady) {
+            _uiState.value = _uiState.value.copy(state = IngestState.READY)
+        }
+    }
+    
+    fun generateValueProposition(transcript: String) {
+        _uiState.value = _uiState.value.copy(valueProposition = "Key insights: ${transcript.take(100)}...")
+    }
+    
+    fun tryAnotherProvider(provider: String? = null) {
+        _uiState.value = _uiState.value.copy(state = IngestState.READY)
+    }
+    
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null, state = IngestState.IDLE)
+    }
+    
+    fun saveUrlForLaterProcessing(url: String) {
+        // Implementation for saving URL for later processing
+    }
+    
+    fun handleWebTranscriptResult(resultCode: Int, data: android.content.Intent?) {
+        // Implementation for handling web transcript result
+    }
+    
+    fun showTranscriptSuccess(transcript: String) {
+        _uiState.value = _uiState.value.copy(
+            state = IngestState.TRANSCRIPT_SUCCESS,
+            transcript = transcript
+        )
     }
 }

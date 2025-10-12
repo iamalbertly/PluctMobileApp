@@ -9,9 +9,8 @@ import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.repository.PluctRepository
 import app.pluct.notification.NotificationHelper
-import app.pluct.api.TTTranscribeApiService
-import app.pluct.api.TranscriptionResult
-import app.pluct.api.AIAnalysisResult
+import app.pluct.api.PluctCoreApiService
+import app.pluct.transcription.PluctTranscriptionCoreManager
 import app.pluct.scraper.WebViewScraper
 import app.pluct.scraper.ScrapingResult
 import app.pluct.error.ErrorHandler
@@ -26,7 +25,7 @@ class TranscriptionWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val repository: PluctRepository,
-    private val ttTranscribeApiService: TTTranscribeApiService
+    private val transcriptionManager: PluctTranscriptionCoreManager
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -195,41 +194,35 @@ class TranscriptionWorker @AssistedInject constructor(
                     throw PluctError.ValidationError("Video not found: $videoId")
                 }
                 
-                // Use TTTranscribe API for high-quality transcription
-                val transcriptionResult = ttTranscribeApiService.transcribeVideo(video.sourceUrl)
+                // Use new transcription manager for transcription
+                var transcript = ""
+                var success = false
                 
-                when (transcriptionResult) {
-                    is TranscriptionResult.Success -> {
-                        Log.i(TAG, "TTTranscribe transcription successful for video $videoId")
-                        
-                            // Save the transcript
-                            repository.saveTranscriptForVideo(videoId, transcriptionResult.transcript)
-                        
-                        // Generate AI analysis
-                        val analysisResult = ttTranscribeApiService.generateAIAnalysis(transcriptionResult.transcript)
-                        
-                        when (analysisResult) {
-                            is AIAnalysisResult.Success -> {
-                                Log.i(TAG, "AI analysis successful for video $videoId")
-                                
-                                // Save analysis results
-                                repository.saveArtifact(videoId, "summary", analysisResult.summary)
-                                repository.saveArtifact(videoId, "key_takeaways", analysisResult.keyTakeaways.joinToString("\n"))
-                                repository.saveArtifact(videoId, "actionable_steps", analysisResult.actionableSteps.joinToString("\n"))
-                                
-                                transcriptionResult.transcript
-                            }
-                            is AIAnalysisResult.Error -> {
-                                Log.w(TAG, "AI analysis failed for video $videoId: ${analysisResult.message}")
-                                // Still return success as we have the transcript
-                                transcriptionResult.transcript
-                            }
-                        }
+                transcriptionManager.executeTranscription(
+                    videoUrl = video.sourceUrl,
+                    onProgress = { progress -> Log.d(TAG, "Transcription progress: $progress") },
+                    onSuccess = { result ->
+                        transcript = result
+                        success = true
+                        Log.i(TAG, "Transcription successful for video $videoId")
+                    },
+                    onError = { error ->
+                        Log.e(TAG, "Transcription failed for video $videoId: $error")
+                        throw PluctError.APIError(500, "Transcription failed: $error")
                     }
-                    is TranscriptionResult.Error -> {
-                        Log.e(TAG, "TTTranscribe transcription failed for video $videoId: ${transcriptionResult.message}")
-                        throw PluctError.APIError(500, "Transcription failed: ${transcriptionResult.message}")
-                    }
+                )
+                
+                if (success && transcript.isNotEmpty()) {
+                    // Save the transcript
+                    repository.saveTranscriptForVideo(videoId, transcript)
+                    
+                    // Generate value proposition
+                    val valueProposition = transcriptionManager.generateValueProposition(transcript)
+                    repository.saveArtifact(videoId, "value_proposition", valueProposition)
+                    
+                    transcript
+                } else {
+                    throw PluctError.APIError(500, "Transcription failed: No transcript generated")
                 }
             },
             config = ErrorHandler.API_RETRY_CONFIG,

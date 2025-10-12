@@ -57,7 +57,9 @@ class PluctRepository @Inject constructor(
             thumbnailUrl = metadata?.thumbnailUrl,
             processingTier = processingTier
         )
-        return videoItemDao.upsertVideo(video)
+        val videoId = videoItemDao.upsertVideo(video)
+        android.util.Log.i("PluctRepository", "Video created with ID: $videoId")
+        return videoId
     }
     
     suspend fun markUrlAsInvalid(videoId: String, url: String, errorMessage: String) {
@@ -148,7 +150,7 @@ class PluctRepository @Inject constructor(
         // For now, we'll create a simple video entry and save the transcript
         // In a real implementation, you might want to link this to a specific video
         val videoId = upsertVideo("transcript_$userId") // Create a placeholder video
-        saveTranscript(videoId, transcript)
+        saveTranscriptWithLanguage(videoId, transcript)
     }
     
     fun getTranscriptFlow(videoId: String): Flow<Transcript?> = transcriptDao.getTranscriptFlow(videoId)

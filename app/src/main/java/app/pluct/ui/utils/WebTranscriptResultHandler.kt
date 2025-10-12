@@ -42,7 +42,7 @@ object WebTranscriptResultHandler {
                 }
                 
                 // Save transcript to view model
-                viewModel.saveTranscript(transcriptText, transcriptLanguage, setStateToReady = false)
+                viewModel.saveTranscript(transcriptText, setStateToReady = false)
                 viewModel.showTranscriptSuccess(transcriptText)
             }
         } else {

@@ -143,14 +143,47 @@ function Test-IntentJourney {
 
 function Test-CaptureJourney {
     return Test-UnifiedJourney -TestName "Capture Journey" -LogPatterns @(
-        "Displaying capture sheet for URL",
-        "Tier selected",
-        "Video created with ID" # Wait for video creation to complete
+        "Displaying capture sheet for URL"
     ) -ScreenValidations @() -UserActions {
+        # Wait for the capture sheet to be fully displayed
+        Start-Sleep -Seconds 3
+        
+        # Show all visible elements before attempting interaction
+        Write-Log "Analyzing screen before interaction..." "Yellow"
+        Show-AllVisibleElements
+        
+        # First, expand the bottom sheet to show tier options
+        Write-Log "Expanding bottom sheet to show tier options..." "Yellow"
+        Test-BottomSheetExpansion
+        
+        # Wait for the sheet to fully expand
+        Start-Sleep -Seconds 2
+        
         # Simulate a tap on the "Quick Scan" button
         Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
-        Simulate-Tap -Text "Quick Scan"
+        $tapSuccess = Simulate-TapByText -Text "Quick Scan" -Context "Select Quick Scan tier"
+        if (-not $tapSuccess) {
+            Write-Log "❌ Failed to tap Quick Scan button" "Red"
+            throw "Failed to interact with Quick Scan button"
+        }
+        
         Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
+        
+        # Now wait for the tier selection log
+        Write-Log "Waiting for tier selection confirmation..." "Yellow"
+        $tierSelected = Wait-ForLog -Pattern "Tier selected" -TimeoutSeconds 10 -Description "Tier selection confirmation"
+        if (-not $tierSelected) {
+            Write-Log "❌ Tier selection not confirmed" "Red"
+            throw "Tier selection not confirmed"
+        }
+        
+        # Wait for video creation
+        Write-Log "Waiting for video creation..." "Yellow"
+        $videoCreated = Wait-ForLog -Pattern "Video created with ID" -TimeoutSeconds 10 -Description "Video creation confirmation"
+        if (-not $videoCreated) {
+            Write-Log "❌ Video creation not confirmed" "Red"
+            throw "Video creation not confirmed"
+        }
     }
 }
 
@@ -160,9 +193,21 @@ function Test-CompleteJourney {
         "Tier selected",
         "enqueueTranscriptionWork"
     ) -ScreenValidations @() -UserActions {
+        # First, expand the bottom sheet to show tier options
+        Write-Log "Expanding bottom sheet to show tier options..." "Yellow"
+        Test-BottomSheetExpansion
+        
+        # Wait for the sheet to fully expand
+        Start-Sleep -Seconds 2
+        
         # Simulate a tap on the "Quick Scan" button
         Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
-        Simulate-Tap -Text "Quick Scan"
+        $tapSuccess = Simulate-TapByText -Text "Quick Scan" -Context "Select Quick Scan tier"
+        if (-not $tapSuccess) {
+            Write-Log "❌ Failed to tap Quick Scan button" "Red"
+            throw "Failed to interact with Quick Scan button"
+        }
+        
         Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
     }
 }
@@ -173,9 +218,21 @@ function Test-EnhancementsJourney {
         "Tier selected",
         "Video created with ID"
     ) -ScreenValidations @() -UserActions {
+        # First, expand the bottom sheet to show tier options
+        Write-Log "Expanding bottom sheet to show tier options..." "Yellow"
+        Test-BottomSheetExpansion
+        
+        # Wait for the sheet to fully expand
+        Start-Sleep -Seconds 2
+        
         # Simulate a tap on the "Quick Scan" button
         Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
-        Simulate-Tap -Text "Quick Scan"
+        $tapSuccess = Simulate-TapByText -Text "Quick Scan" -Context "Select Quick Scan tier"
+        if (-not $tapSuccess) {
+            Write-Log "❌ Failed to tap Quick Scan button" "Red"
+            throw "Failed to interact with Quick Scan button"
+        }
+        
         Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
     }
 }

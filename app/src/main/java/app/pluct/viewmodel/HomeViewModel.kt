@@ -105,14 +105,19 @@ class HomeViewModel @Inject constructor(
     fun createVideoWithTier(url: String, processingTier: ProcessingTier) {
         viewModelScope.launch {
             try {
+                android.util.Log.i("HomeViewModel", "Creating video with tier: $processingTier for URL: $url")
                 val videoId = repository.createVideoWithTier(url, processingTier)
+                android.util.Log.i("HomeViewModel", "Video created successfully with ID: $videoId")
+                
                 // Enqueue the background worker
                 WorkManagerUtils.enqueueTranscriptionWork(context, videoId, processingTier)
+                android.util.Log.i("HomeViewModel", "Background work enqueued for video: $videoId")
                 
                 // Add a delay to allow the user to see the toast message before clearing the capture request
                 kotlinx.coroutines.delay(2000) // 2 seconds delay
                 clearCaptureRequest()
             } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error creating video: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     error = e.message ?: "Failed to create video"
                 )

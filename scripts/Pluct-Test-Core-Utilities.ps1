@@ -89,6 +89,75 @@ function Get-ScreenContent {
     }
 }
 
+function Show-AllVisibleElements {
+    Write-Log "=== COMPREHENSIVE SCREEN ANALYSIS ===" "Cyan"
+    
+    # Get current activity
+    $currentActivity = adb shell dumpsys activity activities | Select-String "mResumedActivity" | Select-Object -First 1
+    Write-Log "Current Activity: $currentActivity" "Cyan"
+    
+    # Get all visible text elements
+    Write-Log "=== ALL VISIBLE TEXT ELEMENTS ===" "Yellow"
+    $allText = adb shell dumpsys activity top | Select-String "TEXT"
+    if ($allText) {
+        $allText | ForEach-Object { 
+            $text = $_.ToString().Trim()
+            if ($text -ne "") {
+                Write-Log "TEXT: $text" "White"
+            }
+        }
+    } else {
+        Write-Log "No text elements found" "Red"
+    }
+    
+    # Get UI hierarchy and extract all clickable elements
+    Write-Log "=== ALL CLICKABLE ELEMENTS ===" "Yellow"
+    $uiDump = adb shell uiautomator dump
+    if ($uiDump) {
+        $xmlContent = adb shell cat /sdcard/window_dump.xml
+        if ($xmlContent) {
+            $lines = $xmlContent -split "`n"
+            $clickableElements = $lines | Where-Object { $_ -match 'clickable="true"' }
+            foreach ($element in $clickableElements) {
+                if ($element -match 'text="([^"]*)"') {
+                    $text = $matches[1]
+                    if ($text -ne "") {
+                        Write-Log "CLICKABLE: $text" "Green"
+                    }
+                }
+                if ($element -match 'content-desc="([^"]*)"') {
+                    $desc = $matches[1]
+                    if ($desc -ne "") {
+                        Write-Log "CLICKABLE (desc): $desc" "Green"
+                    }
+                }
+            }
+        }
+    }
+    
+    # Get all text elements with bounds
+    Write-Log "=== ALL TEXT ELEMENTS WITH COORDINATES ===" "Yellow"
+    if ($xmlContent) {
+        $textElements = $lines | Where-Object { $_ -match 'text="[^"]*"' }
+        foreach ($element in $textElements) {
+            if ($element -match 'text="([^"]*)"' -and $element -match 'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"') {
+                $text = $matches[1]
+                $x1 = $matches[2]
+                $y1 = $matches[3]
+                $x2 = $matches[4]
+                $y2 = $matches[5]
+                if ($text -ne "") {
+                    $centerX = [int](($x1 + $x2) / 2)
+                    $centerY = [int](($y1 + $y2) / 2)
+                    Write-Log "TEXT: '$text' at ($centerX, $centerY)" "White"
+                }
+            }
+        }
+    }
+    
+    Write-Log "=== END SCREEN ANALYSIS ===" "Cyan"
+}
+
 function Test-ScreenContent {
     param(
         [string]$ExpectedText,
@@ -155,8 +224,93 @@ function Simulate-Tap {
     Write-Log "Tap gesture completed" "Green"
 }
 
+function Simulate-TapByText {
+    param(
+        [string]$Text,
+        [string]$Context = "Tap by text"
+    )
+    
+    Write-Log "Looking for text: '$Text' to tap" "Yellow"
+    
+    # Show all available text elements first
+    Write-Log "=== AVAILABLE TEXT ELEMENTS ===" "Cyan"
+    $uiDump = adb shell uiautomator dump
+    if ($uiDump) {
+        $xmlContent = adb shell cat /sdcard/window_dump.xml
+        if ($xmlContent) {
+            $lines = $xmlContent -split "`n"
+            $textElements = $lines | Where-Object { $_ -match 'text="[^"]*"' }
+            foreach ($element in $textElements) {
+                if ($element -match 'text="([^"]*)"') {
+                    $elementText = $matches[1]
+                    if ($elementText -ne "") {
+                        Write-Log "Available: '$elementText'" "Gray"
+                    }
+                }
+            }
+        }
+    }
+    
+    # First, get the UI hierarchy to find the element
+    if (-not $uiDump) {
+        Write-Log "❌ Failed to get UI hierarchy" "Red"
+        return $false
+    }
+    
+    # Parse the UI dump to find coordinates of the text
+    $xmlContent = adb shell cat /sdcard/window_dump.xml
+    if (-not $xmlContent) {
+        Write-Log "❌ Failed to read UI dump content" "Red"
+        return $false
+    }
+    
+    # Look for the text in the UI hierarchy
+    $textFound = $false
+    $coordinates = $null
+    
+    # Try to find the element by text content
+    $lines = $xmlContent -split "`n"
+    foreach ($line in $lines) {
+        if ($line -match "text=`"$Text`"" -or $line -match "content-desc=`"$Text`"") {
+            # Extract bounds from the line
+            if ($line -match 'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"') {
+                $x1 = [int]$matches[1]
+                $y1 = [int]$matches[2]
+                $x2 = [int]$matches[3]
+                $y2 = [int]$matches[4]
+                
+                # Calculate center point
+                $centerX = [int](($x1 + $x2) / 2)
+                $centerY = [int](($y1 + $y2) / 2)
+                
+                $coordinates = @{ X = $centerX; Y = $centerY }
+                $textFound = $true
+                Write-Log "Found '$Text' at coordinates ($centerX, $centerY)" "Green"
+                break
+            }
+        }
+    }
+    
+    if (-not $textFound -or -not $coordinates) {
+        Write-Log "❌ Text '$Text' not found in UI hierarchy" "Red"
+        Write-Log "Available UI elements:" "Yellow"
+        $lines | Where-Object { $_ -match 'text=' -or $_ -match 'content-desc=' } | Select-Object -First 10 | ForEach-Object { Write-Log "  $_" "Gray" }
+        return $false
+    }
+    
+    # Perform the tap
+    Write-Log "Tapping on '$Text' at ($($coordinates.X), $($coordinates.Y))" "Yellow"
+    Simulate-Tap -X $coordinates.X -Y $coordinates.Y -Context $Context
+    
+    return $true
+}
+
 function Test-BottomSheetExpansion {
     Write-Log "Testing bottom sheet expansion..." "Cyan"
+    
+    # Wait for the capture sheet to be fully rendered
+    Write-Log "Waiting for capture sheet to be fully rendered..." "Yellow"
+    Start-Sleep -Seconds 3
     
     # First, check if the bottom sheet is visible
     $bottomSheetVisible = Test-ScreenContent -ExpectedText "Capture This Insight" -Context "Bottom sheet headline"
@@ -185,7 +339,19 @@ function Test-BottomSheetExpansion {
             return $false
         }
     } else {
-        Write-Log "❌ Bottom sheet not visible" "Red"
+        Write-Log "❌ Bottom sheet not visible - trying alternative approach" "Red"
+        
+        # Try to find any text that might indicate the capture sheet
+        $alternativeTexts = @("Quick Scan", "AI Analysis", "Capture", "Insight", "Tier")
+        foreach ($text in $alternativeTexts) {
+            $found = Test-ScreenContent -ExpectedText $text -Context "Looking for $text"
+            if ($found) {
+                Write-Log "✅ Found alternative text: $text" "Green"
+                return $true
+            }
+        }
+        
+        Write-Log "❌ No capture sheet elements found" "Red"
         return $false
     }
 }

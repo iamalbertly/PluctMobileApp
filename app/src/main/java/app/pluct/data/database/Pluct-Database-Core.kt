@@ -12,15 +12,20 @@ import app.pluct.data.converter.Converters
 import app.pluct.data.dao.OutputArtifactDao
 import app.pluct.data.dao.TranscriptDao
 import app.pluct.data.dao.VideoItemDao
+import app.pluct.data.dao.UserCoinsDao
 import app.pluct.data.entity.OutputArtifact
 import app.pluct.data.entity.Transcript
 import app.pluct.data.entity.VideoItem
+import app.pluct.data.entity.UserCoins
+import app.pluct.data.entity.CoinTransaction
 
 @Database(
     entities = [
         VideoItem::class,
         Transcript::class,
-        OutputArtifact::class
+        OutputArtifact::class,
+        UserCoins::class,
+        CoinTransaction::class
     ],
     version = 2,
     exportSchema = false
@@ -30,6 +35,7 @@ abstract class PluctDatabase : RoomDatabase() {
     abstract fun videoItemDao(): VideoItemDao
     abstract fun transcriptDao(): TranscriptDao
     abstract fun outputArtifactDao(): OutputArtifactDao
+    abstract fun userCoinsDao(): UserCoinsDao
 
     companion object {
         private const val TAG = "PluctDatabase"

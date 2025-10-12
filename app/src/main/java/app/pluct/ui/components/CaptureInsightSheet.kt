@@ -35,6 +35,7 @@ fun CaptureInsightSheet(
 ) {
     // Debug logging
     android.util.Log.d("CaptureInsightSheet", "Rendering capture sheet for URL: ${captureRequest.url}")
+    android.util.Log.d("CaptureInsightSheet", "Capture sheet component is being composed")
     
     // Animation states
     var isVisible by remember { mutableStateOf(false) }
