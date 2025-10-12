@@ -21,6 +21,7 @@ import app.pluct.utils.DebugLogger
 import app.pluct.utils.VerificationResult
 import app.pluct.utils.VerificationUtils
 import app.pluct.data.manager.UserManager
+import app.pluct.notification.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +50,9 @@ class MainActivity : ComponentActivity() {
         DebugLogger.init(applicationContext)
         DebugLogger.clear()
         DebugLogger.log("MainActivity onCreate - intent: ${intent?.data}")
+        
+        // Initialize notification channel
+        NotificationHelper.createNotificationChannel(this)
         
         // Handle first-time user onboarding
         handleFirstTimeUser()
@@ -151,9 +155,16 @@ class MainActivity : ComponentActivity() {
         // Set the new intent
         setIntent(intent)
         
-        // Always handle subsequent deep links (even if URL matches) to ensure E2E automation starts
         intent?.let { newIntent ->
             android.util.Log.d("MainActivity", "Handling incoming intent: ${newIntent.action}, data: ${newIntent.data}")
+
+            // Handle CAPTURE_INSIGHT action for the Choice Engine
+            if (newIntent.action == "app.pluct.action.CAPTURE_INSIGHT") {
+                android.util.Log.d("MainActivity", "Handling CAPTURE_INSIGHT intent")
+                // The capture request will be handled by the HomeViewModel
+                // No navigation needed here, just pass the data to the ViewModel
+                return
+            }
 
             navControllerRef?.let { navController ->
                 android.util.Log.d("MainActivity", "Handling deep link with NavController (no URL equality gate)")

@@ -3,6 +3,19 @@ package app.pluct.data.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+enum class ProcessingStatus { 
+    PENDING, 
+    TRANSCRIBING, 
+    ANALYZING, 
+    COMPLETED, 
+    FAILED 
+}
+
+enum class ProcessingTier { 
+    QUICK_SCAN, 
+    AI_ANALYSIS 
+}
+
 @Entity(tableName = "video_items")
 data class VideoItem(
     @PrimaryKey
@@ -15,6 +28,11 @@ data class VideoItem(
     val tagsCsv: String? = null,
     val isInvalid: Boolean = false,
     val errorMessage: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    
+    // NEW FIELDS for Choice Engine
+    val status: ProcessingStatus = ProcessingStatus.PENDING,
+    val processingTier: ProcessingTier, // Must be provided on creation
+    val failureReason: String? = null // To store error messages
 )
 

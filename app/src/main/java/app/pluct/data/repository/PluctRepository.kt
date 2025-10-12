@@ -5,6 +5,8 @@ import app.pluct.data.dao.TranscriptDao
 import app.pluct.data.dao.VideoItemDao
 import app.pluct.data.entity.ArtifactKind
 import app.pluct.data.entity.OutputArtifact
+import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.Transcript
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.service.VideoMetadataService
@@ -35,7 +37,24 @@ class PluctRepository @Inject constructor(
             title = metadata?.title,
             description = metadata?.description,
             author = metadata?.author,
-            thumbnailUrl = metadata?.thumbnailUrl
+            thumbnailUrl = metadata?.thumbnailUrl,
+            processingTier = ProcessingTier.QUICK_SCAN // Default to free tier for backward compatibility
+        )
+        return videoItemDao.upsertVideo(video)
+    }
+    
+    suspend fun createVideoWithTier(url: String, processingTier: ProcessingTier): String {
+        // Fetch metadata for the video
+        val metadata = metadataService.fetchVideoMetadata(url)
+        
+        val video = VideoItem(
+            id = UUID.randomUUID().toString(),
+            sourceUrl = url,
+            title = metadata?.title,
+            description = metadata?.description,
+            author = metadata?.author,
+            thumbnailUrl = metadata?.thumbnailUrl,
+            processingTier = processingTier
         )
         return videoItemDao.upsertVideo(video)
     }
@@ -55,7 +74,8 @@ class PluctRepository @Inject constructor(
                 id = videoId,
                 sourceUrl = url,
                 isInvalid = true,
-                errorMessage = errorMessage
+                errorMessage = errorMessage,
+                processingTier = ProcessingTier.QUICK_SCAN // Default for invalid videos
             )
             videoItemDao.upsertVideo(invalidVideo)
         }
@@ -85,8 +105,34 @@ class PluctRepository @Inject constructor(
         // Note: Room will handle cascading deletes if foreign keys are set up properly
     }
     
+    // NEW METHODS for Choice Engine processing status management
+    suspend fun updateVideoStatus(videoId: String, status: ProcessingStatus, failureReason: String? = null) {
+        val video = videoItemDao.getById(videoId)
+        if (video != null) {
+            val updatedVideo = video.copy(
+                status = status,
+                failureReason = failureReason
+            )
+            videoItemDao.updateVideo(updatedVideo)
+        }
+    }
+    
+    suspend fun getVideoById(videoId: String): VideoItem? {
+        return videoItemDao.getById(videoId)
+    }
+    
+    suspend fun saveTranscript(videoId: String, transcript: String) {
+        // TODO: Implement transcript storage
+        Log.d("PluctRepository", "Saving transcript for video $videoId: ${transcript.length} characters")
+    }
+    
+    suspend fun saveArtifact(videoId: String, artifactType: String, content: String) {
+        // TODO: Implement artifact storage
+        Log.d("PluctRepository", "Saving artifact $artifactType for video $videoId: ${content.length} characters")
+    }
+    
     // Transcript operations
-    suspend fun saveTranscript(videoId: String, text: String, language: String? = null) {
+    suspend fun saveTranscriptWithLanguage(videoId: String, text: String, language: String? = null) {
         val transcript = Transcript(
             id = UUID.randomUUID().toString(),
             videoId = videoId,

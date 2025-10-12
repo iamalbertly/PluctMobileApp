@@ -102,6 +102,11 @@ class ShareIngestActivity : ComponentActivity() {
                 // Process URL using the utility class
                 val finalUrl = UrlProcessingUtils.processUrl(url)
                 
+                // Enhanced logging for debugging
+                Log.i("ShareIngestActivity", "Processing share intent with URL: $finalUrl")
+                Log.d("ShareIngestActivity", "Original URL: $url")
+                Log.d("ShareIngestActivity", "Processed URL: $finalUrl")
+                
                 // Save URL to clipboard for easy access in WebView
                 try {
                     val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -112,31 +117,28 @@ class ShareIngestActivity : ComponentActivity() {
                     Log.e("ShareIngestActivity", "Failed to save URL to clipboard: ${e.message}", e)
                 }
                 
-                // Start MainActivity with the final URL as a deep link parameter
-                val encodedUrl = android.net.Uri.encode(finalUrl, "UTF-8")
-                val deepLinkUri = "pluct://ingest?url=$encodedUrl&run_id=$runId"
-                Log.d("ShareIngestActivity", "Starting MainActivity with deep link: $deepLinkUri")
-                Log.d("ShareIngestActivity", "Original URL: $finalUrl, Encoded URL: $encodedUrl, Run ID: $runId")
+                // Extract caption from shared text if available
+                val captionText = extractCaptionFromText(urlText)
+                Log.d("ShareIngestActivity", "Extracted caption: $captionText")
                 
                 // Show success message
-                Toast.makeText(this@ShareIngestActivity, "Saved link: ${UrlUtils.extractHostFromUrl(finalUrl)}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ShareIngestActivity, "Opening Pluct...", Toast.LENGTH_SHORT).show()
                  
                  // Use SINGLE_TOP and CLEAR_TOP to prevent double launch
                  val mainIntent = Intent(this@ShareIngestActivity, MainActivity::class.java).apply {
-                     action = Intent.ACTION_VIEW
-                     data = android.net.Uri.parse(deepLinkUri)
-                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                     action = "app.pluct.action.CAPTURE_INSIGHT"
+                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                      addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Prevent animation for smoother transition
                      
-                     // Persist both videoUrl and runId into intent extras
-                     putExtra("tok_url", finalUrl)
-                     putExtra("run_id", runId)
+                     // Pass the URL and caption to trigger the capture sheet
+                     putExtra("capture_url", finalUrl)
+                     putExtra("capture_caption", captionText)
                  }
                  
-                 android.util.Log.d("ShareIngestActivity", "Starting MainActivity with flags: ${mainIntent.flags}, deepLink: $deepLinkUri")
+                 android.util.Log.d("ShareIngestActivity", "Starting MainActivity with capture intent")
                  
                  startActivity(mainIntent)
-                 Log.d("ShareIngestActivity", "MainActivity started with single top flag, finishing ShareIngestActivity")
+                 Log.d("ShareIngestActivity", "MainActivity started with capture intent, finishing ShareIngestActivity")
                  finish()
             } catch (e: Exception) {
                 Log.e("ShareIngestActivity", "Error processing share intent", e)
@@ -149,4 +151,19 @@ class ShareIngestActivity : ComponentActivity() {
     // No blocking dialog for URL equality; any TikTok URL proceeds
     
     // URL processing methods have been moved to UrlProcessingUtils
+    
+    /**
+     * Extract caption from shared text by removing the URL
+     */
+    private fun extractCaptionFromText(sharedText: String): String? {
+        return try {
+            // Try to find and remove the URL from the text
+            val urlPattern = Regex("https?://[^\\s]+")
+            val caption = sharedText.replace(urlPattern, "").trim()
+            if (caption.isNotEmpty()) caption else null
+        } catch (e: Exception) {
+            Log.e("ShareIngestActivity", "Error extracting caption: ${e.message}")
+            null
+        }
+    }
 }

@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import app.pluct.data.entity.ProcessingStatus
 import app.pluct.viewmodel.HomeViewModel
 
 /**
@@ -37,16 +38,19 @@ fun RecentTranscriptItem(
         ) {
             // Status Icon
             Icon(
-                imageVector = when {
-                    video.isInvalid -> Icons.Default.Error
-                    video.errorMessage != null -> Icons.Default.Error
-                    else -> Icons.Default.Schedule
+                imageVector = when (video.status) {
+                    ProcessingStatus.PENDING -> Icons.Default.Schedule
+                    ProcessingStatus.TRANSCRIBING -> Icons.Default.AutoFixHigh
+                    ProcessingStatus.ANALYZING -> Icons.Default.Psychology
+                    ProcessingStatus.COMPLETED -> Icons.Default.CheckCircle
+                    ProcessingStatus.FAILED -> Icons.Default.Error
                 },
                 contentDescription = null,
-                tint = when {
-                    video.isInvalid -> MaterialTheme.colorScheme.error
-                    video.errorMessage != null -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                tint = when (video.status) {
+                    ProcessingStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    ProcessingStatus.TRANSCRIBING, ProcessingStatus.ANALYZING -> MaterialTheme.colorScheme.primary
+                    ProcessingStatus.COMPLETED -> MaterialTheme.colorScheme.primary
+                    ProcessingStatus.FAILED -> MaterialTheme.colorScheme.error
                 },
                 modifier = Modifier.size(24.dp)
             )
@@ -67,11 +71,12 @@ fun RecentTranscriptItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 
                 Text(
-                    text = when {
-                        video.isInvalid -> "Invalid URL"
-                        video.errorMessage != null -> "Error: ${video.errorMessage}"
-                        video.title != null -> "Title: ${video.title}"
-                        else -> "Processing..."
+                    text = when (video.status) {
+                        ProcessingStatus.PENDING -> "Pending processing..."
+                        ProcessingStatus.TRANSCRIBING -> "Transcribing audio..."
+                        ProcessingStatus.ANALYZING -> "Analyzing content..."
+                        ProcessingStatus.COMPLETED -> video.title ?: "Ready to view"
+                        ProcessingStatus.FAILED -> video.failureReason ?: "Processing failed"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -82,13 +87,20 @@ fun RecentTranscriptItem(
             Row {
                 IconButton(
                     onClick = {
-                        navController.navigate("ingest?url=${video.sourceUrl}")
-                    }
+                        if (video.status == ProcessingStatus.COMPLETED) {
+                            navController.navigate("ingest?url=${video.sourceUrl}")
+                        }
+                    },
+                    enabled = video.status == ProcessingStatus.COMPLETED
                 ) {
                     Icon(
                         Icons.Default.OpenInNew,
                         contentDescription = "Open",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = if (video.status == ProcessingStatus.COMPLETED) 
+                            MaterialTheme.colorScheme.primary 
+                        else 
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
                 

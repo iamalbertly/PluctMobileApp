@@ -5,6 +5,7 @@ import android.util.Log
 import app.pluct.data.database.PluctDatabase
 import app.pluct.data.entity.ArtifactKind
 import app.pluct.data.entity.OutputArtifact
+import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.Transcript
 import app.pluct.data.entity.VideoItem
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,8 @@ object VerificationUtils {
                 title = "Test Video",
                 author = "Test Author",
                 description = "Test Description",
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                processingTier = ProcessingTier.QUICK_SCAN
             )
             
             // Insert test video
