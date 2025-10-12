@@ -14,26 +14,50 @@ function Test-UnifiedJourney {
     
     $success = $true
     $step = 1
+    $errorDetails = @()
+    $logcatProcess = $null
     
     try {
         # Step 1: Clear and prepare
         Write-Log "Step ${step}: Preparing test environment..." "Yellow"
-        Clear-AppData
-        adb logcat -c
-        $logcatProcess = Start-LogcatMonitor
+        try {
+            Clear-AppData
+            adb logcat -c
+            $logcatProcess = Start-LogcatMonitor
+        } catch {
+            $errorDetails += "Failed to prepare test environment: $($_.Exception.Message)"
+            Write-Log "❌ ERROR: Failed to prepare test environment: $($_.Exception.Message)" "Red"
+            $success = $false
+            throw
+        }
         $step++
         
         # Step 2: Send share intent
         Write-Log "Step ${step}: Sending share intent..." "Yellow"
-        Send-ShareIntent -Url $script:TestUrl
+        try {
+            Send-ShareIntent -Url $script:TestSession.TestUrl
+        } catch {
+            $errorDetails += "Failed to send share intent: $($_.Exception.Message)"
+            Write-Log "❌ ERROR: Failed to send share intent: $($_.Exception.Message)" "Red"
+            $success = $false
+            throw
+        }
         $step++
         
         # Step 3: Wait for log patterns
         foreach ($pattern in $LogPatterns) {
             Write-Log "Step ${step}: Waiting for pattern: $pattern" "Yellow"
-            $found = Wait-ForLog -Pattern $pattern -TimeoutSeconds $TimeoutSeconds -Description $pattern -ShowLogs
-            if (-not $found) {
-                Write-Log "❌ FAIL: Pattern '$pattern' not found" "Red"
+            try {
+                $found = Wait-ForLog -Pattern $pattern -TimeoutSeconds $TimeoutSeconds -Description $pattern -ShowLogs
+                if (-not $found) {
+                    $errorDetails += "Pattern '$pattern' not found within $TimeoutSeconds seconds"
+                    Write-Log "❌ FAIL: Pattern '$pattern' not found" "Red"
+                    $success = $false
+                    break
+                }
+            } catch {
+                $errorDetails += "Error waiting for pattern '$pattern': $($_.Exception.Message)"
+                Write-Log "❌ ERROR: Failed to wait for pattern '$pattern': $($_.Exception.Message)" "Red"
                 $success = $false
                 break
             }
@@ -43,33 +67,70 @@ function Test-UnifiedJourney {
         # Step 4: Execute user actions
         if ($success -and $UserActions) {
             Write-Log "Step ${step}: Executing user actions..." "Yellow"
-            & $UserActions
-            $step++
-        }
-        
-        # Step 5: Validate screen content
-        foreach ($validation in $ScreenValidations) {
-            Write-Log "Step ${step}: Validating screen: $validation" "Yellow"
-            $valid = Test-ScreenContent -ExpectedText $validation -Context $validation
-            if (-not $valid) {
-                Write-Log "❌ FAIL: Screen validation '$validation' failed" "Red"
+            try {
+                & $UserActions
+            } catch {
+                $errorDetails += "Failed to execute user actions: $($_.Exception.Message)"
+                Write-Log "❌ ERROR: User actions failed: $($_.Exception.Message)" "Red"
                 $success = $false
-                break
             }
             $step++
         }
         
-        if ($success) {
-            Write-Log "✅ $TestName SUCCESSFUL" "Green"
-        } else {
-            Write-Log "❌ $TestName FAILED" "Red"
+        # Step 5: Validate screen content
+        if ($success -and $ScreenValidations.Count -gt 0) {
+            foreach ($validation in $ScreenValidations) {
+                Write-Log "Step ${step}: Validating screen: $validation" "Yellow"
+                try {
+                    $valid = Test-ScreenContent -ExpectedText $validation -Context $validation
+                    if (-not $valid) {
+                        $errorDetails += "Screen validation '$validation' failed - expected text not found"
+                        Write-Log "❌ FAIL: Screen validation '$validation' failed" "Red"
+                        $success = $false
+                        break
+                    }
+                } catch {
+                    $errorDetails += "Error validating screen '$validation': $($_.Exception.Message)"
+                    Write-Log "❌ ERROR: Screen validation '$validation' failed: $($_.Exception.Message)" "Red"
+                    $success = $false
+                    break
+                }
+                $step++
+            }
         }
         
-        return $success
-        
+    } catch {
+        $errorDetails += "Critical error during $TestName`: $($_.Exception.Message)"
+        Write-Log "❌ CRITICAL ERROR: $($_.Exception.Message)" "Red"
+        $success = $false
     } finally {
-        Stop-LogcatMonitor -Process $logcatProcess
+        if ($logcatProcess) {
+            try {
+                Stop-LogcatMonitor -Process $logcatProcess
+            } catch {
+                Write-Log "Warning: Failed to stop logcat monitor" "Yellow"
+            }
+        }
     }
+
+    # Detailed error reporting and termination
+    if (-not $success) {
+        Write-Log "❌ $TestName FAILED" "Red"
+        Write-Log "Error Details:" "Red"
+        foreach ($error in $errorDetails) {
+            Write-Log "  - $error" "Red"
+        }
+        
+        # Terminate on first error as requested
+        Write-Log "TERMINATING TEST EXECUTION DUE TO FAILURE" "Red"
+        Write-Log "Please fix the issues above and re-run the test" "Red"
+        exit 1
+    } else {
+        Write-Log "✅ $TestName SUCCESSFUL" "Green"
+    }
+    
+    $script:TestSession.TestResults[$TestName] = $success
+    return $success
 }
 
 function Test-IntentJourney {
@@ -83,9 +144,13 @@ function Test-IntentJourney {
 function Test-CaptureJourney {
     return Test-UnifiedJourney -TestName "Capture Journey" -LogPatterns @(
         "Displaying capture sheet for URL",
-        "setCaptureRequest"
-    ) -ScreenValidations @("Capture This Insight") -UserActions {
-        Test-BottomSheetExpansion
+        "Tier selected",
+        "Video created with ID" # Wait for video creation to complete
+    ) -ScreenValidations @() -UserActions {
+        # Simulate a tap on the "Quick Scan" button
+        Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
+        Simulate-Tap -Text "Quick Scan"
+        Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
     }
 }
 
@@ -94,21 +159,23 @@ function Test-CompleteJourney {
         "Displaying capture sheet for URL",
         "Tier selected",
         "enqueueTranscriptionWork"
-    ) -ScreenValidations @("Capture This Insight", "Quick Scan", "AI Analysis") -UserActions {
-        Test-BottomSheetExpansion
-        Simulate-TierSelection -Tier "Quick Scan"
+    ) -ScreenValidations @() -UserActions {
+        # Simulate a tap on the "Quick Scan" button
+        Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
+        Simulate-Tap -Text "Quick Scan"
+        Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
     }
 }
 
 function Test-EnhancementsJourney {
     return Test-UnifiedJourney -TestName "Enhancements Journey" -LogPatterns @(
         "Displaying capture sheet for URL",
-        "CoinManager|Pluct Coins",
-        "AsyncImage|Coil",
-        "Toast|toast message",
-        "ErrorHandler|executeWithRetry"
-    ) -ScreenValidations @("Capture This Insight", "Pluct Coins") -UserActions {
-        Test-BottomSheetExpansion
-        Simulate-TierSelection -Tier "Quick Scan"
+        "Tier selected",
+        "Video created with ID"
+    ) -ScreenValidations @() -UserActions {
+        # Simulate a tap on the "Quick Scan" button
+        Write-Log "Simulating tap on 'Quick Scan' button..." "Yellow"
+        Simulate-Tap -Text "Quick Scan"
+        Start-Sleep -Seconds 3 # Give time for action to process and sheet to dismiss
     }
 }

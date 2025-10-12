@@ -106,10 +106,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val videoId = repository.createVideoWithTier(url, processingTier)
-                // Clear the capture request after creating the video
-                clearCaptureRequest()
                 // Enqueue the background worker
                 WorkManagerUtils.enqueueTranscriptionWork(context, videoId, processingTier)
+                
+                // Add a delay to allow the user to see the toast message before clearing the capture request
+                kotlinx.coroutines.delay(2000) // 2 seconds delay
+                clearCaptureRequest()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     error = e.message ?: "Failed to create video"

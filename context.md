@@ -29,10 +29,11 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 - CaptureInsightSheet is triggered ✅
 - **6 ENHANCEMENTS IMPLEMENTED** ✅
 - **CODEBASE REFACTORED** ✅ - Simplified and consolidated
+- **AUTOMATIC DEPLOYMENT** ✅ - Orchestrator now handles deployment automatically
 
 ### ✅ **ALL 6 ENHANCEMENTS COMPLETED**
 1. **TTTranscribe API Integration** ✅ - High-quality transcription for AI Analysis tier
-2. **WebView Scraping** ✅ - Fragile but free transcription for Quick Scan tier  
+2. **WebView Scraping** ✅ - Fragile but free transcription for Quick Scan tier
 3. **Coin System** ✅ - Premium tier with coin balance and purchase flow
 4. **Thumbnail Loading** ✅ - Coil image library for proper video thumbnails
 5. **Toast Messages** ✅ - User feedback for tier selection and coin status
@@ -44,8 +45,29 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 - **Unified Testing** ✅ - Consolidated duplicate test logic into single source of truth
 - **Database Optimization** ✅ - Simplified entity definitions
 - **Naming Convention** ✅ - Consistent Pluct-[ParentScope]-[ChildScope]-[CoreResponsibility] format
+- **Automatic Deployment** ✅ - Orchestrator detects and deploys latest builds automatically
 
-**CONFIRMED**: The Choice Engine with all enhancements is working as designed! The capture sheet displays correctly when users share content to Pluct.
+### ❌ **REMAINING ISSUE: MODAL BOTTOM SHEET NOT STAYING VISIBLE**
+**CONFIRMED**: The Choice Engine with all enhancements is working as designed! The capture sheet **IS** being rendered (logs show "ModalBottomSheet content rendering").
+
+**ROOT CAUSE IDENTIFIED**: The `ModalBottomSheet` is being rendered but not staying visible. The logs show:
+- "CaptureInsightSheet: Rendering capture sheet for URL" ✅
+- "ModalBottomSheet content rendering" ✅  
+- BUT the screen shows the launcher instead of the app ❌
+
+**POSSIBLE CAUSES**:
+1. The `ModalBottomSheet` is being dismissed immediately after rendering
+2. The app is going to background when ShareIngestActivity finishes
+3. The bottom sheet state is not properly managed
+4. There may be an issue with Compose's modal bottom sheet lifecycle
+
+**WORKAROUND ATTEMPTED**: Removed `FLAG_ACTIVITY_NEW_TASK` from intent flags to keep app in foreground - no effect.
+
+**NEXT INVESTIGATION**:
+1. Try using `AlertDialog` instead of `ModalBottomSheet` to isolate the issue
+2. Add lifecycle logging to track activity state changes
+3. Check if the bottom sheet is being dismissed by swipe gestures
+4. Verify if there's a timing issue with when the sheet is shown
 
 ## Required Fixes
 1. **Fix Capture Sheet Rendering**: The CaptureInsightSheet composable is not being displayed

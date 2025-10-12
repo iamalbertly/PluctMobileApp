@@ -1,156 +1,144 @@
 package app.pluct.ui.components
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.pluct.data.entity.ProcessingTier
-import app.pluct.purchase.CoinManager
-import android.widget.Toast
 
+/**
+ * Tier selection component for Pluct capture sheet
+ */
 @Composable
-fun TierSelectionSection(
-    onTierSelected: (ProcessingTier) -> Unit,
-    coinManager: CoinManager
+fun PluctCaptureTierSelection(
+    onTierSelected: (ProcessingTier) -> Unit
 ) {
-    // Get current coin balance
-    val coinBalance by coinManager.getCoinBalanceFlow().collectAsState(initial = 0)
-    val canAffordAI = coinBalance >= 1
-    
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Tier Selection
-        Text(
-            text = "Choose Your Analysis",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+        // Quick Scan Option
+        PluctTierSelectionCard(
+            title = "Quick Scan",
+            subtitle = "Free • Fast transcript",
+            icon = "⚡️",
+            description = "Get a quick transcript in seconds",
+            onClick = { 
+                android.util.Log.d("PluctCaptureTierSelection", "Quick Scan selected")
+                onTierSelected(ProcessingTier.QUICK_SCAN) 
+            },
+            isRecommended = false,
+            modifier = Modifier.fillMaxWidth()
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Free Tier Option
-            TierOptionCard(
-                modifier = Modifier.weight(1f),
-                icon = "⚡️",
-                title = "Quick Scan",
-                description = "Free, automated transcript. Good for a quick look, may contain errors.",
-                buttonText = "Scan for Free",
-                isEnabled = true,
-                onClick = { onTierSelected(ProcessingTier.QUICK_SCAN) }
-            )
-            
-            // Premium Tier Option
-            TierOptionCard(
-                modifier = Modifier.weight(1f),
-                icon = "✨",
-                title = "Pluct AI Analysis",
-                description = "High-accuracy transcript, AI summary, key takeaways, and actionable steps.",
-                buttonText = if (canAffordAI) "Analyze (1 Pluct Coin)" else "Analyze (1 Pluct Coin) - Insufficient coins",
-                isEnabled = canAffordAI,
-                onClick = { 
-                    if (canAffordAI) {
-                        onTierSelected(ProcessingTier.AI_ANALYSIS)
-                    } else {
-                        Toast.makeText(LocalContext.current, "Insufficient coins. Get more to use AI Analysis.", Toast.LENGTH_LONG).show()
-                    }
-                }
-            )
-        }
-        
-        // Get more coins link (only show if no coins)
-        if (!canAffordAI) {
-            Spacer(modifier = Modifier.height(12.dp))
-            TextButton(
-                onClick = { /* TODO: Open purchase screen */ },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text(
-                    text = "You have 0 coins. Get more.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
+        // AI Analysis Option
+        PluctTierSelectionCard(
+            title = "AI Analysis",
+            subtitle = "Premium • Deep insights",
+            icon = "✨",
+            description = "AI-powered summary, key takeaways & actionable steps",
+            onClick = { 
+                android.util.Log.d("PluctCaptureTierSelection", "AI Analysis selected")
+                onTierSelected(ProcessingTier.AI_ANALYSIS) 
+            },
+            isRecommended = true,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
 @Composable
-private fun TierOptionCard(
-    modifier: Modifier = Modifier,
-    icon: String,
+private fun PluctTierSelectionCard(
     title: String,
+    subtitle: String,
+    icon: String,
     description: String,
-    buttonText: String,
-    isEnabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isRecommended: Boolean,
+    modifier: Modifier = Modifier
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    
     Card(
-        modifier = modifier,
+        modifier = modifier
+            .clickable { 
+                isPressed = true
+                onClick()
+            }
+            .animateContentSize(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isEnabled) 
-                MaterialTheme.colorScheme.surface 
+            containerColor = if (isRecommended) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             else 
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isRecommended) 6.dp else 2.dp
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon
             Text(
                 text = icon,
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(end = 16.dp)
             )
             
-            // Title
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Description
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Button
-            Button(
-                onClick = onClick,
-                enabled = isEnabled,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEnabled) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
+            // Content
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Text(buttonText)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    if (isRecommended) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Recommended",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.3
+                )
             }
         }
     }

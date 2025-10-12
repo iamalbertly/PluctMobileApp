@@ -125,9 +125,10 @@ class ShareIngestActivity : ComponentActivity() {
                 Toast.makeText(this@ShareIngestActivity, "Opening Pluct...", Toast.LENGTH_SHORT).show()
                  
                  // Use SINGLE_TOP and CLEAR_TOP to prevent double launch
+                 // Remove NEW_TASK to keep the app in the foreground
                  val mainIntent = Intent(this@ShareIngestActivity, MainActivity::class.java).apply {
                      action = "app.pluct.action.CAPTURE_INSIGHT"
-                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                      addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Prevent animation for smoother transition
                      
                      // Pass the URL and caption to trigger the capture sheet

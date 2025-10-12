@@ -60,7 +60,10 @@ class TTTranscribeApiService {
                     Log.i(TAG, "TTTranscribe API call successful")
                     
                     val result = parseTranscriptionResponse(responseBody ?: "")
-                    Log.d(TAG, "Transcription completed: ${result.transcript.length} characters")
+                    when (result) {
+                        is TranscriptionResult.Success -> Log.d(TAG, "Transcription completed: ${result.transcript.length} characters")
+                        is TranscriptionResult.Error -> Log.e(TAG, "Transcription failed: ${result.message}")
+                    }
                     result
                 } else {
                     Log.e(TAG, "TTTranscribe API call failed: ${response.code} ${response.message}")
@@ -108,7 +111,10 @@ class TTTranscribeApiService {
                     Log.i(TAG, "AI analysis API call successful")
                     
                     val result = parseAIAnalysisResponse(responseBody ?: "")
-                    Log.d(TAG, "AI analysis completed: ${result.summary.length} characters")
+                    when (result) {
+                        is AIAnalysisResult.Success -> Log.d(TAG, "AI analysis completed: ${result.summary.length} characters")
+                        is AIAnalysisResult.Error -> Log.e(TAG, "AI analysis failed: ${result.message}")
+                    }
                     result
                 } else {
                     Log.e(TAG, "AI analysis API call failed: ${response.code} ${response.message}")

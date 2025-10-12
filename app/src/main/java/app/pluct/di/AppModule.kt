@@ -5,13 +5,15 @@ import app.pluct.data.database.PluctDatabase
 import app.pluct.data.dao.OutputArtifactDao
 import app.pluct.data.dao.TranscriptDao
 import app.pluct.data.dao.VideoItemDao
+import app.pluct.data.dao.UserCoinsDao
 import app.pluct.data.service.VideoMetadataService
 import app.pluct.data.service.VideoMetadataExtractor
 import app.pluct.data.service.HuggingFaceTranscriptionService
-import app.pluct.data.manager.PluctTranscriptionManagerCoordinator
+import app.pluct.data.manager.PluctTranscriptionManager
 import app.pluct.data.manager.UserManager
 import app.pluct.data.provider.PluctHuggingFaceProviderCoordinator
 import app.pluct.data.service.ApiService
+import app.pluct.purchase.CoinManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
@@ -51,6 +53,11 @@ object AppModule {
     }
     
     @Provides
+    fun provideUserCoinsDao(database: PluctDatabase): UserCoinsDao {
+        return database.userCoinsDao()
+    }
+    
+    @Provides
     @Singleton
     fun provideVideoMetadataService(): VideoMetadataService {
         return VideoMetadataService()
@@ -72,11 +79,11 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun providePluctTranscriptionManagerCoordinator(
+    fun providePluctTranscriptionManager(
         @ApplicationContext context: Context,
         huggingFaceService: HuggingFaceTranscriptionService
-    ): PluctTranscriptionManagerCoordinator {
-        return PluctTranscriptionManagerCoordinator(context, huggingFaceService)
+    ): PluctTranscriptionManager {
+        return PluctTranscriptionManager(context, HuggingFaceTranscriptionService())
     }
     
     @Provides
@@ -96,10 +103,16 @@ object AppModule {
     
     @Provides
     @Singleton
+    fun provideCoinManager(userCoinsDao: UserCoinsDao): CoinManager {
+        return CoinManager(userCoinsDao)
+    }
+    
+    @Provides
+    @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY // Log API calls for debugging
+                level = HttpLoggingInterceptor.Level.BODY
             })
             .build()
     }
@@ -115,13 +128,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideApiService(okHttpClient: OkHttpClient, moshi: Moshi): ApiService {
-        // We need a dummy base URL for Retrofit, even though we use full URLs in the interface.
         return Retrofit.Builder()
-            .baseUrl("https://placeholder.com/") 
+            .baseUrl("https://placeholder.com/")
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(ApiService::class.java)
     }
 }
-

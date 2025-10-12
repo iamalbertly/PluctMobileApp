@@ -149,14 +149,14 @@ class TranscriptionWorker @AssistedInject constructor(
                 when (scrapingResult) {
                     is ScrapingResult.Success -> {
                         Log.i(TAG, "WebView scraping successful for video $videoId")
-                        repository.saveTranscript(videoId, scrapingResult.transcript)
+                                    repository.saveTranscriptForVideo(videoId, scrapingResult.transcript)
                         scrapingResult.transcript
                     }
                     is ScrapingResult.Error -> {
                         Log.w(TAG, "WebView scraping failed for video $videoId: ${scrapingResult.message}")
                         // Fallback to mock transcript
                         val fallbackTranscript = "Quick scan transcript for video $videoId (fallback)"
-                        repository.saveTranscript(videoId, fallbackTranscript)
+                        repository.saveTranscriptForVideo(videoId, fallbackTranscript)
                         fallbackTranscript
                     }
                 }
@@ -202,8 +202,8 @@ class TranscriptionWorker @AssistedInject constructor(
                     is TranscriptionResult.Success -> {
                         Log.i(TAG, "TTTranscribe transcription successful for video $videoId")
                         
-                        // Save the transcript
-                        repository.saveTranscript(videoId, transcriptionResult.transcript)
+                            // Save the transcript
+                            repository.saveTranscriptForVideo(videoId, transcriptionResult.transcript)
                         
                         // Generate AI analysis
                         val analysisResult = ttTranscribeApiService.generateAIAnalysis(transcriptionResult.transcript)

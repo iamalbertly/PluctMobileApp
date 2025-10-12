@@ -34,6 +34,7 @@ $script:TestSession = @{
     BuildRequired = $false
     Screenshots = @()
     Logs = @()
+    TestUrl = $TestUrl
 }
 
 function Start-TestOrchestrator {
@@ -52,34 +53,60 @@ function Start-TestOrchestrator {
         $script:TestSession.BuildRequired = Test-BuildRequired
         if ($script:TestSession.BuildRequired) {
             Write-Log "Code changes detected - build required" "Yellow"
+            if (-not (Build-App)) {
+                Write-Log "Build failed - aborting tests" "Red"
+                exit 1
+            }
         } else {
             Write-Log "No code changes - skipping build" "Green"
         }
     }
     
-    # Execute tests based on scope
-    $overallSuccess = $true
-    
-    switch ($TestScope.ToLower()) {
-        "all" {
-            $overallSuccess = (Test-IntentJourney) -and (Test-CaptureJourney) -and (Test-CompleteJourney) -and (Test-EnhancementsJourney)
-        }
-        "journey" {
-            $overallSuccess = (Test-IntentJourney) -and (Test-CaptureJourney)
-        }
-        "capture" {
-            $overallSuccess = Test-CaptureJourney
-        }
-        "complete" {
-            $overallSuccess = Test-CompleteJourney
-        }
-        "enhancements" {
-            $overallSuccess = Test-EnhancementsJourney
-        }
-        "api" {
-            $overallSuccess = Test-IntentJourney
+    # Deploy to device if needed
+    if (-not $SkipInstall) {
+        $deploymentNeeded = Test-DeploymentNeeded
+        if ($deploymentNeeded -or $script:TestSession.BuildRequired) {
+            Write-Log "Deploying latest build to device..." "Yellow"
+            $deploySuccess = Deploy-ToDevice
+            if (-not $deploySuccess) {
+                Write-Log "Deployment failed - aborting tests" "Red"
+                exit 1
+            }
+            Write-Log "Deployment successful" "Green"
+        } else {
+            Write-Log "Latest build already deployed" "Green"
         }
     }
+    
+                # Execute tests based on scope
+                $overallSuccess = $true
+
+                switch ($TestScope.ToLower()) {
+                    "all" {
+                        $intentResult = Test-IntentJourney
+                        $captureResult = Test-CaptureJourney
+                        $completeResult = Test-CompleteJourney
+                        $enhancementsResult = Test-EnhancementsJourney
+                        $overallSuccess = $intentResult -and $captureResult -and $completeResult -and $enhancementsResult
+                    }
+                    "journey" {
+                        $intentResult = Test-IntentJourney
+                        $captureResult = Test-CaptureJourney
+                        $overallSuccess = $intentResult -and $captureResult
+                    }
+                    "capture" {
+                        $overallSuccess = Test-CaptureJourney
+                    }
+                    "complete" {
+                        $overallSuccess = Test-CompleteJourney
+                    }
+                    "enhancements" {
+                        $overallSuccess = Test-EnhancementsJourney
+                    }
+                    "api" {
+                        $overallSuccess = Test-IntentJourney
+                    }
+                }
     
     # Generate final report
     Show-TestReport -OverallSuccess $overallSuccess

@@ -30,21 +30,17 @@ function Test-BuildRequired {
     return $false
 }
 
-function Invoke-Build {
-    if ($script:TestSession.BuildRequired) {
-        Write-Log "Building app..." "Cyan"
-        $buildResult = .\gradlew.bat assembleDebug
-        
-        if ($LASTEXITCODE -eq 0) {
-            Write-Log "Build successful" "Green"
-            return $true
-        } else {
-            Write-Log "Build failed" "Red"
-            return $false
-        }
-    } else {
-        Write-Log "Skipping build - no changes detected" "Green"
+function Build-App {
+    Write-Log "Building app..." "Cyan"
+    $buildResult = .\gradlew.bat assembleDebug --console=plain 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "Build successful" "Green"
         return $true
+    } else {
+        Write-Log "Build failed" "Red"
+        Write-Log "Build output: $buildResult" "Red"
+        return $false
     }
 }
 

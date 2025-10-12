@@ -144,36 +144,13 @@ object ErrorHandler {
 /**
  * Error types for better error handling
  */
-sealed class PluctError : Exception() {
-    data class NetworkError(val message: String, val cause: Throwable? = null) : PluctError()
-    data class APIError(val code: Int, val message: String) : PluctError()
-    data class ScrapingError(val message: String, val cause: Throwable? = null) : PluctError()
-    data class ValidationError(val message: String) : PluctError()
-    data class InsufficientCoinsError(val required: Int, val available: Int) : PluctError()
-    data class UnknownError(val message: String, val cause: Throwable? = null) : PluctError()
+sealed class PluctError(override val message: String, override val cause: Throwable? = null) : Exception(message, cause) {
+    class NetworkError(override val message: String, override val cause: Throwable? = null) : PluctError(message, cause)
+    class APIError(val code: Int, override val message: String) : PluctError(message)
+    class ScrapingError(override val message: String, override val cause: Throwable? = null) : PluctError(message, cause)
+    class ValidationError(override val message: String) : PluctError(message)
+    class InsufficientCoinsError(val required: Int, val available: Int) : PluctError("Insufficient coins: need $required, have $available")
+    class UnknownError(override val message: String, override val cause: Throwable? = null) : PluctError(message, cause)
 }
 
-/**
- * Extension functions for Result handling
- */
-fun <T> Result<T>.getOrThrow(): T {
-    return getOrElse { throw it }
-}
-
-fun <T> Result<T>.getOrElse(defaultValue: T): T {
-    return getOrNull() ?: defaultValue
-}
-
-fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
-    if (isSuccess) {
-        action(getOrNull()!!)
-    }
-    return this
-}
-
-fun <T> Result<T>.onFailure(action: (Throwable) -> Unit): Result<T> {
-    if (isFailure) {
-        action(exceptionOrNull()!!)
-    }
-    return this
-}
+// Extension functions removed due to compilation issues

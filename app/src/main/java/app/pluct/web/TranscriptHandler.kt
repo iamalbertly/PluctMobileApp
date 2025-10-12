@@ -26,7 +26,7 @@ class TranscriptHandler @Inject constructor(
         Log.d(TAG, "WV:A:transcript_received_handler len=${transcript.length} vid=" + videoId + " provider=" + (providerUsed ?: "unknown"))
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                repository.saveTranscript(videoId, transcript, language)
+                repository.saveTranscriptForVideo(videoId, transcript)
                 repository.markUrlAsValid(videoId)
                 Log.i(TAG, "WV:A:transcript_saved videoId=" + videoId + " provider=" + (providerUsed ?: "unknown"))
             } catch (e: Exception) {

@@ -5,10 +5,11 @@ import java.net.URL
 import java.util.regex.Pattern
 
 /**
- * URL utility functions
+ * Consolidated URL utility functions for Pluct
+ * Single source of truth for all URL operations
  */
-object UrlUtils {
-    private const val TAG = "UrlUtils"
+object PluctUrlUtils {
+    private const val TAG = "PluctUrlUtils"
     
     /**
      * Extract URL from text that may contain other content
@@ -49,6 +50,19 @@ object UrlUtils {
     }
     
     /**
+     * Extract host and path from URL (for display purposes)
+     */
+    fun extractHostAndPathFromUrl(url: String): String {
+        try {
+            val uri = URL(url)
+            return "${uri.host}${uri.path}"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting host and path from URL: ${e.message}", e)
+            return url
+        }
+    }
+    
+    /**
      * Validate if URL is a valid TikTok URL
      */
     fun isValidTikTokUrl(url: String): Boolean {
@@ -74,4 +88,3 @@ object UrlUtils {
         }
     }
 }
-

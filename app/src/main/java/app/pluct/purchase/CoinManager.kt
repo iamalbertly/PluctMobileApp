@@ -6,6 +6,7 @@ import app.pluct.data.entity.UserCoins
 import app.pluct.data.entity.CoinTransaction
 import app.pluct.data.entity.TransactionType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton

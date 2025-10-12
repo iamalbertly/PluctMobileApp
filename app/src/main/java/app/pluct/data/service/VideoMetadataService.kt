@@ -108,11 +108,20 @@ class VideoMetadataService {
     private fun extractAuthorFromUrl(url: String): String? {
         return try {
             // Extract username from TikTok URL
-            val regex = """tiktok\.com/@([^/]+)""".toRegex()
-            val matchResult = regex.find(url)
-            matchResult?.groupValues?.get(1)
+            when {
+                url.contains("@") -> {
+                    val startIndex = url.indexOf("@") + 1
+                    val endIndex = url.indexOf("/", startIndex)
+                    if (endIndex == -1) url.substring(startIndex) else url.substring(startIndex, endIndex)
+                }
+                url.contains("vm.tiktok.com") -> {
+                    // For short URLs, we can't extract creator easily
+                    "creator"
+                }
+                else -> "creator"
+            }
         } catch (e: Exception) {
-            null
+            "creator"
         }
     }
 }

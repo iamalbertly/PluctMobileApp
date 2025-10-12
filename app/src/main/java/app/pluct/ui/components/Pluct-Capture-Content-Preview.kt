@@ -32,9 +32,10 @@ fun ContentPreviewCard(
             modifier = Modifier.padding(16.dp)
         ) {
             // Thumbnail with Coil
+            val thumbnailUrl = extractThumbnailUrl(url)
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(extractThumbnailUrl(url))
+                    .data(thumbnailUrl)
                     .crossfade(true)
                     .build(),
                 contentDescription = "Video thumbnail",
@@ -42,48 +43,14 @@ fun ContentPreviewCard(
                     .fillMaxWidth()
                     .height(120.dp)
                     .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-                error = {
-                    // Fallback to placeholder on error
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.outline),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.VideoLibrary,
-                            contentDescription = "Video thumbnail",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                    }
-                },
-                loading = {
-                    // Loading placeholder
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.outline),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                contentScale = ContentScale.Crop
             )
             
             Spacer(modifier = Modifier.height(12.dp))
             
             // From field
             Text(
-                text = "From: @creator", // TODO: Extract from URL
+                text = "From: @${extractCreatorFromUrl(url)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -134,5 +101,27 @@ private fun extractThumbnailUrl(videoUrl: String): String? {
         }
     } catch (e: Exception) {
         null
+    }
+}
+
+/**
+ * Extract creator name from TikTok URL
+ */
+private fun extractCreatorFromUrl(videoUrl: String): String {
+    return try {
+        when {
+            videoUrl.contains("@") -> {
+                val startIndex = videoUrl.indexOf("@") + 1
+                val endIndex = videoUrl.indexOf("/", startIndex)
+                if (endIndex == -1) videoUrl.substring(startIndex) else videoUrl.substring(startIndex, endIndex)
+            }
+            videoUrl.contains("vm.tiktok.com") -> {
+                // For short URLs, we can't extract creator easily, so use a fallback
+                "creator"
+            }
+            else -> "creator"
+        }
+    } catch (e: Exception) {
+        "creator"
     }
 }

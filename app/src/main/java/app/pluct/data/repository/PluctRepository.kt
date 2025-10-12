@@ -8,6 +8,7 @@ import app.pluct.data.entity.OutputArtifact
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.Transcript
+import android.util.Log
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.service.VideoMetadataService
 import kotlinx.coroutines.flow.Flow
@@ -121,7 +122,7 @@ class PluctRepository @Inject constructor(
         return videoItemDao.getById(videoId)
     }
     
-    suspend fun saveTranscript(videoId: String, transcript: String) {
+    suspend fun saveTranscriptForVideo(videoId: String, transcript: String) {
         // TODO: Implement transcript storage
         Log.d("PluctRepository", "Saving transcript for video $videoId: ${transcript.length} characters")
     }
