@@ -8,4 +8,13 @@
     <string name="onboarding_placeholder">Onboarding will be implemented later</string>
     <string name="share_activity_label">Pluct</string>
     <string name="ingest_title">Ingest</string>
+    <!-- Accessibility/test labels -->
+    <string name="cd_add_video">Add Video</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_process">Process</string>
+    <string name="cd_three_dots">More options</string>
+    <string name="cd_recent_transcripts">Recent Transcripts</string>
+    <string name="cd_status_panel">Processing Status</string>
+    <string name="cd_capture_sheet">Capture Sheet</string>
 </resources>

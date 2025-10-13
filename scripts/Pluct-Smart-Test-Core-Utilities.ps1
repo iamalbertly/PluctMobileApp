@@ -98,6 +98,27 @@ function Get-UiHierarchy {
     }
 }
 
+function Get-UiNodes {
+    param([xml]$Dump)
+    if (-not $Dump) { return @() }
+    $nodes = @()
+    $all = $Dump.SelectNodes('//node')
+    foreach ($n in $all) {
+        $nodes += [pscustomobject]@{
+            Text        = $n.GetAttribute('text')
+            Desc        = $n.GetAttribute('content-desc')
+            ResId       = $n.GetAttribute('resource-id')
+            Clickable   = ($n.GetAttribute('clickable') -eq 'true')
+            Bounds      = $n.GetAttribute('bounds')
+            Class       = $n.GetAttribute('class')
+            Enabled     = ($n.GetAttribute('enabled') -eq 'true')
+            Focusable   = ($n.GetAttribute('focusable') -eq 'true')
+            Package     = $n.GetAttribute('package')
+        }
+    }
+    $nodes
+}
+
 function Find-UiElementsByText {
     param(
         [xml]$UiXml,

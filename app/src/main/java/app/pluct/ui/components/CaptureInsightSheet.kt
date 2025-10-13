@@ -19,6 +19,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.ProcessingTier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import app.pluct.R
 import app.pluct.viewmodel.CaptureRequest
 import app.pluct.viewmodel.HomeViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,6 +73,9 @@ fun CaptureInsightSheet(
             )
             .clickable { onDismiss() }
     ) {
+        // Precompute localized labels usable in non-composable scopes
+        val captureCd = stringResource(R.string.cd_capture_sheet)
+
         // Main content card with modern design
         Card(
             modifier = Modifier
@@ -78,7 +86,9 @@ fun CaptureInsightSheet(
                     scaleX = scale
                     scaleY = scale
                     this.alpha = alpha
-                },
+                }
+                .semantics { contentDescription = captureCd }
+                .testTag("sheet_capture"),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),

@@ -122,6 +122,43 @@ function Start-EnhancedTestOrchestrator {
                 Write-SmartLog "TERMINATING ON FIRST FAILURE: Enhancements Journey" "Red"
                 exit 1
             }
+
+            # Enhanced API testing with detailed request/response logging
+            Write-SmartLog "Testing API connectivity and authentication..." "Yellow"
+            Test-API-Connectivity
+            
+            # Test detailed request/response patterns
+            Write-SmartLog "Testing detailed API request/response patterns..." "Yellow"
+            Test-API-Request-Response -TestUrl $TestUrl
+            
+            # Background progress verification using worker logs with detailed output
+            Write-SmartLog "Waiting for worker stages with detailed logging..." "Yellow"
+            if (-not (Wait-ForStage "VENDING_TOKEN" 15)) {
+                Write-SmartLog "❌ Worker never reached VENDING_TOKEN stage" "Red"
+                Show-DetailedAPILogs
+                Report-CriticalError "Worker" "never reached VENDING_TOKEN stage - check Business Engine connectivity"
+                exit 1
+            }
+            if (-not (Wait-ForStage "REQUEST_SUBMITTED" 30)) {
+                Write-SmartLog "❌ Worker never submitted remote request" "Red"
+                Show-DetailedAPILogs
+                Report-CriticalError "Worker" "never submitted remote request - check proxy connectivity"
+                exit 1
+            }
+            if (-not (Wait-ForStage "COMPLETED" 240)) {
+                Write-SmartLog "❌ Worker did not complete within timeout" "Red"
+                Show-DetailedAPILogs
+                Report-CriticalError "Worker" "did not complete within timeout - check TTTranscribe service"
+                exit 1
+            }
+
+            # UI panel presence
+            $dump = Get-UiDump
+            $panel = Find-UiNode -Dump $dump -ByDesc "Processing Status"
+            if (-not $panel) {
+                Report-CriticalError "UI" "Processing Status panel missing"
+                exit 1
+            }
         }
         "core" {
             Write-SmartLog "Testing Core User Journeys..." "Cyan"
@@ -572,6 +609,154 @@ function Report-CriticalError {
         Message = $ErrorMessage
         Timestamp = Get-Date
     }
+}
+
+# Enhanced API Testing Functions with Detailed Request/Response Logging
+function Test-API-Connectivity {
+    Write-SmartLog "=== API CONNECTIVITY TEST ===" "Cyan"
+    
+    # Test 1: Business Engine Token Vending
+    Write-SmartLog "Testing Business Engine token vending..." "Yellow"
+    $tokenLogs = adb shell logcat -d | Select-String "VENDING_TOKEN|vend-token|Bearer|Authorization" | Select-Object -Last 10
+    if ($tokenLogs) {
+        Write-SmartLog "✅ Token vending logs found:" "Green"
+        $tokenLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No token vending logs found" "Red"
+        Write-SmartLog "Expected: logs containing 'VENDING_TOKEN', 'vend-token', 'Bearer', or 'Authorization'" "Red"
+    }
+    
+    # Test 2: TTTranscribe Proxy Calls
+    Write-SmartLog "Testing TTTranscribe proxy calls..." "Yellow"
+    $proxyLogs = adb shell logcat -d | Select-String "REQUEST_SUBMITTED|ttt/transcribe|proxy|request_id" | Select-Object -Last 10
+    if ($proxyLogs) {
+        Write-SmartLog "✅ Proxy call logs found:" "Green"
+        $proxyLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No proxy call logs found" "Red"
+        Write-SmartLog "Expected: logs containing 'REQUEST_SUBMITTED', 'ttt/transcribe', 'proxy', or 'request_id'" "Red"
+    }
+    
+    # Test 3: HTTP Request/Response Details
+    Write-SmartLog "Testing HTTP request/response details..." "Yellow"
+    $httpLogs = adb shell logcat -d | Select-String "HTTP|POST|GET|Response|Request" | Select-Object -Last 15
+    if ($httpLogs) {
+        Write-SmartLog "✅ HTTP logs found:" "Green"
+        $httpLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No HTTP logs found" "Red"
+        Write-SmartLog "Expected: logs containing HTTP method calls and responses" "Red"
+    }
+    
+    # Test 4: Worker Stage Progression
+    Write-SmartLog "Testing worker stage progression..." "Yellow"
+    $workerLogs = adb shell logcat -d | Select-String "TTT: stage=|stage=VENDING_TOKEN|stage=REQUEST_SUBMITTED|stage=REMOTE_ACK|stage=TRANSCRIBING|stage=SUMMARIZING|stage=COMPLETED" | Select-Object -Last 10
+    if ($workerLogs) {
+        Write-SmartLog "✅ Worker stage logs found:" "Green"
+        $workerLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No worker stage logs found" "Red"
+        Write-SmartLog "Expected: logs containing 'TTT: stage=' with stage names like VENDING_TOKEN, REQUEST_SUBMITTED, etc." "Red"
+    }
+    
+    # Test 5: Metadata Resolution
+    Write-SmartLog "Testing metadata resolution..." "Yellow"
+    $metaLogs = adb shell logcat -d | Select-String "Metadata resolved|META_RESOLVE_FAILED|meta/resolve|title=|author=" | Select-Object -Last 10
+    if ($metaLogs) {
+        Write-SmartLog "✅ Metadata resolution logs found:" "Green"
+        $metaLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No metadata resolution logs found" "Red"
+        Write-SmartLog "Expected: logs containing 'Metadata resolved', 'META_RESOLVE_FAILED', or metadata fields" "Red"
+    }
+    
+    # Test 6: Error Logs
+    Write-SmartLog "Checking for API errors..." "Yellow"
+    $errorLogs = adb shell logcat -d | Select-String "ERROR|Exception|Failed|Error" | Select-Object -Last 10
+    if ($errorLogs) {
+        Write-SmartLog "⚠️ Error logs found:" "Yellow"
+        $errorLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Red" }
+    } else {
+        Write-SmartLog "✅ No error logs found" "Green"
+    }
+    
+    Write-SmartLog "=== END API CONNECTIVITY TEST ===" "Cyan"
+}
+
+function Test-API-Request-Response {
+    param([string]$TestUrl)
+    
+    Write-SmartLog "=== API REQUEST/RESPONSE TEST ===" "Cyan"
+    Write-SmartLog "Test URL: $TestUrl" "Yellow"
+    
+    # Capture detailed API logs
+    $apiLogs = adb shell logcat -d | Select-String "PluctCoreApiService|Retrofit|OkHttp|HTTP" | Select-Object -Last 20
+    
+    if ($apiLogs) {
+        Write-SmartLog "✅ API service logs found:" "Green"
+        $apiLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No API service logs found" "Red"
+        Write-SmartLog "Expected: logs from PluctCoreApiService, Retrofit, or OkHttp" "Red"
+    }
+    
+    # Check for specific request patterns
+    $requestPatterns = @(
+        "vend-token",
+        "Bearer",
+        "ttt/transcribe", 
+        "request_id",
+        "transcript",
+        "status"
+    )
+    
+    foreach ($pattern in $requestPatterns) {
+        $matches = adb shell logcat -d | Select-String $pattern | Select-Object -Last 5
+        if ($matches) {
+            Write-SmartLog "✅ Found '$pattern' in logs:" "Green"
+            $matches | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+        } else {
+            Write-SmartLog "❌ Pattern '$pattern' not found in logs" "Red"
+        }
+    }
+    
+    Write-SmartLog "=== END API REQUEST/RESPONSE TEST ===" "Cyan"
+}
+
+function Show-DetailedAPILogs {
+    Write-SmartLog "=== DETAILED API LOGS ANALYSIS ===" "Cyan"
+    
+    # Get all recent logs that might contain API information
+    $allLogs = adb shell logcat -d | Select-Object -Last 100
+    
+    # Filter for API-related logs
+    $apiRelatedLogs = $allLogs | Where-Object { 
+        $_ -match "PluctCoreApiService|Retrofit|OkHttp|HTTP|POST|GET|Response|Request|vend-token|Bearer|ttt/transcribe|request_id|TTT:|stage=" 
+    }
+    
+    if ($apiRelatedLogs) {
+        Write-SmartLog "✅ Found $($apiRelatedLogs.Count) API-related log entries:" "Green"
+        $apiRelatedLogs | ForEach-Object { Write-SmartLog "  $($_)" "Gray" }
+    } else {
+        Write-SmartLog "❌ No API-related logs found in recent logcat" "Red"
+        Write-SmartLog "This suggests the API calls may not be happening at all" "Red"
+    }
+    
+    # Check for network connectivity logs
+    $networkLogs = adb shell logcat -d | Select-String "Network|Connect|Timeout|Connection" | Select-Object -Last 10
+    if ($networkLogs) {
+        Write-SmartLog "Network-related logs:" "Yellow"
+        $networkLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    }
+    
+    # Check for worker-related logs
+    $workerLogs = adb shell logcat -d | Select-String "WorkManager|Worker|Background" | Select-Object -Last 10
+    if ($workerLogs) {
+        Write-SmartLog "Worker-related logs:" "Yellow"
+        $workerLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+    }
+    
+    Write-SmartLog "=== END DETAILED API LOGS ANALYSIS ===" "Cyan"
 }
 
 function Show-EnhancedTestReport {

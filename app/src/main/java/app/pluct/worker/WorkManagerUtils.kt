@@ -14,25 +14,20 @@ object WorkManagerUtils {
     ) {
         val workManager = WorkManager.getInstance(context)
         
-        val inputData = Data.Builder()
-            .putString(TranscriptionWorker.KEY_VIDEO_ID, videoId)
-            .putString(TranscriptionWorker.KEY_PROCESSING_TIER, processingTier.name)
-            .build()
-        
-        val workRequest = OneTimeWorkRequestBuilder<TranscriptionWorker>()
-            .setInputData(inputData)
+        val workRequest = OneTimeWorkRequestBuilder<TTTranscribeWork>()
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                10000L, // 10 seconds
-                TimeUnit.MILLISECONDS
-            )
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+            .setInputData(TTTranscribeWork.input(videoId))
             .build()
         
-        workManager.enqueue(workRequest)
+        workManager.enqueueUniqueWork(
+            "process-${videoId.hashCode()}",
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
     }
 }

@@ -11,9 +11,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.ProcessingTier
+import app.pluct.R
 
 /**
  * Tier selection component for Pluct capture sheet
@@ -22,6 +28,7 @@ import app.pluct.data.entity.ProcessingTier
 fun PluctCaptureTierSelection(
     onTierSelected: (ProcessingTier) -> Unit
 ) {
+    val cdProcess = stringResource(R.string.cd_process)
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -37,7 +44,10 @@ fun PluctCaptureTierSelection(
                 onTierSelected(ProcessingTier.QUICK_SCAN) 
             },
             isRecommended = false,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = cdProcess }
+                .testTag("btn_process_quick")
         )
         
         // AI Analysis Option
@@ -51,7 +61,10 @@ fun PluctCaptureTierSelection(
                 onTierSelected(ProcessingTier.AI_ANALYSIS) 
             },
             isRecommended = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = cdProcess }
+                .testTag("btn_process_ai")
         )
     }
 }

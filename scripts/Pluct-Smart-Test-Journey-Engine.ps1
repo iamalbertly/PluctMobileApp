@@ -1,3 +1,47 @@
+# Wait for a specific background stage emitted by worker via Logcat
+function Wait-ForStage {
+    param([string]$Stage,[int]$timeout=30)
+    
+    Write-SmartLog "Waiting for stage: $Stage (timeout: ${timeout}s)" "Yellow"
+    $deadline = (Get-Date).AddSeconds($timeout)
+    $attempts = 0
+    
+    while((Get-Date) -lt $deadline){
+        $attempts++
+        $log = adb shell logcat -d | Select-String "TTT: stage=$Stage"
+        if ($log){ 
+            Write-SmartLog "✅ Found stage '$Stage' after $attempts attempts:" "Green"
+            $log | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+            return $true 
+        }
+        
+        # Show progress every 5 seconds
+        if ($attempts % 5 -eq 0) {
+            $remaining = [int]($deadline - (Get-Date)).TotalSeconds
+            Write-SmartLog "Still waiting for '$Stage'... ($remaining seconds remaining)" "Gray"
+            
+            # Show recent TTT logs for debugging
+            $recentLogs = adb shell logcat -d | Select-String "TTT:" | Select-Object -Last 3
+            if ($recentLogs) {
+                Write-SmartLog "Recent TTT logs:" "Gray"
+                $recentLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Gray" }
+            }
+        }
+        
+        Start-Sleep -Seconds 1
+    }
+    
+    Write-SmartLog "❌ Stage '$Stage' not found within ${timeout}s timeout" "Red"
+    Write-SmartLog "Showing all recent TTT logs for debugging:" "Red"
+    $allTTTLogs = adb shell logcat -d | Select-String "TTT:" | Select-Object -Last 10
+    if ($allTTTLogs) {
+        $allTTTLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Red" }
+    } else {
+        Write-SmartLog "  No TTT logs found at all" "Red"
+    }
+    
+    return $false
+}
 # Pluct Smart Test Journey Engine - Comprehensive journey testing with status tracking
 # Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]
 

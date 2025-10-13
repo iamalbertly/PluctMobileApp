@@ -25,8 +25,18 @@ import app.pluct.data.entity.ProcessingTier
 import app.pluct.ui.components.*
 import app.pluct.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
-import app.pluct.ui.components.PluctStatusTrackingComponent
 import androidx.compose.ui.zIndex
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import app.pluct.worker.TTTranscribeWork
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
+import app.pluct.R
+import app.pluct.api.EngineApiProvider
+import app.pluct.ui.components.ProgressItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +65,20 @@ fun HomeScreen(
                     // Only process if this is a new URL (prevent reprocessing same URL)
                     if (url != null && url != lastProcessedUrl) {
                         android.util.Log.i("HomeScreen", "Processing capture request for URL: $url")
+                        
+                        // Resolve metadata first
+                        try {
+                            val meta = EngineApiProvider.instance.resolveMeta(mapOf("url" to url)).body()
+                            if (meta == null) {
+                                android.util.Log.w("HomeScreen", "META_RESOLVE_FAILED url=$url")
+                                // TODO: show toast and block processing
+                            } else {
+                                android.util.Log.i("HomeScreen", "Metadata resolved: title=${meta["title"]}, author=${meta["author"]}")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("HomeScreen", "Failed to resolve metadata for $url", e)
+                        }
+                        
                         android.util.Log.d("HomeScreen", "Setting capture request in ViewModel...")
                         viewModel.setCaptureRequest(url, caption)
                         android.util.Log.i("HomeScreen", "Capture request set in ViewModel successfully")
@@ -141,12 +165,15 @@ fun HomeScreen(
                 // Recent videos
                 if (videos.isNotEmpty()) {
                     item {
+                        val recentTranscriptsCd = stringResource(R.string.cd_recent_transcripts)
                         Text(
                             text = "Recent Transcripts",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                                .semantics { contentDescription = recentTranscriptsCd }
                         )
                     }
                     
@@ -190,6 +217,7 @@ fun HomeScreen(
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     
                     viewModel.createVideoWithTier(captureRequest.url, tier)
+                    // Background work is already enqueued by WorkManagerUtils in createVideoWithTier
                     android.util.Log.i("HomeScreen", "Tier selection completed successfully")
                 } catch (e: Exception) {
                     android.util.Log.e("HomeScreen", "Error in tier selection: ${e.message}", e)
@@ -208,10 +236,16 @@ fun HomeScreen(
             .zIndex(10f),
         contentAlignment = Alignment.BottomEnd
     ) {
-        // Simplified overlay hook; actual data wired in ViewModel integration later
-        PluctStatusTrackingComponent(
-            statusItems = emptyList(),
-            onRefresh = {}
+        ProcessingStatusPanel(
+            items = listOf(
+                ProgressItem(
+                    url = "https://example.com/video",
+                    stage = "PROCESSING",
+                    percent = 50,
+                    message = "Processing videos..."
+                )
+            ),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
         )
     }
 }

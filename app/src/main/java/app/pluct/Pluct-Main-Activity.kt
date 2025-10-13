@@ -22,6 +22,7 @@ import app.pluct.utils.VerificationResult
 import app.pluct.utils.VerificationUtils
 import app.pluct.data.manager.UserManager
 import app.pluct.notification.PluctNotificationHelper
+import app.pluct.config.AppConfig
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,6 +46,9 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize app configuration
+        AppConfig.initialize(this)
         
         // Initialize file logger
         DebugLogger.init(applicationContext)
