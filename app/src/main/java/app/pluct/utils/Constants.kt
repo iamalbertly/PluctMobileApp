@@ -114,5 +114,7 @@ object Constants {
         const val GENERIC_ERROR = "An error occurred while processing the video. Please try again or use a different video."
         const val RED_ERROR_TEXT = "An error was detected in the transcript service. Please try again or use a different video."
         const val ERROR_CONTAINER = "An error was detected in the transcript service. Please try again or use a different video."
+        const val TRANSCRIPT_NOT_FOUND = "Transcript not found for this video. The video may not have captions or may be private."
+        const val PROVIDER_ERROR = "The transcription provider encountered an error. Please try again or use a different provider."
     }
 }

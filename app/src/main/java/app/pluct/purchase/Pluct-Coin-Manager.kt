@@ -15,7 +15,7 @@ import javax.inject.Singleton
  * Manages user coins and transactions
  */
 @Singleton
-class CoinManager @Inject constructor(
+class PluctCoinManager @Inject constructor(
     private val userCoinsDao: UserCoinsDao
 ) {
     companion object {

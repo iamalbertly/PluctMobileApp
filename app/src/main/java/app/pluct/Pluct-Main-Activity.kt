@@ -21,7 +21,7 @@ import app.pluct.utils.DebugLogger
 import app.pluct.utils.VerificationResult
 import app.pluct.utils.VerificationUtils
 import app.pluct.data.manager.UserManager
-import app.pluct.notification.NotificationHelper
+import app.pluct.notification.PluctNotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         DebugLogger.log("MainActivity onCreate - intent: ${intent?.data}")
         
         // Initialize notification channel
-        NotificationHelper.createNotificationChannel(this)
+        PluctNotificationHelper.createNotificationChannel(this)
         
         // Handle first-time user onboarding
         handleFirstTimeUser()

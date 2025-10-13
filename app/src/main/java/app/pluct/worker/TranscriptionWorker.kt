@@ -8,12 +8,12 @@ import androidx.work.WorkerParameters
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.repository.PluctRepository
-import app.pluct.notification.NotificationHelper
+import app.pluct.notification.PluctNotificationHelper
 import app.pluct.api.PluctCoreApiService
 import app.pluct.transcription.PluctTranscriptionCoreManager
-import app.pluct.scraper.WebViewScraper
+import app.pluct.scraper.PluctWebViewScraper
 import app.pluct.scraper.ScrapingResult
-import app.pluct.error.ErrorHandler
+import app.pluct.error.PluctErrorHandler
 import app.pluct.error.PluctError
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -79,13 +79,13 @@ class TranscriptionWorker @AssistedInject constructor(
                     if (video != null) {
                         when (processingTier) {
                             ProcessingTier.QUICK_SCAN -> {
-                                NotificationHelper.showQuickScanCompleteNotification(
+                                PluctNotificationHelper.showQuickScanCompleteNotification(
                                     applicationContext,
                                     video.title ?: "Video"
                                 )
                             }
                             ProcessingTier.AI_ANALYSIS -> {
-                                NotificationHelper.showProcessingCompleteNotification(
+                                PluctNotificationHelper.showProcessingCompleteNotification(
                                     applicationContext,
                                     video.title ?: "Video",
                                     "AI Analysis"
@@ -103,7 +103,7 @@ class TranscriptionWorker @AssistedInject constructor(
                     // Show notification for quick scan completion
                     val video = repository.getVideoById(videoId)
                     if (video != null) {
-                        NotificationHelper.showQuickScanCompleteNotification(
+                        PluctNotificationHelper.showQuickScanCompleteNotification(
                             applicationContext,
                             video.title ?: "Video"
                         )
@@ -126,7 +126,7 @@ class TranscriptionWorker @AssistedInject constructor(
     }
     
     private suspend fun performQuickScan(videoId: String): kotlin.Result<String> {
-        return ErrorHandler.executeWithRetry(
+        return PluctErrorHandler.executeWithRetry(
             operation = {
                 Log.i(TAG, "Performing quick scan for video $videoId")
                 
@@ -136,7 +136,7 @@ class TranscriptionWorker @AssistedInject constructor(
                 }
                 
                 // Use WebView scraper for fragile but free transcription
-                val webViewScraper = WebViewScraper()
+                val webViewScraper = PluctWebViewScraper()
                 
                 // Note: In a real implementation, you would need to pass a WebView instance
                 // For now, we'll simulate the scraping process
@@ -160,7 +160,7 @@ class TranscriptionWorker @AssistedInject constructor(
                     }
                 }
             },
-            config = ErrorHandler.SCRAPING_RETRY_CONFIG,
+            config = PluctErrorHandler.SCRAPING_RETRY_CONFIG,
             operationName = "Quick Scan for video $videoId"
         )
     }
@@ -184,7 +184,7 @@ class TranscriptionWorker @AssistedInject constructor(
     }
     
     private suspend fun performAIAnalysis(videoId: String): kotlin.Result<String> {
-        return ErrorHandler.executeWithRetry(
+        return PluctErrorHandler.executeWithRetry(
             operation = {
                 Log.i(TAG, "Performing AI analysis for video $videoId")
                 
@@ -225,7 +225,7 @@ class TranscriptionWorker @AssistedInject constructor(
                     throw PluctError.APIError(500, "Transcription failed: No transcript generated")
                 }
             },
-            config = ErrorHandler.API_RETRY_CONFIG,
+            config = PluctErrorHandler.API_RETRY_CONFIG,
             operationName = "AI Analysis for video $videoId"
         )
     }

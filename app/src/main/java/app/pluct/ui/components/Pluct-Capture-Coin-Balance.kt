@@ -7,11 +7,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.pluct.purchase.CoinManager
+import app.pluct.purchase.PluctCoinManager
 
 @Composable
 fun CoinBalanceDisplay(
-    coinManager: CoinManager
+    coinManager: PluctCoinManager
 ) {
     // Get current coin balance
     val coinBalance by coinManager.getCoinBalanceFlow().collectAsState(initial = 0)

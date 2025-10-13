@@ -10,7 +10,7 @@ import java.net.UnknownHostException
 /**
  * Comprehensive error handling and retry mechanisms
  */
-object ErrorHandler {
+object PluctErrorHandler {
     private const val TAG = "ErrorHandler"
     
     /**

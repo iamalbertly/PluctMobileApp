@@ -41,7 +41,7 @@
         
         <!-- Share activity for handling ACTION_SEND intents -->
         <activity
-            android:name=".share.ShareIngestActivity"
+            android:name=".share.PluctShareIngestActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Pluct"

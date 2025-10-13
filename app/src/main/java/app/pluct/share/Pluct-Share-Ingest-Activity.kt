@@ -16,7 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.activity.compose.setContent
 import app.pluct.MainActivity
 import app.pluct.utils.PluctUrlUtils
-import app.pluct.utils.UrlProcessingUtils
+import app.pluct.share.PluctURLProcessingUtils
 import kotlinx.coroutines.*
 import java.net.URL
 import java.util.UUID
@@ -28,7 +28,7 @@ import java.util.UUID
  * Why fast handoff: Keeps Share tap responsive by immediately routing to MainActivity.
  * Why exported=true: Required for Android to discover this activity in Share sheets.
  */
-class ShareIngestActivity : ComponentActivity() {
+class PluctShareIngestActivity : ComponentActivity() {
     
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
@@ -100,7 +100,7 @@ class ShareIngestActivity : ComponentActivity() {
                 // If it's already a vm.tiktok.com URL, keep it as-is
                 // For other TikTok URLs, try to convert to vm.tiktok.com format
                 // Process URL using the utility class
-                val finalUrl = UrlProcessingUtils.processUrl(url)
+                val finalUrl = PluctURLProcessingUtils.processUrl(url)
                 
                 // Enhanced logging for debugging
                 Log.i("ShareIngestActivity", "Processing share intent with URL: $finalUrl")
@@ -122,11 +122,11 @@ class ShareIngestActivity : ComponentActivity() {
                 Log.d("ShareIngestActivity", "Extracted caption: $captionText")
                 
                 // Show success message
-                Toast.makeText(this@ShareIngestActivity, "Opening Pluct...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PluctShareIngestActivity, "Opening Pluct...", Toast.LENGTH_SHORT).show()
                  
                  // Use SINGLE_TOP and CLEAR_TOP to prevent double launch
                  // Remove NEW_TASK to keep the app in the foreground
-                 val mainIntent = Intent(this@ShareIngestActivity, MainActivity::class.java).apply {
+                 val mainIntent = Intent(this@PluctShareIngestActivity, MainActivity::class.java).apply {
                      action = "app.pluct.action.CAPTURE_INSIGHT"
                      flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                      addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Prevent animation for smoother transition
@@ -143,7 +143,7 @@ class ShareIngestActivity : ComponentActivity() {
                  finish()
             } catch (e: Exception) {
                 Log.e("ShareIngestActivity", "Error processing share intent", e)
-                Toast.makeText(this@ShareIngestActivity, "Error processing URL", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PluctShareIngestActivity, "Error processing URL", Toast.LENGTH_SHORT).show()
                 finish()
             }
         }

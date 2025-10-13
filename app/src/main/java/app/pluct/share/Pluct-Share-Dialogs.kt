@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 /**
  * UI components for share-related dialogs
  */
-object ShareDialogs {
+object PluctShareDialogs {
     
     // Legacy dialog removed; no strict URL gating anymore
 }

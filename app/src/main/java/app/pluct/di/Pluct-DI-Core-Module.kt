@@ -18,8 +18,9 @@ import app.pluct.data.service.VideoMetadataExtractor
 import app.pluct.data.provider.PluctHuggingFaceProviderCoordinator
 import app.pluct.data.manager.UserManager
 import app.pluct.data.processor.UrlProcessor
-import app.pluct.viewmodel.ValuePropositionGenerator
-import app.pluct.purchase.CoinManager
+import app.pluct.utils.PluctUtilsValuePropositionGenerator
+import app.pluct.purchase.PluctCoinManager
+import app.pluct.status.PluctStatusTrackingManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
@@ -96,8 +97,8 @@ object PluctDICoreModule {
     
     @Provides
     @Singleton
-    fun provideValuePropositionGenerator(): ValuePropositionGenerator {
-        return ValuePropositionGenerator
+    fun provideValuePropositionGenerator(): PluctUtilsValuePropositionGenerator {
+        return PluctUtilsValuePropositionGenerator
     }
     
     // --- HTTP Client Providers ---
@@ -140,9 +141,10 @@ object PluctDICoreModule {
     @Singleton
     fun providePluctTTTranscribeService(
         apiService: PluctCoreApiService,
-        authenticator: PluctTTTranscribeAuthenticator
+        authenticator: PluctTTTranscribeAuthenticator,
+        statusTracker: PluctStatusTrackingManager
     ): PluctTTTranscribeService {
-        return PluctTTTranscribeService(apiService, authenticator)
+        return PluctTTTranscribeService(apiService, authenticator, statusTracker)
     }
     
     // --- Core Manager Providers ---
@@ -154,7 +156,7 @@ object PluctDICoreModule {
         ttTranscribeService: PluctTTTranscribeService,
         urlProcessor: UrlProcessor,
         huggingFaceProvider: PluctHuggingFaceProviderCoordinator,
-        valuePropositionGenerator: ValuePropositionGenerator
+        valuePropositionGenerator: PluctUtilsValuePropositionGenerator
     ): PluctTranscriptionCoreManager {
         return PluctTranscriptionCoreManager(
             context = context,
@@ -201,7 +203,15 @@ object PluctDICoreModule {
     
     @Provides
     @Singleton
-    fun provideCoinManager(userCoinsDao: UserCoinsDao): CoinManager {
-        return CoinManager(userCoinsDao)
+    fun provideCoinManager(userCoinsDao: UserCoinsDao): PluctCoinManager {
+        return PluctCoinManager(userCoinsDao)
+    }
+    
+    @Provides
+    @Singleton
+    fun providePluctStatusTrackingManager(
+        @ApplicationContext context: Context
+    ): PluctStatusTrackingManager {
+        return PluctStatusTrackingManager(context)
     }
 }

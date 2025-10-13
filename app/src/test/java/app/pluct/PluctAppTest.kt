@@ -3,7 +3,7 @@ package app.pluct
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctRepository
 import app.pluct.data.service.VideoMetadataService
-import app.pluct.share.ShareIngestActivity
+import app.pluct.share.PluctShareIngestActivity
 import app.pluct.ui.components.ScriptTokAuditWebView
 import app.pluct.viewmodel.HomeViewModel
 import app.pluct.viewmodel.IngestViewModel

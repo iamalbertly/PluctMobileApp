@@ -25,6 +25,8 @@ import app.pluct.data.entity.ProcessingTier
 import app.pluct.ui.components.*
 import app.pluct.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
+import app.pluct.ui.components.PluctStatusTrackingComponent
+import androidx.compose.ui.zIndex
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,7 +151,7 @@ fun HomeScreen(
                     }
                     
                     items(videos, key = { it.id }) { video ->
-                        ModernVideoItemCard(
+                        PluctVideoCardCore(
                             video = video,
                             onClick = {
                                 if (video.status == app.pluct.data.entity.ProcessingStatus.COMPLETED) {
@@ -195,6 +197,21 @@ fun HomeScreen(
                 }
             },
             viewModel = viewModel
+        )
+    }
+
+    // Status overlay for background tasks (always on top)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp)
+            .zIndex(10f),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        // Simplified overlay hook; actual data wired in ViewModel integration later
+        PluctStatusTrackingComponent(
+            statusItems = emptyList(),
+            onRefresh = {}
         )
     }
 }

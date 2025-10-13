@@ -5,7 +5,6 @@ import android.util.Log
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.entity.Transcript
 import app.pluct.data.entity.OutputArtifact
-import app.pluct.data.service.ProcessedTranscript
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -13,8 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Pluct Core Search Engine - Single source of truth for search functionality
+ * Pluct-Search-Core-Engine - Simple search functionality
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]
+ * Simplified to remove complex processing
  */
 @Singleton
 class PluctSearchCoreEngine @Inject constructor(
@@ -33,7 +33,6 @@ class PluctSearchCoreEngine @Inject constructor(
     suspend fun indexContent(
         video: VideoItem,
         transcript: Transcript?,
-        processedTranscript: ProcessedTranscript?,
         artifacts: List<OutputArtifact>
     ) = withContext(Dispatchers.IO) {
         try {
@@ -45,11 +44,10 @@ class PluctSearchCoreEngine @Inject constructor(
                 description = video.description ?: "",
                 author = video.author ?: "",
                 transcript = transcript?.text ?: "",
-                processedTranscript = processedTranscript,
                 artifacts = artifacts,
-                tags = extractTags(video, transcript, processedTranscript),
-                categories = extractCategories(processedTranscript),
-                sentiment = extractSentiment(processedTranscript),
+                tags = extractTags(video, transcript),
+                categories = extractCategories(video, transcript),
+                sentiment = "neutral",
                 createdAt = video.createdAt,
                 updatedAt = System.currentTimeMillis()
             )
@@ -144,8 +142,7 @@ class PluctSearchCoreEngine @Inject constructor(
 
     private fun extractTags(
         video: VideoItem,
-        transcript: Transcript?,
-        processedTranscript: ProcessedTranscript?
+        transcript: Transcript?
     ): List<String> {
         val tags = mutableListOf<String>()
         
@@ -154,21 +151,19 @@ class PluctSearchCoreEngine @Inject constructor(
             tags.add(tag.trim())
         }
         
-        // Extract from processed transcript
-        processedTranscript?.topics?.forEach { topic ->
-            tags.add(topic)
+        // Extract from transcript text
+        transcript?.text?.split(" ")?.take(10)?.forEach { word ->
+            if (word.length > 3) tags.add(word.lowercase())
         }
         
         return tags.distinct()
     }
 
-    private fun extractCategories(processedTranscript: ProcessedTranscript?): List<String> {
-        return processedTranscript?.topics ?: emptyList()
+    private fun extractCategories(video: VideoItem, transcript: Transcript?): List<String> {
+        return listOf("general") // Simple categorization
     }
 
-    private fun extractSentiment(processedTranscript: ProcessedTranscript?): String {
-        return processedTranscript?.sentimentAnalysis?.label ?: "Neutral"
-    }
+    // Removed extractSentiment - using simple sentiment
 
     private fun calculateRelevanceScore(
         content: SearchableContent,
@@ -230,7 +225,6 @@ data class SearchableContent(
     val description: String,
     val author: String,
     val transcript: String,
-    val processedTranscript: ProcessedTranscript?,
     val artifacts: List<OutputArtifact>,
     val tags: List<String>,
     val categories: List<String>,

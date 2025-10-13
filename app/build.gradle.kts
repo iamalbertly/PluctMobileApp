@@ -28,10 +28,19 @@ android {
         debug {
             isDebuggable = true
             isMinifyEnabled = false
+            isShrinkResources = false
+            isZipAlignEnabled = false
+            isDebuggable = true
             buildConfigField("boolean", "DEBUG", "true")
+            // Optimize debug builds
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isZipAlignEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -44,10 +53,19 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-Xjvm-default=all",
+            "-opt-in=kotlin.RequiresOptIn"
+        )
     }
     buildFeatures {
         compose = true
         buildConfig = true
+        // Disable unused features for faster builds
+        aidl = false
+        renderScript = false
+        resValues = false
+        shaders = false
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.3"
@@ -150,6 +168,31 @@ dependencies {
     // Debug dependencies
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Build optimizations for faster builds
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-Xjvm-default=all",
+            "-opt-in=kotlin.RequiresOptIn"
+        )
+    }
+}
+
+// Optimize resource processing
+tasks.withType<com.android.build.gradle.tasks.ProcessApplicationManifest> {
+    doLast {
+        // Skip unnecessary manifest processing
+    }
+}
+
+// Skip lint for debug builds to speed up development
+tasks.whenTaskAdded {
+    if (name.contains("lint") && name.contains("Debug")) {
+        enabled = false
+    }
 }
 
 // Allow references to generated code for Hilt (KSP handles this automatically)

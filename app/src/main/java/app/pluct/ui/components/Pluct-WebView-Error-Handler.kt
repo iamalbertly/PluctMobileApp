@@ -26,7 +26,7 @@ fun PluctWebViewErrorHandler(
     onReturnToMain: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val errorData = PluctWebViewErrorDataProvider.getErrorData(errorCode)
+    val errorData = PluctWebViewErrorDataProvider.getErrorData(errorCode, MaterialTheme.colorScheme)
     
     PluctWebViewErrorDisplay(
         errorData = errorData,
@@ -204,13 +204,13 @@ private fun PluctWebViewErrorActions(
  * Error data provider for WebView errors
  */
 object PluctWebViewErrorDataProvider {
-    fun getErrorData(errorCode: String?): PluctWebViewErrorData {
+    fun getErrorData(errorCode: String?, colorScheme: ColorScheme): PluctWebViewErrorData {
         return when (errorCode) {
             "timeout" -> PluctWebViewErrorData(
                 icon = Icons.Default.Schedule,
                 title = "Processing Timeout",
                 message = Constants.ErrorMessages.TIMEOUT_ERROR,
-                color = MaterialTheme.colorScheme.tertiary,
+                color = colorScheme.tertiary,
                 showRetry = true,
                 showManual = true,
                 showReturn = true
@@ -219,7 +219,7 @@ object PluctWebViewErrorDataProvider {
                 icon = Icons.Default.WifiOff,
                 title = "Network Error",
                 message = Constants.ErrorMessages.NETWORK_ERROR,
-                color = MaterialTheme.colorScheme.error,
+                color = colorScheme.error,
                 showRetry = true,
                 showManual = true,
                 showReturn = true
@@ -228,7 +228,7 @@ object PluctWebViewErrorDataProvider {
                 icon = Icons.Default.Description,
                 title = "Transcript Not Found",
                 message = Constants.ErrorMessages.TRANSCRIPT_NOT_FOUND,
-                color = MaterialTheme.colorScheme.secondary,
+                color = colorScheme.secondary,
                 showRetry = false,
                 showManual = true,
                 showReturn = true
@@ -237,7 +237,7 @@ object PluctWebViewErrorDataProvider {
                 icon = Icons.Default.Error,
                 title = "Provider Error",
                 message = Constants.ErrorMessages.PROVIDER_ERROR,
-                color = MaterialTheme.colorScheme.error,
+                color = colorScheme.error,
                 showRetry = true,
                 showManual = true,
                 showReturn = true
@@ -246,7 +246,7 @@ object PluctWebViewErrorDataProvider {
                 icon = Icons.Default.Warning,
                 title = "Unknown Error",
                 message = Constants.ErrorMessages.UNKNOWN_ERROR,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = colorScheme.onSurface,
                 showRetry = true,
                 showManual = true,
                 showReturn = true

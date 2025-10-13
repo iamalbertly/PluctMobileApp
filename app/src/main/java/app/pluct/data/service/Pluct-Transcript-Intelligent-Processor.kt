@@ -4,43 +4,34 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Intelligent transcript processing with AI-powered analysis
- * Provides sentiment analysis, key insights, and content optimization
+ * Pluct-Data-Service-Transcript-Processor - Simple transcript processing
+ * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]
+ * Uses API services instead of local AI processing
  */
 @Singleton
-class IntelligentTranscriptProcessor @Inject constructor(
+class PluctDataServiceTranscriptProcessor @Inject constructor(
     private val context: Context
 ) {
     companion object {
-        private const val TAG = "IntelligentTranscriptProcessor"
-        private const val AI_PROCESSING_ENDPOINT = "https://pluct-ai-engine.romeo-lya2.workers.dev/process-transcript"
+        private const val TAG = "PluctDataServiceTranscript"
     }
 
     /**
-     * Process transcript with intelligent analysis
+     * Process transcript with simple analysis - no local AI
      */
     suspend fun processTranscript(
         transcript: String,
         videoMetadata: EnhancedVideoMetadata? = null
     ): ProcessedTranscript = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Processing transcript with intelligent analysis")
+            Log.d(TAG, "Processing transcript with simple analysis")
             
-            // Basic transcript processing
+            // Basic transcript processing only
             val basicProcessing = performBasicProcessing(transcript)
-            
-            // AI-powered analysis
-            val aiAnalysis = performAIAnalysis(transcript, videoMetadata)
-            
-            // Generate insights and recommendations
-            val insights = generateInsights(basicProcessing, aiAnalysis)
             
             ProcessedTranscript(
                 originalText = transcript,
@@ -49,17 +40,16 @@ class IntelligentTranscriptProcessor @Inject constructor(
                 readingTime = basicProcessing.readingTime,
                 language = basicProcessing.language,
                 confidence = basicProcessing.confidence,
-                // AI Analysis
-                sentimentAnalysis = aiAnalysis.sentimentAnalysis,
-                keyInsights = aiAnalysis.keyInsights,
-                topics = aiAnalysis.topics,
-                entities = aiAnalysis.entities,
-                summary = aiAnalysis.summary,
-                actionItems = aiAnalysis.actionItems,
-                // Generated Insights
-                insights = insights,
-                recommendations = generateRecommendations(aiAnalysis),
-                optimizationSuggestions = generateOptimizationSuggestions(aiAnalysis)
+                // Simple analysis - no AI
+                sentimentAnalysis = SentimentAnalysis(0.5f, "Neutral", emptyList()),
+                keyInsights = emptyList(),
+                topics = emptyList(),
+                entities = emptyList(),
+                summary = "Basic processing completed",
+                actionItems = emptyList(),
+                insights = emptyList(),
+                recommendations = emptyList(),
+                optimizationSuggestions = emptyList()
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error processing transcript: ${e.message}", e)
@@ -95,101 +85,7 @@ class IntelligentTranscriptProcessor @Inject constructor(
         )
     }
 
-    private suspend fun performAIAnalysis(
-        transcript: String,
-        videoMetadata: EnhancedVideoMetadata?
-    ): AIAnalysisResult {
-        // Simulate AI analysis - in real implementation, this would call AI service
-        return AIAnalysisResult(
-            sentimentAnalysis = SentimentAnalysis(
-                score = 0.7f,
-                label = "Positive",
-                emotions = listOf("excitement", "joy", "optimism")
-            ),
-            keyInsights = listOf(
-                "High engagement potential",
-                "Trending topic coverage",
-                "Strong call-to-action elements"
-            ),
-            topics = listOf("technology", "innovation", "business"),
-            entities = listOf(
-                Entity("Apple", "ORGANIZATION"),
-                Entity("iPhone", "PRODUCT"),
-                Entity("2024", "DATE")
-            ),
-            summary = "This transcript discusses the latest iPhone features and their impact on business productivity.",
-            actionItems = listOf(
-                "Research iPhone 15 Pro features",
-                "Evaluate business applications",
-                "Consider upgrade timeline"
-            )
-        )
-    }
-
-    private fun generateInsights(
-        basicProcessing: BasicProcessingResult,
-        aiAnalysis: AIAnalysisResult
-    ): List<TranscriptInsight> {
-        return listOf(
-            TranscriptInsight(
-                type = "ENGAGEMENT",
-                title = "High Engagement Potential",
-                description = "Content shows strong engagement indicators",
-                confidence = 0.8f,
-                actionable = true
-            ),
-            TranscriptInsight(
-                type = "TRENDING",
-                title = "Trending Topic",
-                description = "Covers currently trending topics",
-                confidence = 0.9f,
-                actionable = true
-            ),
-            TranscriptInsight(
-                type = "MONETIZATION",
-                title = "Monetization Opportunity",
-                description = "Content has strong monetization potential",
-                confidence = 0.7f,
-                actionable = true
-            )
-        )
-    }
-
-    private fun generateRecommendations(aiAnalysis: AIAnalysisResult): List<Recommendation> {
-        return listOf(
-            Recommendation(
-                type = "CONTENT_OPTIMIZATION",
-                title = "Optimize for SEO",
-                description = "Add relevant keywords to improve search visibility",
-                priority = "HIGH",
-                estimatedImpact = "Increase reach by 25%"
-            ),
-            Recommendation(
-                type = "ENGAGEMENT",
-                title = "Boost Engagement",
-                description = "Add interactive elements to increase viewer retention",
-                priority = "MEDIUM",
-                estimatedImpact = "Increase engagement by 15%"
-            )
-        )
-    }
-
-    private fun generateOptimizationSuggestions(aiAnalysis: AIAnalysisResult): List<OptimizationSuggestion> {
-        return listOf(
-            OptimizationSuggestion(
-                type = "TITLE_OPTIMIZATION",
-                title = "Optimize Title",
-                description = "Use trending keywords in title",
-                implementation = "Add 'trending' and 'viral' keywords"
-            ),
-            OptimizationSuggestion(
-                type = "DESCRIPTION_OPTIMIZATION",
-                title = "Enhance Description",
-                description = "Add more descriptive content",
-                implementation = "Include key topics and entities"
-            )
-        )
-    }
+    // Removed complex AI processing methods - use TTTranscribe API instead
 }
 
 data class BasicProcessingResult(

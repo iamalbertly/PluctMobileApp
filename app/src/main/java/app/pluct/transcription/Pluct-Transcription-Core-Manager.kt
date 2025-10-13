@@ -8,7 +8,7 @@ import app.pluct.api.TTTranscribeResult
 import app.pluct.data.processor.UrlProcessor
 import app.pluct.data.processor.UrlProcessingResult
 import app.pluct.data.provider.PluctHuggingFaceProviderCoordinator
-import app.pluct.viewmodel.ValuePropositionGenerator
+import app.pluct.utils.PluctUtilsValuePropositionGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -32,7 +32,7 @@ class PluctTranscriptionCoreManager @Inject constructor(
     private val ttTranscribeService: PluctTTTranscribeService,
     private val urlProcessor: UrlProcessor,
     private val huggingFaceProvider: PluctHuggingFaceProviderCoordinator,
-    private val valuePropositionGenerator: ValuePropositionGenerator
+    private val valuePropositionGenerator: PluctUtilsValuePropositionGenerator
 ) {
     companion object {
         private const val TAG = "PluctTranscriptionCore"
@@ -90,14 +90,27 @@ class PluctTranscriptionCoreManager @Inject constructor(
                 }
                 is TTTranscribeResult.Error -> {
                     Log.e(TAG, "TTTranscribe transcription failed: ${result.message}")
-                    onError("TTTranscribe failed: ${result.message}")
-                    false
+                    onProgress("TTTranscribe failed. Falling back to Quick Scan...")
+                    // Fallback to quick scan provider for resilience
+                    val fallback = executeTranscription(
+                        videoUrl = videoUrl,
+                        onProgress = onProgress,
+                        onSuccess = onSuccess,
+                        onError = onError
+                    )
+                    fallback
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in TTTranscribe transcription: ${e.message}", e)
-            onError("TTTranscribe error: ${e.message}")
-            false
+            onProgress("TTTranscribe error. Falling back to Quick Scan...")
+            val fallback = executeTranscription(
+                videoUrl = videoUrl,
+                onProgress = onProgress,
+                onSuccess = onSuccess,
+                onError = onError
+            )
+            fallback
         }
     }
 

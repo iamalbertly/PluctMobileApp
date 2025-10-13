@@ -9,7 +9,7 @@ import java.net.URL
  * Utility class for URL processing operations across the application.
  * Consolidated from ShareIngestActivity and UrlProcessor to improve code organization and maintainability.
  */
-object UrlProcessingUtils {
+object PluctURLProcessingUtils {
     private const val TAG = "UrlProcessingUtils"
     
     /**

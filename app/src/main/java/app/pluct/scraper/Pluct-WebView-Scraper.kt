@@ -10,7 +10,7 @@ import kotlin.coroutines.resumeWithException
  * WebView-based scraper for TikTok videos (Quick Scan tier)
  * This provides a fragile but free alternative to the TTTranscribe API
  */
-class WebViewScraper {
+class PluctWebViewScraper {
     companion object {
         private const val TAG = "WebViewScraper"
     }

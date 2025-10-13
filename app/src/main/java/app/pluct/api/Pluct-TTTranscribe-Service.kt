@@ -1,54 +1,82 @@
 package app.pluct.api
 
 import android.util.Log
+import app.pluct.status.PluctStatusTrackingManager
+import app.pluct.data.entity.ProcessingStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.pluct.error.PluctErrorHandler
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Pluct TTTranscribe Service - Handles TTTranscribe API calls with proper authentication
+ * Pluct TTTranscribe Service - Handles TTTranscribe API calls with proper authentication and status tracking
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]
  */
 @Singleton
 class PluctTTTranscribeService @Inject constructor(
     private val apiService: PluctCoreApiService,
-    private val authenticator: PluctTTTranscribeAuthenticator
+    private val authenticator: PluctTTTranscribeAuthenticator,
+    private val statusTracker: PluctStatusTrackingManager
 ) {
     companion object {
         private const val TAG = "PluctTTTranscribeService"
     }
 
     /**
-     * Transcribe a TikTok video using TTTranscribe API
+     * Transcribe a TikTok video using TTTranscribe API with status tracking
      */
     suspend fun transcribeVideo(videoUrl: String): TTTranscribeResult = withContext(Dispatchers.IO) {
+        val statusId = "tttranscribe-${System.currentTimeMillis()}"
+        
         try {
             Log.d(TAG, "Starting TTTranscribe transcription for: $videoUrl")
+            
+            // Update status to TRANSCRIBING
+            statusTracker.updateStatus(
+                id = statusId,
+                title = "TTTranscribe Processing",
+                description = "Transcribing video with TTTranscribe API",
+                status = ProcessingStatus.TRANSCRIBING,
+                progress = 10
+            )
             
             val request = TTTranscribeRequest(url = videoUrl)
             val method = "POST"
             val path = "/api/transcribe"
             val body = """{"url":"$videoUrl"}"""
             
+            statusTracker.updateProgress(statusId, 20, "Preparing authentication...")
             val authHeaders = authenticator.createAuthHeaders(method, path, body)
             
+            statusTracker.updateProgress(statusId, 40, "Making API call to TTTranscribe...")
             Log.d(TAG, "Making TTTranscribe API call with auth headers")
-            val response = apiService.transcribeWithTTTranscribe(
-                apiKey = authHeaders["X-API-Key"]!!,
-                timestamp = authHeaders["X-Timestamp"]!!,
-                signature = authHeaders["X-Signature"]!!,
-                request = request
+            val responseResult = PluctErrorHandler.executeWithRetry(
+                operation = {
+                    apiService.transcribeWithTTTranscribe(
+                        apiKey = authHeaders["X-API-Key"]!!,
+                        timestamp = authHeaders["X-Timestamp"]!!,
+                        signature = authHeaders["X-Signature"]!!,
+                        request = request
+                    )
+                },
+                config = PluctErrorHandler.API_RETRY_CONFIG,
+                operationName = "TTTranscribe API /transcribe"
             )
+            val response = responseResult.getOrThrow()
             
             if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null) {
+                    statusTracker.updateProgress(statusId, 80, "Processing transcript...")
+                    
                     Log.d(TAG, "TTTranscribe transcription successful")
                     Log.d(TAG, "Transcript length: ${responseBody.transcript.length} characters")
                     Log.d(TAG, "Duration: ${responseBody.duration_sec} seconds")
                     Log.d(TAG, "Language: ${responseBody.lang}")
+                    
+                    statusTracker.markCompleted(statusId, "Transcription completed successfully")
                     
                     TTTranscribeResult.Success(
                         transcript = responseBody.transcript,
@@ -59,15 +87,18 @@ class PluctTTTranscribeService @Inject constructor(
                     )
                 } else {
                     Log.e(TAG, "TTTranscribe response body is null")
+                    statusTracker.markFailed(statusId, "Response body is null")
                     TTTranscribeResult.Error("Response body is null")
                 }
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Unknown error"
                 Log.e(TAG, "TTTranscribe API call failed: ${response.code()} - $errorBody")
+                statusTracker.markFailed(statusId, "API call failed: ${response.code()} - $errorBody")
                 TTTranscribeResult.Error("API call failed: ${response.code()} - $errorBody")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in TTTranscribe transcription: ${e.message}", e)
+            statusTracker.markFailed(statusId, "Transcription failed: ${e.message}")
             TTTranscribeResult.Error("Transcription failed: ${e.message}")
         }
     }

@@ -10,7 +10,7 @@ import androidx.core.app.NotificationCompat
 import app.pluct.MainActivity
 import app.pluct.R
 
-object NotificationHelper {
+object PluctNotificationHelper {
     private const val CHANNEL_ID = "pluct_processing"
     private const val CHANNEL_NAME = "Pluct Processing"
     private const val CHANNEL_DESCRIPTION = "Notifications for video processing status"
