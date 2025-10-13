@@ -77,14 +77,26 @@ function Test-SmartCaptureJourney {
         $insightsAvailable = Test-SmartPreliminaryInsights
         if (-not $insightsAvailable) {
             Write-SmartLog "Preliminary insights not available" "Red"
+            Describe-ClickableSummary
             return $false
         }
         
         # Test tier selection
         Write-SmartLog "Testing tier selection..." "Gray"
+        # Try to select a tier via UI if not detected by logs
         $tierSelection = Test-SmartTierSelection
         if (-not $tierSelection) {
+            $xml = Get-UiHierarchy
+            $hits = Find-UiElementsByText -UiXml $xml -Text 'Free' -Contains
+            if ($hits.Count -eq 0) { $hits = Find-UiElementsByText -UiXml $xml -Text 'Paid' -Contains }
+            if ($hits.Count -gt 0) {
+                [void](Click-UiNode $hits[0]); Start-Sleep -Seconds 1
+                $tierSelection = Test-SmartTierSelection
+            }
+        }
+        if (-not $tierSelection) {
             Write-SmartLog "Tier selection not working" "Red"
+            Describe-ClickableSummary
             return $false
         }
         
@@ -320,7 +332,7 @@ function Test-SmartProgressUpdates {
 
 function Test-SmartTTTranscribeConnectivity {
     try {
-        $networkInfo = adb shell logcat -d | Select-String "tttranscribe\|api\|connect"
+        $networkInfo = adb shell logcat -d | Select-String "Pluct Proxy\|ttt/transcribe\|PluctTTTranscribeService\|TTTranscribe"
         return $networkInfo -ne $null
     } catch {
         return $false
@@ -329,7 +341,7 @@ function Test-SmartTTTranscribeConnectivity {
 
 function Test-SmartTTTranscribeAuthentication {
     try {
-        $authInfo = adb shell logcat -d | Select-String "auth\|token\|jwt"
+        $authInfo = adb shell logcat -d | Select-String "Bearer\|vend token\|vend-token\|Authorization"
         return $authInfo -ne $null
     } catch {
         return $false

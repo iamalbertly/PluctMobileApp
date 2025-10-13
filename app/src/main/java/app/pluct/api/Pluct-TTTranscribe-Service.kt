@@ -43,26 +43,34 @@ class PluctTTTranscribeService @Inject constructor(
             )
             
             val request = TTTranscribeRequest(url = videoUrl)
-            val method = "POST"
-            val path = "/api/transcribe"
-            val body = """{"url":"$videoUrl"}"""
             
-            statusTracker.updateProgress(statusId, 20, "Preparing authentication...")
-            val authHeaders = authenticator.createAuthHeaders(method, path, body)
+            statusTracker.updateProgress(statusId, 20, "Vending access token...")
+            val vendTokenResponse = PluctErrorHandler.executeWithRetry(
+                operation = {
+                    apiService.vendToken(VendTokenRequest(userId = "mobile"))
+                },
+                config = PluctErrorHandler.API_RETRY_CONFIG,
+                operationName = "Business Engine /vend-token"
+            ).getOrThrow()
+            if (!vendTokenResponse.isSuccessful || vendTokenResponse.body() == null) {
+                val code = vendTokenResponse.code()
+                val err = vendTokenResponse.errorBody()?.string()
+                statusTracker.markFailed(statusId, "Token vending failed: $code")
+                return@withContext TTTranscribeResult.Error("vend-token failed: $code - ${err ?: "no body"}")
+            }
+            val token = vendTokenResponse.body()!!.token
             
-            statusTracker.updateProgress(statusId, 40, "Making API call to TTTranscribe...")
-            Log.d(TAG, "Making TTTranscribe API call with auth headers")
+            statusTracker.updateProgress(statusId, 40, "Calling Pluct proxy for transcription...")
+            Log.d(TAG, "Calling Pluct proxy with Bearer token")
             val responseResult = PluctErrorHandler.executeWithRetry(
                 operation = {
-                    apiService.transcribeWithTTTranscribe(
-                        apiKey = authHeaders["X-API-Key"]!!,
-                        timestamp = authHeaders["X-Timestamp"]!!,
-                        signature = authHeaders["X-Signature"]!!,
+                    apiService.transcribeViaPluctProxy(
+                        authorization = "Bearer $token",
                         request = request
                     )
                 },
                 config = PluctErrorHandler.API_RETRY_CONFIG,
-                operationName = "TTTranscribe API /transcribe"
+                operationName = "Pluct Proxy /ttt/transcribe"
             )
             val response = responseResult.getOrThrow()
             

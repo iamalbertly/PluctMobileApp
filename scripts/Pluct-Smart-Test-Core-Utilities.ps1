@@ -79,3 +79,94 @@ function Show-SmartTestReport {
     
     Write-SmartLog "Smart testing completed" "Cyan"
 }
+
+# --- UI Automation Helpers (ADB/UIAutomator) ---
+
+function Get-UiDumpXmlPath {
+    return Join-Path $env:TEMP "pluct_ui_dump.xml"
+}
+
+function Get-UiHierarchy {
+    try {
+        adb shell uiautomator dump /sdcard/pluct_ui_dump.xml 2>$null | Out-Null
+        $localPath = Get-UiDumpXmlPath
+        adb pull /sdcard/pluct_ui_dump.xml "$localPath" 1>$null 2>$null | Out-Null
+        if (-not (Test-Path $localPath)) { return $null }
+        [xml](Get-Content -Raw $localPath)
+    } catch {
+        return $null
+    }
+}
+
+function Find-UiElementsByText {
+    param(
+        [xml]$UiXml,
+        [string]$Text,
+        [switch]$Contains
+    )
+    if (-not $UiXml) { return @() }
+    $nodes = $UiXml.hierarchy.node
+    if (-not $nodes) { return @() }
+    $matches = @()
+    foreach ($n in $UiXml.SelectNodes('//node')) {
+        $t = ($n.GetAttribute('text'))
+        $d = ($n.GetAttribute('content-desc'))
+        if ($Contains) {
+            if (($t -like "*${Text}*") -or ($d -like "*${Text}*")) { $matches += $n }
+        } else {
+            if (($t -eq $Text) -or ($d -eq $Text)) { $matches += $n }
+        }
+    }
+    return $matches
+}
+
+function Get-UiNodeCenterFromBounds {
+    param([string]$Bounds)
+    # bounds format: [x1,y1][x2,y2]
+    if (-not $Bounds) { return $null }
+    $nums = [regex]::Matches($Bounds, '\d+') | ForEach-Object { [int]$_.Value }
+    if ($nums.Count -ne 4) { return $null }
+    $x = [int](($nums[0] + $nums[2]) / 2)
+    $y = [int](($nums[1] + $nums[3]) / 2)
+    return @{ X = $x; Y = $y }
+}
+
+function Click-UiNode {
+    param($Node)
+    try {
+        $bounds = $Node.GetAttribute('bounds')
+        $pt = Get-UiNodeCenterFromBounds $bounds
+        if (-not $pt) { return $false }
+        adb shell input tap $($pt.X) $($pt.Y) 2>$null | Out-Null
+        return $true
+    } catch { return $false }
+}
+
+function Wait-ForUiText {
+    param([string]$Text, [int]$TimeoutSeconds = 8)
+    $stopAt = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $stopAt) {
+        $xml = Get-UiHierarchy
+        $hit = Find-UiElementsByText -UiXml $xml -Text $Text -Contains
+        if ($hit.Count -gt 0) { return $true }
+        Start-Sleep -Milliseconds 500
+    }
+    return $false
+}
+
+function Describe-ClickableSummary {
+    $xml = Get-UiHierarchy
+    if (-not $xml) { Write-SmartLog "UI dump unavailable" "Red"; return }
+    $nodes = $xml.SelectNodes('//node')
+    $clickables = @()
+    foreach ($n in $nodes) {
+        if ($n.GetAttribute('clickable') -eq 'true') {
+            $clickables += @{ text = $n.GetAttribute('text'); desc = $n.GetAttribute('content-desc'); bounds = $n.GetAttribute('bounds') }
+        }
+    }
+    Write-SmartLog ("Clickable elements found: {0}" -f $clickables.Count) "Gray"
+    $clickables | Select-Object -First 10 | ForEach-Object {
+        $label = if ($_.text) { $_.text } elseif ($_.desc) { $_.desc } else { '<no-label>' }
+        Write-SmartLog (" - clickable: '{0}' bounds={1}" -f $label, $_.bounds) "Gray"
+    }
+}

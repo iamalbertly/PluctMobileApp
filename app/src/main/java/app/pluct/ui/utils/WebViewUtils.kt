@@ -52,8 +52,8 @@ object WebViewUtils {
             webView.setTag(R.id.tag_video_url, videoUrl)
             webView.setTag(R.id.tag_run_id, runId)
             
-            // Configure WebView
-            WebViewConfiguration.configureWebView(webView, runId)
+            // Configure WebView (single source)
+            WebViewConfig.configureSettings(webView)
             
             // Add JavaScript bridge
             webView.addJavascriptInterface(JavaScriptBridge(onTranscriptReceived, onError), "AndroidBridge")
@@ -105,8 +105,8 @@ object WebViewUtils {
             webView.setTag(R.id.tag_video_url, videoUrl)
             webView.setTag(R.id.tag_run_id, runId)
             
-            // Configure WebView
-            WebViewConfiguration.configureWebView(webView, runId)
+            // Configure WebView (single source)
+            WebViewConfig.configureSettings(webView)
             
             // Add JavaScript bridge
             webView.addJavascriptInterface(JavaScriptBridge(onTranscriptReceived, onError), "AndroidBridge")

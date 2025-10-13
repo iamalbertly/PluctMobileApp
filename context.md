@@ -76,6 +76,23 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 4. **Fix Navigation**: Ensure MainActivity stays active and shows HomeScreen with capture sheet
 
 ## Next Actions
+## Dependency/Integration Map (updated 2025-10-13)
+- API: `PluctCoreApiService`
+  - Business Engine: `POST /user/create`, `POST /vend-token`
+  - Proxy: `POST /ttt/transcribe` with `Authorization: Bearer <token>`
+- Secrets: Removed from mobile. `PluctTTTranscribeAuthenticator` now timestamps only.
+- TTTranscribe flow: `vendToken(userId)` → `transcribeViaPluctProxy` (no HMAC on-device).
+- WebView: Single config `WebViewConfig.configureSettings(webView)`; `WebViewConfiguration` deleted.
+- Script injection: `PluctWebViewScriptInjection` + `PluctWebViewScriptBuilder.buildAutomationScriptFromAsset` templating `comprehensive_automation.js`.
+- Assets: Keep `comprehensive_automation.js`; removed `scripttokaudit_automation.js`.
+- Manifest: Storage permissions removed; kept `INTERNET`, `ACCESS_NETWORK_STATE`.
+
+## Naming/Structure Notes
+- Prefer `[Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]` naming.
+- Avoid giant Kotlin files (>300 lines).
+
+## Logs
+- 2025-10-13: Removed client secrets/HMAC; switched TTTranscribe to proxy with bearer; consolidated WebView config; unified script injection; removed legacy asset; cleaned manifest permissions.
 1. Enhance test framework with real screen validation
 2. Add verbose logging to Android app
 3. Implement content validation for video metadata

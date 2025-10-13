@@ -7,6 +7,9 @@ import org.json.JSONObject
  */
 object PluctWebViewScriptBuilder {
     
+    /**
+     * Legacy builder (kept for compatibility); prefer buildAutomationScriptFromAsset.
+     */
     fun buildAutomationScript(videoUrl: String, runId: String): String {
         val escapedUrl = JSONObject.quote(videoUrl)
         
@@ -134,5 +137,15 @@ object PluctWebViewScriptBuilder {
                 checkDomain();
             })();
         """.trimIndent()
+    }
+
+    /**
+     * Preferred: template the canonical asset content with RUN_ID and TARGET_URL.
+     */
+    fun buildAutomationScriptFromAsset(assetContent: String, videoUrl: String, runId: String): String {
+        val safe = assetContent
+            .replace("{{RUN_ID}}", runId)
+            .replace("{{TARGET_URL}}", videoUrl)
+        return safe
     }
 }

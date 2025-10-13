@@ -57,12 +57,10 @@ interface PluctCoreApiService {
     @POST("https://pluct-business-engine.romeo-lya2.workers.dev/vend-token")
     suspend fun vendToken(@Body request: VendTokenRequest): Response<VendTokenResponse>
 
-    // --- TTTranscribe Endpoints ---
-    @POST("https://iamromeoly-tttranscibe.hf.space/api/transcribe")
-    suspend fun transcribeWithTTTranscribe(
-        @Header("X-API-Key") apiKey: String,
-        @Header("X-Timestamp") timestamp: String,
-        @Header("X-Signature") signature: String,
+    // --- TTTranscribe via Pluct Proxy (single mobile-safe endpoint) ---
+    @POST("https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe")
+    suspend fun transcribeViaPluctProxy(
+        @Header("Authorization") authorization: String,
         @Body request: TTTranscribeRequest
     ): Response<TTTranscribeResponse>
 

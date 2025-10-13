@@ -5,27 +5,46 @@
 param(
     [Parameter(Position=0)]
     [string]$TestUrl = "https://www.tiktok.com/@garyvee/video/7308801293029248299",
-
     [Parameter()]
-    [switch]$SkipBuild,
-
+    [string]$TestScope = "All",
+    [Parameter()]
+    [switch]$ForceBuild,
     [Parameter()]
     [switch]$SkipInstall,
-
     [Parameter()]
     [switch]$CaptureScreenshots,
-
     [Parameter()]
-    [string]$TestScope = "All"  # All, Core, Enhancements, Analytics, Collaboration, Search, Cache
+    [switch]$VerboseOutput
 )
 
-# Import core modules
+# Import smart testing modules (single source of truth)
 $script:FrameworkRoot = $PSScriptRoot
-. "$script:FrameworkRoot\Pluct-Test-Core-Utilities.ps1"
-. "$script:FrameworkRoot\Pluct-Test-Core-Build.ps1"
-. "$script:FrameworkRoot\Pluct-Test-Core-Device.ps1"
-. "$script:FrameworkRoot\Pluct-Test-Core-Screenshots.ps1"
-. "$script:FrameworkRoot\Pluct-Test-Core-Unified.ps1"
+. "$script:FrameworkRoot\Pluct-Smart-Test-Core-Utilities.ps1"
+. "$script:FrameworkRoot\Pluct-Smart-Test-Build-Detector.ps1"
+. "$script:FrameworkRoot\Pluct-Smart-Test-Device-Manager.ps1"
+. "$script:FrameworkRoot\Pluct-Smart-Test-Journey-Engine.ps1"
+
+# Initialize Smart session state expected by Smart modules
+$script:SmartTestSession = @{
+    StartTime = Get-Date
+    TestResults = @{}
+    BuildRequired = $false
+    Screenshots = @()
+    Logs = @()
+    TestUrl = $TestUrl
+    JourneyResults = @{}
+    StatusTracking = @{}
+    FailureDetails = @()
+    CriticalErrors = @()
+    SmartBuildDetection = @{
+        LastBuildTime = $null
+        ChangedFiles = @()
+        BuildReason  = ""
+    }
+}
+
+# Backcompat shim for older Write-Log calls
+function Write-Log { param([string]$Message, [string]$Color="White"); Write-SmartLog $Message $Color }
 
 # Initialize enhanced test session
 $script:TestSession = @{
@@ -43,44 +62,42 @@ $script:TestSession = @{
 }
 
 function Start-EnhancedTestOrchestrator {
-    Write-Log "=== Pluct Enhanced Test Orchestrator ===" "Cyan"
-    Write-Log "Test Scope: $TestScope" "White"
-    Write-Log "Test URL: $TestUrl" "White"
-    Write-Log "Enhanced with detailed error reporting and full automation" "Yellow"
+    Write-SmartLog "=== Pluct Enhanced Test Orchestrator ===" "Cyan"
+    Write-SmartLog "Test Scope: $TestScope" "White"
+    Write-SmartLog "Test URL: $TestUrl" "White"
+    Write-SmartLog "Enhanced with detailed error reporting and full automation" "Yellow"
 
     # Check prerequisites
-    if (-not (Test-AndroidDevice)) {
+    if (-not (Test-SmartAndroidDevice)) {
         Report-CriticalError "No Android device connected" "Ensure an Android emulator is running or a physical device is connected via ADB."
         exit 1
     }
 
-    # Determine if build is needed
-    if (-not $SkipBuild) {
-        $script:TestSession.BuildRequired = Test-BuildRequired
-        if ($script:TestSession.BuildRequired) {
-            Write-Log "Code changes detected - enhanced build required" "Yellow"
-            if (-not (Build-App -Scope "Enhanced")) {
-                Report-CriticalError "Enhanced build failed" "The Gradle build process for the Pluct app with enhancements failed. Check the build output for specific compilation errors or dependency issues."
-                exit 1
-            }
-        } else {
-            Write-Log "No code changes - skipping build" "Green"
+    # Determine if build is needed (smart)
+    $script:TestSession.BuildRequired = Test-SmartBuildRequired -ForceBuild:$ForceBuild
+    if ($script:TestSession.BuildRequired) {
+        Write-SmartLog "Code changes detected - enhanced build required" "Yellow"
+        if (-not (Build-SmartApp)) {
+            Report-CriticalError "Enhanced build failed" "The Gradle build process for the Pluct app with enhancements failed. Check the build output for specific compilation errors or dependency issues."
+            exit 1
         }
+    } else {
+        Write-SmartLog "No code changes - skipping build" "Green"
     }
 
     # Deploy to device if needed
     if (-not $SkipInstall) {
-        $deploymentNeeded = Test-DeploymentNeeded
+        $deploymentNeeded = Test-SmartDeploymentNeeded
         if ($deploymentNeeded -or $script:TestSession.BuildRequired) {
-            Write-Log "Deploying latest build to device..." "Yellow"
-            $deploySuccess = Deploy-ToDevice
+            Write-SmartLog "Deploying latest build to device..." "Yellow"
+            $deploySuccess = Deploy-SmartToDevice
             if (-not $deploySuccess) {
                 Report-CriticalError "Deployment failed" "The APK could not be installed on the device. Possible causes include: device not connected or unauthorized, APK not found or corrupted, insufficient device storage, or ADB connection problems."
                 exit 1
             }
-            Write-Log "Deployment successful" "Green"
+            Write-SmartLog "Deployment successful" "Green"
         } else {
-            Write-Log "Latest build already deployed" "Green"
+            Write-SmartLog "Latest build already deployed" "Green"
         }
     }
 
@@ -89,82 +106,82 @@ function Start-EnhancedTestOrchestrator {
 
     switch ($TestScope.ToLower()) {
         "all" {
-            Write-Log "Testing Core User Journeys..." "Cyan"
+            Write-SmartLog "Testing Core User Journeys..." "Cyan"
             $overallSuccess = (Test-CoreUserJourneys -TestUrl $TestUrl)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Core User Journeys Failed" "One or more core user journeys (e.g., intent handling, video ingestion) failed. This indicates a fundamental issue with the app's primary functionality."
-                Write-Log "TERMINATING ON FIRST FAILURE: Core User Journeys" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Core User Journeys" "Red"
                 exit 1
             }
-            Write-Log "Core User Journeys test passed" "Green"
+            Write-SmartLog "Core User Journeys test passed" "Green"
             
-            Write-Log "Testing Enhancements Journey..." "Cyan"
+            Write-SmartLog "Testing Enhancements Journey..." "Cyan"
             $overallSuccess = (Test-EnhancementsJourney -TestUrl $TestUrl)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Enhancements Journey Failed" "One or more enhancement-related tests failed. This could be due to issues in AI analysis, caching, search, collaboration, or analytics services."
-                Write-Log "TERMINATING ON FIRST FAILURE: Enhancements Journey" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Enhancements Journey" "Red"
                 exit 1
             }
         }
         "core" {
-            Write-Log "Testing Core User Journeys..." "Cyan"
+            Write-SmartLog "Testing Core User Journeys..." "Cyan"
             $overallSuccess = (Test-CoreUserJourneys -TestUrl $TestUrl)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Core User Journeys Failed" "One or more core user journeys (e.g., intent handling, video ingestion) failed. This indicates a fundamental issue with the app's primary functionality."
-                Write-Log "TERMINATING ON FIRST FAILURE: Core User Journeys" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Core User Journeys" "Red"
                 exit 1
             }
-            Write-Log "Core User Journeys test passed" "Green"
+            Write-SmartLog "Core User Journeys test passed" "Green"
         }
         "enhancements" {
-            Write-Log "Testing Enhancements Journey..." "Cyan"
+            Write-SmartLog "Testing Enhancements Journey..." "Cyan"
             $overallSuccess = (Test-EnhancementsJourney -TestUrl $TestUrl)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Enhancements Journey Failed" "One or more enhancement-related tests failed. This could be due to issues in AI analysis, caching, search, collaboration, or analytics services."
-                Write-Log "TERMINATING ON FIRST FAILURE: Enhancements Journey" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Enhancements Journey" "Red"
                 exit 1
             }
-            Write-Log "Enhancements Journey test passed" "Green"
+            Write-SmartLog "Enhancements Journey test passed" "Green"
         }
         "analytics" {
-            Write-Log "Testing Analytics Enhancement..." "Cyan"
+            Write-SmartLog "Testing Analytics Enhancement..." "Cyan"
             $overallSuccess = (Test-AnalyticsEnhancement)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Analytics Enhancement Test Failed" "The analytics dashboard and performance insights test failed. Verify the data collection and reporting mechanisms."
-                Write-Log "TERMINATING ON FIRST FAILURE: Analytics Enhancement" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Analytics Enhancement" "Red"
                 exit 1
             }
-            Write-Log "Analytics Enhancement test passed" "Green"
+            Write-SmartLog "Analytics Enhancement test passed" "Green"
         }
         "collaboration" {
-            Write-Log "Testing Collaboration Enhancement..." "Cyan"
+            Write-SmartLog "Testing Collaboration Enhancement..." "Cyan"
             $overallSuccess = (Test-CollaborationEnhancement)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Collaboration Enhancement Test Failed" "The real-time collaboration features test failed. Check session management, chat, and annotation functionalities."
-                Write-Log "TERMINATING ON FIRST FAILURE: Collaboration Enhancement" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Collaboration Enhancement" "Red"
                 exit 1
             }
-            Write-Log "Collaboration Enhancement test passed" "Green"
+            Write-SmartLog "Collaboration Enhancement test passed" "Green"
         }
         "search" {
-            Write-Log "Testing Search Enhancement..." "Cyan"
+            Write-SmartLog "Testing Search Enhancement..." "Cyan"
             $overallSuccess = (Test-SearchEnhancement)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Search Enhancement Test Failed" "The advanced search and AI recommendations test failed. Verify indexing, filtering, and recommendation logic."
-                Write-Log "TERMINATING ON FIRST FAILURE: Search Enhancement" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Search Enhancement" "Red"
                 exit 1
             }
-            Write-Log "Search Enhancement test passed" "Green"
+            Write-SmartLog "Search Enhancement test passed" "Green"
         }
         "cache" {
-            Write-Log "Testing Cache Enhancement..." "Cyan"
+            Write-SmartLog "Testing Cache Enhancement..." "Cyan"
             $overallSuccess = (Test-CacheEnhancement)
             if (-not $overallSuccess) { 
                 Report-CriticalError "Cache Enhancement Test Failed" "The smart caching and offline capabilities test failed. Ensure data persistence and retrieval work as expected."
-                Write-Log "TERMINATING ON FIRST FAILURE: Cache Enhancement" "Red"
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: Cache Enhancement" "Red"
                 exit 1
             }
-            Write-Log "Cache Enhancement test passed" "Green"
+            Write-SmartLog "Cache Enhancement test passed" "Green"
         }
         default {
             Report-CriticalError "Invalid TestScope specified" "The provided TestScope '$TestScope' is not recognized. Please use 'All', 'Core', 'Enhancements', 'Analytics', 'Collaboration', 'Search', or 'Cache'."
@@ -176,10 +193,10 @@ function Start-EnhancedTestOrchestrator {
     Show-EnhancedTestReport -OverallSuccess $overallSuccess
 
     if ($overallSuccess) {
-        Write-Log "All tests passed successfully" "Green"
+        Write-SmartLog "All tests passed successfully" "Green"
         exit 0
     } else {
-        Write-Log "Some tests failed" "Red"
+        Write-SmartLog "Some tests failed" "Red"
         exit 1
     }
 }
@@ -287,23 +304,23 @@ function Test-EnhancementsJourney {
 }
 
 function Test-AppLaunch {
-    Write-Log "Testing app launch..." "Gray"
+    Write-SmartLog "Testing app launch..." "Gray"
     
     try {
-        # Launch the app using ADB
-        $launchCommand = "adb shell am start -n app.pluct/.Pluct-Main-Activity"
+        # Launch the app using ADB (correct activity)
+        $launchCommand = "adb shell am start -n app.pluct/.MainActivity"
         $launchResult = Invoke-Expression $launchCommand 2>&1
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Log "App launched successfully" "Green"
+            Write-SmartLog "App launched successfully" "Green"
             Start-Sleep -Seconds 3  # Wait for app to fully load
             return $true
         } else {
-            Write-Log "App launch failed: $launchResult" "Red"
+            Write-SmartLog "App launch failed: $launchResult" "Red"
             return $false
         }
     } catch {
-        Write-Log "App launch exception: $($_.Exception.Message)" "Red"
+        Write-SmartLog "App launch exception: $($_.Exception.Message)" "Red"
         return $false
     }
 }
@@ -311,23 +328,23 @@ function Test-AppLaunch {
 function Test-ShareIntent {
     param([string]$TestUrl)
     
-    Write-Log "Testing share intent with URL: $TestUrl" "Gray"
+    Write-SmartLog "Testing share intent with URL: $TestUrl" "Gray"
     
     try {
         # Simulate share intent using ADB
-        $shareCommand = "adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT `"$TestUrl`" -n app.pluct/.share.ShareIngestActivity"
+        $shareCommand = "adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT `"$TestUrl`" -n app.pluct/.share.PluctShareIngestActivity"
         $shareResult = Invoke-Expression $shareCommand 2>&1
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Log "Share intent handled successfully" "Green"
+            Write-SmartLog "Share intent handled successfully" "Green"
             Start-Sleep -Seconds 2  # Wait for activity to load
             return $true
         } else {
-            Write-Log "Share intent failed: $shareResult" "Red"
+            Write-SmartLog "Share intent failed: $shareResult" "Red"
             return $false
         }
     } catch {
-        Write-Log "Share intent exception: $($_.Exception.Message)" "Red"
+        Write-SmartLog "Share intent exception: $($_.Exception.Message)" "Red"
         return $false
     }
 }
@@ -335,35 +352,57 @@ function Test-ShareIntent {
 function Test-VideoProcessing {
     param([string]$TestUrl)
     
-    Write-Log "Testing video processing flow..." "Gray"
+    Write-SmartLog "Testing video processing flow..." "Gray"
     
     try {
-        # Check if the processing UI is visible
-        $uiCheck = "adb shell dumpsys activity activities"
-        $uiResult = Invoke-Expression $uiCheck 2>&1
-        
-        if ($uiResult -match "pluct") {
-            Write-Log "Processing UI is visible" "Green"
-            
-            # Simulate user interactions for processing
-            $interactions = @(
-                "adb shell input tap 500 800",  # Tap on process button
-                "adb shell input tap 500 900"   # Tap on confirm button
-            )
-            
-            foreach ($interaction in $interactions) {
-                Invoke-Expression $interaction 2>&1 | Out-Null
-                Start-Sleep -Seconds 1
+        # Dump UI and verify interactive elements
+        $xml = Get-UiHierarchy
+        if (-not $xml) { Write-SmartLog "Failed to obtain UI hierarchy" "Red"; return $false }
+
+        Describe-ClickableSummary
+
+        # Attempt to click on primary actions by label/desc
+        $candidates = @('Add Video','Search','Processing Status','Start','Process','Confirm','Analyze')
+        $clickedAny = $false
+        foreach ($label in $candidates) {
+            $hits = Find-UiElementsByText -UiXml $xml -Text $label -Contains
+            if ($hits.Count -gt 0) {
+                Write-SmartLog ("Pre-click verification: found '{0}' matches={1}" -f $label, $hits.Count) "Gray"
+                if (Click-UiNode $hits[0]) {
+                    Write-SmartLog ("Clicked '{0}' at bounds={1}" -f $label, $hits[0].GetAttribute('bounds')) "Yellow"
+                    $clickedAny = $true
+                    Start-Sleep -Seconds 1
+                    # Post-click verification
+                    $post = Get-UiHierarchy
+                    $postHits = Find-UiElementsByText -UiXml $post -Text $label -Contains
+                    Write-SmartLog ("Post-click: '{0}' still present={1}" -f $label, ($postHits.Count -gt 0)) "Gray"
+                    break
+                } else {
+                    Write-SmartLog ("Failed to click '{0}'" -f $label) "Red"
+                }
             }
-            
-            Write-Log "Video processing interactions completed" "Green"
-            return $true
-        } else {
-            Write-Log "Processing UI not visible" "Red"
-            return $false
         }
+
+        if (-not $clickedAny) {
+            Write-SmartLog "No actionable button found by text; attempting generic clickable element" "Yellow"
+            $nodes = $xml.SelectNodes('//node[@clickable="true"]')
+            if ($nodes.Count -gt 0) { [void](Click-UiNode $nodes[0]); Start-Sleep -Seconds 1 }
+        }
+
+        # Re-query UI to verify state change: look for status text
+        if (Wait-ForUiText -Text 'Processing' -TimeoutSeconds 6) {
+            Write-SmartLog "Detected 'Processing' text after interactions" "Green"
+            return $true
+        }
+
+        # As alternative evidence, check logcat for app tag updates
+        $log = adb shell logcat -d | Select-String 'PluctTTTranscribeService|Status|TRANSCRIBING|Processing'
+        if ($log) { Write-SmartLog "Detected processing logs in logcat" "Green"; return $true }
+
+        Write-SmartLog "No processing indicators found after interaction" "Red"
+        return $false
     } catch {
-        Write-Log "Video processing exception: $($_.Exception.Message)" "Red"
+        Write-SmartLog "Video processing exception: $($_.Exception.Message)" "Red"
         return $false
     }
 }

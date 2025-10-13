@@ -101,7 +101,7 @@ fun HomeScreen(
                     title = "Pluct",
                     subtitle = "TikTok Transcripts & AI Insights",
                     onSearchClick = { /* TODO: Implement search */ },
-                    onSettingsClick = { navController.navigate("profile") }
+                    onSettingsClick = { navController.navigate("settings") }
                 )
             },
             bottomBar = {

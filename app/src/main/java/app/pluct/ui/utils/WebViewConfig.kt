@@ -47,9 +47,9 @@ object WebViewConfig {
             setGeolocationEnabled(false)
             setRenderPriority(WebSettings.RenderPriority.HIGH)
             
-            // Disable images and media for faster loading
-            blockNetworkImage = true
-            blockNetworkLoads = false // Allow network but not images
+            // Ensure images are not blocked (site may rely on them)
+            blockNetworkImage = false
+            blockNetworkLoads = false
         }
         
         Log.d(TAG, "WebView settings configured for speed")
