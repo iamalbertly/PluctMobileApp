@@ -41,7 +41,7 @@ class PluctTranscriptionCoordinator @Inject constructor(
     suspend fun saveTranscript(
         videoId: String,
         transcript: String,
-        metadata: Map<String, Any> = emptyMap()
+        metadata: Map<String, Any> = emptyMap() // currently unused, kept for future enrichment
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())

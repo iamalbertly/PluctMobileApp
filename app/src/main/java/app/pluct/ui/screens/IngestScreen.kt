@@ -36,7 +36,7 @@ fun IngestScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     // Track processing state
-    var isProcessing by remember { mutableStateOf(false) }
+    var _isProcessing by remember { mutableStateOf(false) }
     var showNetworkStatus by remember { mutableStateOf(false) }
     
     /**

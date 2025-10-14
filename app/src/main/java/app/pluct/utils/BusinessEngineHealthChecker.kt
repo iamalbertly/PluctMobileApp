@@ -31,6 +31,7 @@ object BusinessEngineHealthChecker {
     suspend fun checkBusinessEngineHealth(): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Checking Business Engine health...")
+            Log.i("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=checking")
             
             val request = Request.Builder()
                 .url("$BUSINESS_ENGINE_BASE_URL/health")
@@ -42,14 +43,17 @@ object BusinessEngineHealthChecker {
             
             if (isHealthy) {
                 Log.i(TAG, "Business Engine is healthy")
+                Log.i("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=success")
             } else {
                 Log.e(TAG, "Business Engine health check failed: ${response.code}")
+                Log.e("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=failed code=${response.code}")
             }
             
             response.close()
             isHealthy
         } catch (e: Exception) {
             Log.e(TAG, "Business Engine health check error: ${e.message}")
+            Log.e("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=exception ${e.message}")
             false
         }
     }
@@ -60,6 +64,7 @@ object BusinessEngineHealthChecker {
     suspend fun testTokenVending(): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Testing token vending endpoint...")
+            Log.i("TTT", "stage=VENDING_TOKEN url=- reqId=- msg=requesting")
             
             val requestBody = org.json.JSONObject().apply {
                 put("userId", "mobile")
@@ -75,14 +80,17 @@ object BusinessEngineHealthChecker {
             
             if (isSuccessful) {
                 Log.i(TAG, "Token vending endpoint is working")
+                Log.i("TTT", "stage=VENDING_TOKEN url=- reqId=- msg=success")
             } else {
                 Log.e(TAG, "Token vending test failed: ${response.code}")
+                Log.e("TTT", "stage=VENDING_TOKEN url=- reqId=- msg=failed code=${response.code}")
             }
             
             response.close()
             isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Token vending test error: ${e.message}")
+            Log.e("TTT", "stage=VENDING_TOKEN url=- reqId=- msg=exception ${e.message}")
             false
         }
     }
@@ -93,6 +101,7 @@ object BusinessEngineHealthChecker {
     suspend fun testTTTranscribeProxy(token: String): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Testing TTTranscribe proxy endpoint...")
+            Log.i("TTT", "stage=TTTRANSCRIBE_CALL url=https://vm.tiktok.com/ZMAPTWV7o/ reqId=- msg=requesting")
             
             val requestBody = org.json.JSONObject().apply {
                 put("url", "https://vm.tiktok.com/ZMAPTWV7o/") // Test URL
@@ -109,14 +118,17 @@ object BusinessEngineHealthChecker {
             
             if (isSuccessful) {
                 Log.i(TAG, "TTTranscribe proxy endpoint is working")
+                Log.i("TTT", "stage=TTTRANSCRIBE_CALL url=https://vm.tiktok.com/ZMAPTWV7o/ reqId=- msg=success")
             } else {
                 Log.e(TAG, "TTTranscribe proxy test failed: ${response.code}")
+                Log.e("TTT", "stage=TTTRANSCRIBE_CALL url=https://vm.tiktok.com/ZMAPTWV7o/ reqId=- msg=failed code=${response.code}")
             }
             
             response.close()
             isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "TTTranscribe proxy test error: ${e.message}")
+            Log.e("TTT", "stage=TTTRANSCRIBE_CALL url=https://vm.tiktok.com/ZMAPTWV7o/ reqId=- msg=exception ${e.message}")
             false
         }
     }

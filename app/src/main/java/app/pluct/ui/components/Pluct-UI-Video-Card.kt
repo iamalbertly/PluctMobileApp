@@ -29,7 +29,7 @@ import java.util.*
 fun PluctUIVideoCard(
     video: VideoItem,
     onClick: () -> Unit,
-    onDelete: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null, // unused currently
     onMenuClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -106,7 +106,7 @@ fun PluctUIVideoCard(
 
 @Composable
 private fun PluctVideoCardStatus(video: VideoItem) {
-    val status = video.status ?: ProcessingStatus.PENDING
+    val status = video.status
     
     Row(
         verticalAlignment = Alignment.CenterVertically,

@@ -1,6 +1,7 @@
 package app.pluct
 
 import android.app.Application
+import app.pluct.config.AppConfig
 import dagger.hilt.android.HiltAndroidApp
 
 /**
@@ -10,4 +11,10 @@ import dagger.hilt.android.HiltAndroidApp
  * providing a clean architecture for managing dependencies and improving testability.
  */
 @HiltAndroidApp
-class PluctApplication : Application()
+class PluctApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize AppConfig early so DI providers depending on it are safe
+        AppConfig.initialize(this)
+    }
+}

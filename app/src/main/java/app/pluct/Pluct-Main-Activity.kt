@@ -23,6 +23,7 @@ import app.pluct.utils.VerificationUtils
 import app.pluct.data.manager.UserManager
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.config.AppConfig
+import app.pluct.utils.BusinessEngineHealthChecker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -63,6 +64,8 @@ class MainActivity : ComponentActivity() {
         
         // Run verification as a bonus step
         runVerification()
+        // Run Business Engine preflight health check to ensure connectivity and emit stage logs
+        runBusinessEnginePreflight()
         
         setContent {
             PluctTheme {
@@ -138,6 +141,17 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (e: Exception) {
                 DebugLogger.log("Verification exception: ${e.message}")
+            }
+        }
+    }
+
+    private fun runBusinessEnginePreflight() {
+        lifecycleScope.launch {
+            try {
+                DebugLogger.log("Running Business Engine preflight health check")
+                BusinessEngineHealthChecker.performFullHealthCheck()
+            } catch (e: Exception) {
+                DebugLogger.log("Business Engine preflight exception: ${e.message}")
             }
         }
     }

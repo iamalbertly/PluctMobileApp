@@ -138,7 +138,7 @@ class TranscriptionWorker @AssistedInject constructor(
                 }
                 
                 // Use WebView scraper for fragile but free transcription
-                val webViewScraper = PluctWebViewScraper()
+                // val webViewScraper = PluctWebViewScraper() // unused: reserved for fallback scraping mode
                 
                 // Note: In a real implementation, you would need to pass a WebView instance
                 // For now, we'll simulate the scraping process

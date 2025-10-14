@@ -68,6 +68,9 @@ function Start-EnhancedTestOrchestrator {
     Write-SmartLog "Test URL: $TestUrl" "White"
     Write-SmartLog "Enhanced with detailed error reporting and full automation" "Yellow"
 
+    # Clear old logs to avoid stale matches
+    adb logcat -c | Out-Null
+
     # Check prerequisites
     if (-not (Test-SmartAndroidDevice)) {
         Report-CriticalError "No Android device connected" "Ensure an Android emulator is running or a physical device is connected via ADB."
@@ -126,11 +129,17 @@ function Start-EnhancedTestOrchestrator {
 
             # Enhanced API testing with detailed request/response logging
             Write-SmartLog "Testing API connectivity and authentication..." "Yellow"
-            Test-API-Connectivity
+            if (-not (Test-API-Connectivity)) {
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: API Connectivity" "Red"
+                exit 1
+            }
             
             # Test detailed request/response patterns
             Write-SmartLog "Testing detailed API request/response patterns..." "Yellow"
-            Test-API-Request-Response -TestUrl $TestUrl
+            if (-not (Test-API-Request-Response -TestUrl $TestUrl)) {
+                Write-SmartLog "TERMINATING ON FIRST FAILURE: API Request/Response" "Red"
+                exit 1
+            }
             
             # Background progress verification using worker logs with detailed output
             Write-SmartLog "Waiting for worker stages with detailed logging..." "Yellow"

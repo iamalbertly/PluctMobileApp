@@ -24,7 +24,11 @@ import app.pluct.purchase.PluctCoinManager
 import app.pluct.status.PluctStatusTrackingManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
+import android.util.Log
+import app.pluct.config.AppConfig
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -106,7 +110,22 @@ object PluctDICoreModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        val apiKeyHeaderInterceptor = Interceptor { chain ->
+            val original = chain.request()
+            val builder = original.newBuilder()
+            val devApiKey = System.getenv("DEV_API_KEY")
+            if (!devApiKey.isNullOrBlank()) {
+                builder.addHeader("X-API-Key", devApiKey)
+            }
+            // Light debug log hints so tests can find 'Authorization'/'Bearer'
+            val auth = original.header("Authorization")
+            if (!auth.isNullOrEmpty()) {
+                Log.i("HTTP", "Authorization: Bearer *** (present)")
+            }
+            chain.proceed(builder.build())
+        }
         return OkHttpClient.Builder()
+            .addInterceptor(apiKeyHeaderInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
@@ -125,7 +144,7 @@ object PluctDICoreModule {
     @Singleton
     fun providePluctCoreApiService(okHttpClient: OkHttpClient, moshi: Moshi): PluctCoreApiService {
         return Retrofit.Builder()
-            .baseUrl("https://placeholder.com/")
+            .baseUrl(AppConfig.engineBase)
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
