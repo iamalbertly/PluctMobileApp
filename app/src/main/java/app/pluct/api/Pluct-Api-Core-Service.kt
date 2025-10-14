@@ -4,6 +4,8 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.GET
+import retrofit2.http.Path
 
 /**
  * Pluct Core API Service - Single source of truth for all API communications
@@ -37,6 +39,16 @@ data class SourceInfo(
     val video_id: String
 )
 
+// --- Business Engine TTTranscribe DTOs ---
+data class BusinessEngineTranscribeRequest(val url: String)
+data class BusinessEngineTranscribeResponse(val request_id: String)
+data class BusinessEngineStatusResponse(
+    val phase: String,
+    val percent: Int?,
+    val transcript: String?,
+    val note: String?
+)
+
 // --- AI Analysis DTOs ---
 data class AIAnalysisRequest(val transcript: String, val analysisType: String = "comprehensive")
 data class AIAnalysisResponse(
@@ -51,18 +63,31 @@ data class AIAnalysisResponse(
  */
 interface PluctCoreApiService {
     // --- Business Engine Endpoints ---
-    @POST("https://pluct-business-engine.romeo-lya2.workers.dev/user/create")
+    @POST("user/create")
     suspend fun createUser(@Body request: CreateUserRequest): Response<CreateUserResponse>
 
-    @POST("https://pluct-business-engine.romeo-lya2.workers.dev/vend-token")
+    @POST("vend-token")
     suspend fun vendToken(@Body request: VendTokenRequest): Response<VendTokenResponse>
 
     // --- TTTranscribe via Pluct Proxy (single mobile-safe endpoint) ---
-    @POST("https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe")
+    @POST("ttt/transcribe")
     suspend fun transcribeViaPluctProxy(
         @Header("Authorization") authorization: String,
         @Body request: TTTranscribeRequest
     ): Response<TTTranscribeResponse>
+
+    // --- Business Engine TTTranscribe Endpoints ---
+    @POST("ttt/transcribe")
+    suspend fun transcribeViaBusinessEngine(
+        @Header("Authorization") authorization: String,
+        @Body request: BusinessEngineTranscribeRequest
+    ): Response<BusinessEngineTranscribeResponse>
+
+    @GET("ttt/status/{requestId}")
+    suspend fun checkTranscriptionStatus(
+        @Header("Authorization") authorization: String,
+        @Path("requestId") requestId: String
+    ): Response<BusinessEngineStatusResponse>
 
     // --- AI Analysis Endpoints ---
     @POST("https://api.tttranscribe.com/v1/analyze")

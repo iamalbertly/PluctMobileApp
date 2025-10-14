@@ -26,6 +26,7 @@ class PluctTTTranscribeService @Inject constructor(
 
     /**
      * Transcribe a TikTok video using TTTranscribe API with status tracking
+     * Updated to use proper Business Engine gateway flow
      */
     suspend fun transcribeVideo(videoUrl: String): TTTranscribeResult = withContext(Dispatchers.IO) {
         val statusId = "tttranscribe-${System.currentTimeMillis()}"
@@ -42,8 +43,7 @@ class PluctTTTranscribeService @Inject constructor(
                 progress = 10
             )
             
-            val request = TTTranscribeRequest(url = videoUrl)
-            
+            // Stage 1: VEND TOKEN
             statusTracker.updateProgress(statusId, 20, "Vending access token...")
             val vendTokenResponse = PluctErrorHandler.executeWithRetry(
                 operation = {
@@ -52,6 +52,7 @@ class PluctTTTranscribeService @Inject constructor(
                 config = PluctErrorHandler.API_RETRY_CONFIG,
                 operationName = "Business Engine /vend-token"
             ).getOrThrow()
+            
             if (!vendTokenResponse.isSuccessful || vendTokenResponse.body() == null) {
                 val code = vendTokenResponse.code()
                 val err = vendTokenResponse.errorBody()?.string()
@@ -59,56 +60,107 @@ class PluctTTTranscribeService @Inject constructor(
                 return@withContext TTTranscribeResult.Error("vend-token failed: $code - ${err ?: "no body"}")
             }
             val token = vendTokenResponse.body()!!.token
+            Log.d(TAG, "Successfully obtained token from Business Engine")
             
-            statusTracker.updateProgress(statusId, 40, "Calling Pluct proxy for transcription...")
-            Log.d(TAG, "Calling Pluct proxy with Bearer token")
-            val responseResult = PluctErrorHandler.executeWithRetry(
+            // Stage 2: CALL TTTRANSCRIBE PROXY
+            statusTracker.updateProgress(statusId, 40, "Calling TTTranscribe proxy...")
+            val transcribeResponse = PluctErrorHandler.executeWithRetry(
                 operation = {
-                    apiService.transcribeViaPluctProxy(
+                    apiService.transcribeViaBusinessEngine(
                         authorization = "Bearer $token",
-                        request = request
+                        request = BusinessEngineTranscribeRequest(url = videoUrl)
                     )
                 },
                 config = PluctErrorHandler.API_RETRY_CONFIG,
-                operationName = "Pluct Proxy /ttt/transcribe"
-            )
-            val response = responseResult.getOrThrow()
+                operationName = "Business Engine /ttt/transcribe"
+            ).getOrThrow()
             
-            if (response.isSuccessful) {
-                val responseBody = response.body()
-                if (responseBody != null) {
-                    statusTracker.updateProgress(statusId, 80, "Processing transcript...")
-                    
-                    Log.d(TAG, "TTTranscribe transcription successful")
-                    Log.d(TAG, "Transcript length: ${responseBody.transcript.length} characters")
-                    Log.d(TAG, "Duration: ${responseBody.duration_sec} seconds")
-                    Log.d(TAG, "Language: ${responseBody.lang}")
-                    
-                    statusTracker.markCompleted(statusId, "Transcription completed successfully")
-                    
-                    TTTranscribeResult.Success(
-                        transcript = responseBody.transcript,
-                        language = responseBody.lang,
-                        duration = responseBody.duration_sec,
-                        requestId = responseBody.request_id,
-                        videoId = responseBody.source.video_id
-                    )
-                } else {
-                    Log.e(TAG, "TTTranscribe response body is null")
-                    statusTracker.markFailed(statusId, "Response body is null")
-                    TTTranscribeResult.Error("Response body is null")
-                }
+            if (!transcribeResponse.isSuccessful || transcribeResponse.body() == null) {
+                val code = transcribeResponse.code()
+                val err = transcribeResponse.errorBody()?.string()
+                statusTracker.markFailed(statusId, "TTTranscribe proxy call failed: $code")
+                return@withContext TTTranscribeResult.Error("TTTranscribe proxy failed: $code - ${err ?: "no body"}")
+            }
+            
+            val requestId = transcribeResponse.body()!!.request_id
+            Log.d(TAG, "Successfully submitted transcription request: $requestId")
+            
+            // Stage 3: POLL FOR COMPLETION
+            statusTracker.updateProgress(statusId, 60, "Polling for completion...")
+            val transcript = pollForCompletion(token, requestId, statusId)
+            
+            if (transcript != null) {
+                statusTracker.markCompleted(statusId, "Transcription completed successfully")
+                Log.d(TAG, "Transcription completed successfully")
+                
+                TTTranscribeResult.Success(
+                    transcript = transcript,
+                    language = "en", // Default language
+                    duration = 0.0, // Duration not available from status endpoint
+                    requestId = requestId,
+                    videoId = "unknown" // Video ID not available from status endpoint
+                )
             } else {
-                val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                Log.e(TAG, "TTTranscribe API call failed: ${response.code()} - $errorBody")
-                statusTracker.markFailed(statusId, "API call failed: ${response.code()} - $errorBody")
-                TTTranscribeResult.Error("API call failed: ${response.code()} - $errorBody")
+                statusTracker.markFailed(statusId, "Transcription polling failed")
+                TTTranscribeResult.Error("Transcription polling failed")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in TTTranscribe transcription: ${e.message}", e)
             statusTracker.markFailed(statusId, "Transcription failed: ${e.message}")
             TTTranscribeResult.Error("Transcription failed: ${e.message}")
         }
+    }
+    
+    /**
+     * Poll for transcription completion using Business Engine status endpoint
+     */
+    private suspend fun pollForCompletion(token: String, requestId: String, statusId: String): String? {
+        var attempts = 0
+        val maxAttempts = 30 // 5 minutes with 10-second intervals
+        
+        while (attempts < maxAttempts) {
+            try {
+                val statusResponse = apiService.checkTranscriptionStatus(
+                    authorization = "Bearer $token",
+                    requestId = requestId
+                )
+                
+                if (statusResponse.isSuccessful && statusResponse.body() != null) {
+                    val statusBody = statusResponse.body()!!
+                    val phase = statusBody.phase
+                    val progress = statusBody.percent ?: 0
+                    
+                    statusTracker.updateProgress(statusId, 60 + (progress * 0.4).toInt(), "Processing: $phase")
+                    
+                    when (phase) {
+                        "COMPLETED" -> {
+                            val transcript = statusBody.transcript ?: ""
+                            if (transcript.isNotEmpty()) {
+                                return transcript
+                            }
+                        }
+                        "FAILED" -> {
+                            Log.e(TAG, "Transcription failed: ${statusBody.note}")
+                            return null
+                        }
+                        else -> {
+                            // Still processing, continue polling
+                            kotlinx.coroutines.delay(10000) // Wait 10 seconds
+                            attempts++
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Status check failed: ${statusResponse.code()}")
+                    return null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Status check error: ${e.message}")
+                return null
+            }
+        }
+        
+        Log.e(TAG, "Transcription polling timed out after $maxAttempts attempts")
+        return null
     }
 
     /**

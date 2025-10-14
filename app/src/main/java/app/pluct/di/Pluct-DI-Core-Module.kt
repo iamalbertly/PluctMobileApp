@@ -7,7 +7,8 @@ import app.pluct.api.PluctTTTranscribeService
 import app.pluct.analytics.PluctAnalyticsCoreService
 import app.pluct.collaboration.PluctCollaborationCoreManager
 import app.pluct.search.PluctSearchCoreEngine
-import app.pluct.transcription.PluctTranscriptionCoreManager
+import app.pluct.transcription.PluctTranscriptionProcessor
+import app.pluct.transcription.PluctTranscriptionCoordinator
 import app.pluct.data.database.PluctDatabase
 import app.pluct.data.dao.OutputArtifactDao
 import app.pluct.data.dao.TranscriptDao
@@ -150,19 +151,29 @@ object PluctDICoreModule {
     // --- Core Manager Providers ---
     @Provides
     @Singleton
-    fun providePluctTranscriptionCoreManager(
+    fun providePluctTranscriptionProcessor(
         @ApplicationContext context: Context,
         apiService: PluctCoreApiService,
         ttTranscribeService: PluctTTTranscribeService,
-        urlProcessor: UrlProcessor,
-        huggingFaceProvider: PluctHuggingFaceProviderCoordinator,
-        valuePropositionGenerator: PluctUtilsValuePropositionGenerator
-    ): PluctTranscriptionCoreManager {
-        return PluctTranscriptionCoreManager(
+        urlProcessor: UrlProcessor
+    ): PluctTranscriptionProcessor {
+        return PluctTranscriptionProcessor(
             context = context,
             apiService = apiService,
             ttTranscribeService = ttTranscribeService,
-            urlProcessor = urlProcessor,
+            urlProcessor = urlProcessor
+        )
+    }
+    
+    @Provides
+    @Singleton
+    fun providePluctTranscriptionCoordinator(
+        @ApplicationContext context: Context,
+        huggingFaceProvider: PluctHuggingFaceProviderCoordinator,
+        valuePropositionGenerator: PluctUtilsValuePropositionGenerator
+    ): PluctTranscriptionCoordinator {
+        return PluctTranscriptionCoordinator(
+            context = context,
             huggingFaceProvider = huggingFaceProvider,
             valuePropositionGenerator = valuePropositionGenerator
         )

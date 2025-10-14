@@ -4,6 +4,35 @@
 
 Pluct is a professional video-to-data pipeline designed for AI builders, researchers, and prompt engineers. The app transforms any shared video link into AI-ready data outputs in under 20 seconds, eliminating the tedious multi-step manual process of finding content, transcribing it, and cleaning/reformatting text into usable structured assets.
 
+## 🚀 Latest Updates - Business Engine Integration & UI Improvements
+
+### **Enhanced Business Engine Integration (v2.0)**
+- ✅ **Complete Business Engine Gateway Integration**: All TTTranscribe calls now route through Business Engine
+- ✅ **Comprehensive Health Monitoring**: Pre-flight health checks and ongoing monitoring
+- ✅ **Credit Management System**: Automatic user creation and credit validation
+- ✅ **Enhanced Error Handling**: Categorized error handling with retry logic
+- ✅ **Automated Testing Framework**: Comprehensive validation with detailed error reporting
+
+### **Modern UI Improvements (v2.1)**
+- ✅ **Sleek Modern Design**: Removed redundant header bar for cleaner interface
+- ✅ **Unified Notification System**: Replaced broken progress overlay with modern notification system
+- ✅ **Modern 3-Dot Menu**: Floating action button with dropdown menu for settings
+- ✅ **Enhanced Welcome Section**: More prominent and centered design
+- ✅ **Better Spacing**: Improved overall layout and visual hierarchy
+
+### **Business Engine Flow**
+```
+HEALTH_CHECK → CREDIT_CHECK → VENDING_TOKEN → TTTRANSCRIBE_CALL → STATUS_POLLING → COMPLETED
+```
+
+### **Key Features Added**
+- **BusinessEngineHealthChecker**: Verifies Business Engine connectivity and service health
+- **BusinessEngineCreditManager**: Handles user creation and credit management
+- **Enhanced TTTranscribeWork**: Complete rewrite with proper Business Engine flow
+- **PluctUnifiedNotificationSystem**: Modern notification system with progress tracking
+- **PluctModernMenu**: Sleek floating menu replacing header functionality
+- **Comprehensive Test Framework**: Automated testing with critical error detection
+
 ### Target User
 - **Primary**: AI builders, researchers, and prompt engineers
 - **Pain Point**: High cost of manual data cleaning and critical importance of correctly formatted data
@@ -104,9 +133,33 @@ Pluct is a professional video-to-data pipeline designed for AI builders, researc
    adb shell cmd package query-intent-activities -a android.intent.action.SEND -t text/plain | grep pluct || true
    ```
 
-## Automation Testing Framework
+## 🧪 Enhanced Automation Testing Framework
 
-The project includes a comprehensive modular test framework designed for easy maintenance and extension.
+The project includes a comprehensive modular test framework with Business Engine integration validation:
+
+### **Test Framework Features**
+- ✅ **Automated ADB Testing**: Fully automated testing without user input
+- ✅ **Business Engine Validation**: Comprehensive Business Engine integration testing
+- ✅ **UI Component Testing**: Validates modern UI components and notification system
+- ✅ **Critical Error Detection**: Stops on failures with detailed explanations
+- ✅ **Stage-by-Stage Validation**: Monitors complete Business Engine flow
+- ✅ **Enhanced Logging**: Detailed error reporting and debugging information
+
+### **Test Execution**
+```bash
+# Run comprehensive tests
+powershell -ExecutionPolicy Bypass -File "scripts/Pluct-Test-Orchestrator-Main.ps1" -TestScope "All" -TestUrl "https://vm.tiktok.com/ZMAPTWV7o/"
+
+# Run Business Engine specific tests
+powershell -ExecutionPolicy Bypass -File "scripts/Pluct-Enhanced-Test-Framework.ps1" -TestScope "All" -Verbose
+```
+
+### **Test Coverage**
+- **Core User Journeys**: App launch, share intent handling, video processing
+- **Business Engine Integration**: Health checks, credit management, token vending, TTTranscribe proxy
+- **UI Components**: Modern menu, notification system, welcome section, spacing validation
+- **Enhancements Journey**: AI metadata analysis, intelligent processing, smart caching
+- **Error Handling**: Comprehensive error detection and categorization
 ## Project Architecture
 
 ### Design Decisions

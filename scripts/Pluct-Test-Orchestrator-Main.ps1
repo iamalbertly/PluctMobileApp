@@ -1,5 +1,6 @@
-# Pluct Test Orchestrator Main - Enhanced with detailed error reporting and full automation
+# Pluct Test Orchestrator Main - Enhanced with Business Engine integration validation
 # Tests all services, APIs, and core user journeys with comprehensive error handling
+# Now includes Business Engine connectivity and TTTranscribe integration testing
 # Stops on first failure with detailed explanation for agent to fix issues
 
 param(
@@ -597,16 +598,27 @@ function Test-CacheEnhancement {
 function Report-CriticalError {
     param(
         [string]$ErrorType,
-        [string]$ErrorMessage
+        [string]$ErrorMessage,
+        [string]$Stage = "Unknown",
+        [string]$SuggestedFix = ""
     )
     
     Write-Log "❌ CRITICAL ERROR: $ErrorType" "Red"
+    Write-Log "Stage: $Stage" "Red"
     Write-Log "Error Details: $ErrorMessage" "Red"
+    
+    if ($SuggestedFix) {
+        Write-Log "Suggested Fix: $SuggestedFix" "Yellow"
+    }
+    
     Write-Log "Test execution stopped due to critical error." "Red"
+    Write-Log "Please fix the issue and re-run the tests." "Red"
     
     $script:TestSession.CriticalErrors += @{
         Type = $ErrorType
         Message = $ErrorMessage
+        Stage = $Stage
+        SuggestedFix = $SuggestedFix
         Timestamp = Get-Date
     }
 }
@@ -670,15 +682,72 @@ function Test-API-Connectivity {
         Write-SmartLog "Expected: logs containing 'Metadata resolved', 'META_RESOLVE_FAILED', or metadata fields" "Red"
     }
     
-    # Test 6: Error Logs
-    Write-SmartLog "Checking for API errors..." "Yellow"
-    $errorLogs = adb shell logcat -d | Select-String "ERROR|Exception|Failed|Error" | Select-Object -Last 10
-    if ($errorLogs) {
-        Write-SmartLog "⚠️ Error logs found:" "Yellow"
-        $errorLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Red" }
-    } else {
-        Write-SmartLog "✅ No error logs found" "Green"
-    }
+        # Test 6: Business Engine Integration Validation
+        Write-SmartLog "Validating Business Engine integration..." "Yellow"
+        
+        # Check for Business Engine health logs
+        $healthLogs = adb shell logcat -d | Select-String "BusinessEngineHealthChecker|HEALTH_CHECK" | Select-Object -Last 5
+        if ($healthLogs) {
+            Write-SmartLog "✅ Business Engine health logs found" "Green"
+            $healthLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Report-CriticalError "Business Engine Health Check" "No Business Engine health logs found - check Business Engine connectivity" "BusinessEngineHealth" "Verify Business Engine is running and accessible at https://pluct-business-engine.romeo-lya2.workers.dev/health"
+        }
+        
+        # Check for CREDIT_CHECK stage
+        $creditLogs = adb shell logcat -d | Select-String "stage=CREDIT_CHECK" | Select-Object -Last 3
+        if ($creditLogs) {
+            Write-SmartLog "✅ CREDIT_CHECK stage logs found" "Green"
+            $creditLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Write-SmartLog "⚠️ CREDIT_CHECK stage not found" "Yellow"
+        }
+        
+        # Check for VENDING_TOKEN stage
+        $tokenLogs = adb shell logcat -d | Select-String "stage=VENDING_TOKEN" | Select-Object -Last 3
+        if ($tokenLogs) {
+            Write-SmartLog "✅ VENDING_TOKEN stage logs found" "Green"
+            $tokenLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Report-CriticalError "VENDING_TOKEN Stage" "VENDING_TOKEN stage not reached - check Business Engine token vending" "TokenVending" "Check user credits and Business Engine token vending endpoint at https://pluct-business-engine.romeo-lya2.workers.dev/vend-token"
+        }
+        
+        # Check for TTTRANSCRIBE_CALL stage
+        $transcribeLogs = adb shell logcat -d | Select-String "stage=TTTRANSCRIBE_CALL" | Select-Object -Last 3
+        if ($transcribeLogs) {
+            Write-SmartLog "✅ TTTRANSCRIBE_CALL stage logs found" "Green"
+            $transcribeLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Report-CriticalError "TTTRANSCRIBE_CALL Stage" "TTTRANSCRIBE_CALL stage not reached - check TTTranscribe proxy connectivity" "TTTranscribeProxy" "Verify TTTranscribe proxy endpoint at https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe and ensure valid token"
+        }
+        
+        # Check for STATUS_POLLING stage
+        $pollingLogs = adb shell logcat -d | Select-String "stage=STATUS_POLLING" | Select-Object -Last 3
+        if ($pollingLogs) {
+            Write-SmartLog "✅ STATUS_POLLING stage logs found" "Green"
+            $pollingLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Write-SmartLog "⚠️ STATUS_POLLING stage not found" "Yellow"
+        }
+        
+        # Check for COMPLETED stage
+        $completedLogs = adb shell logcat -d | Select-String "stage=COMPLETED" | Select-Object -Last 3
+        if ($completedLogs) {
+            Write-SmartLog "✅ COMPLETED stage logs found" "Green"
+            $completedLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Cyan" }
+        } else {
+            Write-SmartLog "⚠️ COMPLETED stage not found" "Yellow"
+        }
+        
+        # Test 7: Error Logs
+        Write-SmartLog "Checking for API errors..." "Yellow"
+        $errorLogs = adb shell logcat -d | Select-String "ERROR|Exception|Failed|Error" | Select-Object -Last 10
+        if ($errorLogs) {
+            Write-SmartLog "⚠️ Error logs found:" "Yellow"
+            $errorLogs | ForEach-Object { Write-SmartLog "  $($_.Line)" "Red" }
+        } else {
+            Write-SmartLog "✅ No error logs found" "Green"
+        }
     
     Write-SmartLog "=== END API CONNECTIVITY TEST ===" "Cyan"
 }

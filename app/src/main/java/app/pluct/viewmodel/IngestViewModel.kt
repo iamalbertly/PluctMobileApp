@@ -7,7 +7,8 @@ import app.pluct.data.manager.UserManager
 import app.pluct.data.repository.PluctRepository
 import app.pluct.api.PluctCoreApiService
 import app.pluct.api.VendTokenRequest
-import app.pluct.transcription.PluctTranscriptionCoreManager
+import app.pluct.transcription.PluctTranscriptionProcessor
+import app.pluct.transcription.PluctTranscriptionCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class IngestViewModel @Inject constructor(
     private val apiService: PluctCoreApiService,
-    private val transcriptionManager: PluctTranscriptionCoreManager,
+    private val transcriptionProcessor: PluctTranscriptionProcessor,
+    private val transcriptionCoordinator: PluctTranscriptionCoordinator,
     private val userManager: UserManager,
     private val repository: PluctRepository,
     savedStateHandle: SavedStateHandle
@@ -65,19 +67,28 @@ class IngestViewModel @Inject constructor(
                     var transcript = ""
                     var transcriptionSuccess = false
                     
-                    transcriptionManager.executeTranscriptionWithTTTranscribe(
-                        videoUrl = url,
-                        onProgress = { progress ->
-                            _uiState.value = _uiState.value.copy(message = progress)
-                        },
-                        onSuccess = { result ->
-                            transcript = result
-                            transcriptionSuccess = true
-                        },
-                        onError = { error ->
-                            _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "TTTranscribe failed: $error")
+                    // Process URL for transcription
+                    val processingResult = transcriptionProcessor.processUrlForTranscript(url)
+                    when (processingResult) {
+                        is app.pluct.transcription.TranscriptProcessingResult.ReadyForExtraction -> {
+                            _uiState.value = _uiState.value.copy(message = "Extracting transcript...")
+                            
+                            // Extract transcript
+                            val extractionResult = transcriptionProcessor.extractTranscript(processingResult.processedUrl)
+                            when (extractionResult) {
+                                is app.pluct.transcription.TranscriptExtractionResult.Success -> {
+                                    transcript = extractionResult.transcript
+                                    transcriptionSuccess = true
+                                }
+                                is app.pluct.transcription.TranscriptExtractionResult.Error -> {
+                                    _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "TTTranscribe failed: ${extractionResult.message}")
+                                }
+                            }
                         }
-                    )
+                        is app.pluct.transcription.TranscriptProcessingResult.Error -> {
+                            _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "URL processing failed: ${processingResult.message}")
+                        }
+                    }
                     
                     if (!transcriptionSuccess) {
                         return@launch

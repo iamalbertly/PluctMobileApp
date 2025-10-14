@@ -3,6 +3,7 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">script.tokaudit.io</domain>
         <domain includeSubdomains="true">tokaudit.io</domain>
+        <domain includeSubdomains="true">pluct-business-engine.romeo-lya2.workers.dev</domain>
     </domain-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

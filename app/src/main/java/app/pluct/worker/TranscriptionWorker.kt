@@ -10,7 +10,8 @@ import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.repository.PluctRepository
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.api.PluctCoreApiService
-import app.pluct.transcription.PluctTranscriptionCoreManager
+import app.pluct.transcription.PluctTranscriptionProcessor
+import app.pluct.transcription.PluctTranscriptionCoordinator
 import app.pluct.scraper.PluctWebViewScraper
 import app.pluct.scraper.ScrapingResult
 import app.pluct.error.PluctErrorHandler
@@ -25,7 +26,8 @@ class TranscriptionWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val repository: PluctRepository,
-    private val transcriptionManager: PluctTranscriptionCoreManager
+    private val transcriptionProcessor: PluctTranscriptionProcessor,
+    private val transcriptionCoordinator: PluctTranscriptionCoordinator
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -198,27 +200,39 @@ class TranscriptionWorker @AssistedInject constructor(
                 var transcript = ""
                 var success = false
                 
-                transcriptionManager.executeTranscription(
-                    videoUrl = video.sourceUrl,
-                    onProgress = { progress -> Log.d(TAG, "Transcription progress: $progress") },
-                    onSuccess = { result ->
-                        transcript = result
-                        success = true
-                        Log.i(TAG, "Transcription successful for video $videoId")
-                    },
-                    onError = { error ->
-                        Log.e(TAG, "Transcription failed for video $videoId: $error")
-                        throw PluctError.APIError(500, "Transcription failed: $error")
+                // Process URL for transcription
+                val processingResult = transcriptionProcessor.processUrlForTranscript(video.sourceUrl)
+                when (processingResult) {
+                    is app.pluct.transcription.TranscriptProcessingResult.ReadyForExtraction -> {
+                        // Extract transcript
+                        val extractionResult = transcriptionProcessor.extractTranscript(processingResult.processedUrl)
+                        when (extractionResult) {
+                            is app.pluct.transcription.TranscriptExtractionResult.Success -> {
+                                transcript = extractionResult.transcript
+                                success = true
+                                Log.i(TAG, "Transcription successful for video $videoId")
+                            }
+                            is app.pluct.transcription.TranscriptExtractionResult.Error -> {
+                                Log.e(TAG, "Transcription failed for video $videoId: ${extractionResult.message}")
+                                throw PluctError.APIError(500, "Transcription failed: ${extractionResult.message}")
+                            }
+                        }
                     }
-                )
+                    is app.pluct.transcription.TranscriptProcessingResult.Error -> {
+                        Log.e(TAG, "URL processing failed for video $videoId: ${processingResult.message}")
+                        throw PluctError.APIError(500, "URL processing failed: ${processingResult.message}")
+                    }
+                }
                 
                 if (success && transcript.isNotEmpty()) {
                     // Save the transcript
                     repository.saveTranscriptForVideo(videoId, transcript)
                     
                     // Generate value proposition
-                    val valueProposition = transcriptionManager.generateValueProposition(transcript)
-                    repository.saveArtifact(videoId, "value_proposition", valueProposition)
+                    val valueProposition = transcriptionCoordinator.generateValueProposition(transcript)
+                    if (valueProposition != null) {
+                        repository.saveArtifact(videoId, "value_proposition", valueProposition)
+                    }
                     
                     transcript
                 } else {

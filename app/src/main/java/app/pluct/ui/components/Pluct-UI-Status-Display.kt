@@ -18,14 +18,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Pluct-Status-Tracking-Component - Comprehensive status tracking for pending work
+ * Pluct-UI-Status-Display - Unified status display component
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]
- * Shows real-time status of TTTranscribe integration and background processing
+ * Consolidates ProcessingStatusPanel and PluctStatusTrackingComponent
  */
 @Composable
-fun PluctStatusTrackingComponent(
-    statusItems: List<StatusItem>,
-    onRefresh: () -> Unit,
+fun PluctUIStatusDisplay(
+    statusItems: List<PluctStatusItem>,
+    onRefresh: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -46,8 +46,10 @@ fun PluctStatusTrackingComponent(
                     fontWeight = FontWeight.Bold
                 )
                 
-                TextButton(onClick = onRefresh) {
-                    Text("Refresh")
+                onRefresh?.let { refresh ->
+                    TextButton(onClick = refresh) {
+                        Text("Refresh")
+                    }
                 }
             }
             
@@ -64,7 +66,7 @@ fun PluctStatusTrackingComponent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(statusItems) { item ->
-                        StatusItemCard(item = item)
+                        PluctStatusItemCard(item = item)
                     }
                 }
             }
@@ -73,7 +75,7 @@ fun PluctStatusTrackingComponent(
 }
 
 @Composable
-fun StatusItemCard(item: StatusItem) {
+fun PluctStatusItemCard(item: PluctStatusItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -100,7 +102,7 @@ fun StatusItemCard(item: StatusItem) {
                     fontWeight = FontWeight.Medium
                 )
                 
-                StatusIndicator(status = item.status)
+                PluctStatusIndicator(status = item.status)
             }
             
             if (item.description.isNotEmpty()) {
@@ -147,7 +149,7 @@ fun StatusItemCard(item: StatusItem) {
 }
 
 @Composable
-fun StatusIndicator(status: ProcessingStatus) {
+fun PluctStatusIndicator(status: ProcessingStatus) {
     val (color, text) = when (status) {
         ProcessingStatus.PENDING -> MaterialTheme.colorScheme.outline to "Pending"
         ProcessingStatus.TRANSCRIBING -> MaterialTheme.colorScheme.primary to "Transcribing"
@@ -174,7 +176,7 @@ fun StatusIndicator(status: ProcessingStatus) {
     }
 }
 
-data class StatusItem(
+data class PluctStatusItem(
     val id: String,
     val title: String,
     val description: String = "",

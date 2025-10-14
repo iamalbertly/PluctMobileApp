@@ -36,7 +36,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import app.pluct.R
 import app.pluct.api.EngineApiProvider
-import app.pluct.ui.components.ProgressItem
+import app.pluct.ui.components.PluctUIStatusDisplay
+import app.pluct.ui.components.PluctStatusItem
+import app.pluct.ui.components.PluctUIVideoCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,7 +180,7 @@ fun HomeScreen(
                     }
                     
                     items(videos, key = { it.id }) { video ->
-                        PluctVideoCardCore(
+                        PluctUIVideoCard(
                             video = video,
                             onClick = {
                                 if (video.status == app.pluct.data.entity.ProcessingStatus.COMPLETED) {
@@ -236,13 +238,15 @@ fun HomeScreen(
             .zIndex(10f),
         contentAlignment = Alignment.BottomEnd
     ) {
-        ProcessingStatusPanel(
-            items = listOf(
-                ProgressItem(
-                    url = "https://example.com/video",
-                    stage = "PROCESSING",
-                    percent = 50,
-                    message = "Processing videos..."
+        PluctUIStatusDisplay(
+            statusItems = listOf(
+                PluctStatusItem(
+                    id = "example-video",
+                    title = "Processing Video",
+                    description = "https://example.com/video",
+                    status = app.pluct.data.entity.ProcessingStatus.TRANSCRIBING,
+                    progress = 50,
+                    details = "Processing videos..."
                 )
             ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
