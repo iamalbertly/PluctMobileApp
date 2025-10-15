@@ -42,154 +42,110 @@ fun CaptureInsightSheet(
     android.util.Log.d("CaptureInsightSheet", "Rendering capture sheet for URL: ${captureRequest.url}")
     android.util.Log.d("CaptureInsightSheet", "Capture sheet component is being composed")
     
-    // Animation states
-    var isVisible by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.8f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-        label = "scale"
-    )
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(300),
-        label = "alpha"
-    )
-    
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-    
-    // Modern full-screen overlay with blur effect
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-                    )
-                )
-            )
-            .clickable { onDismiss() }
+    // Use ModalBottomSheet for proper bottom sheet behavior
+    ModalBottomSheet(
+        onDismissRequest = onDismiss
     ) {
         // Precompute localized labels usable in non-composable scopes
         val captureCd = stringResource(R.string.cd_capture_sheet)
 
-        // Main content card with modern design
-        Card(
+        // Main content with modern design
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
-                .align(Alignment.Center)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    this.alpha = alpha
-                }
                 .semantics { contentDescription = captureCd }
-                .testTag("sheet_capture"),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-            shape = RoundedCornerShape(24.dp)
+                .testTag("sheet_capture")
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(28.dp)
+            // Header with close button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header with close button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = "Capture This Insight",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    Text(
-                        text = "Capture This Insight",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
-                    
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Modern content preview with gradient
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    // Creator info with modern styling
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            Icons.Default.PlayArrow,
+                            contentDescription = "Video",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "@${extractCreatorFromUrl(captureRequest.url)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Caption with modern typography
+                    if (!captureRequest.caption.isNullOrEmpty()) {
+                        Text(
+                            text = captureRequest.caption,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2
+                        )
+                    } else {
+                        Text(
+                            text = "No caption available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                // Modern content preview with gradient
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        // Creator info with modern styling
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
-                                contentDescription = "Video",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "@${extractCreatorFromUrl(captureRequest.url)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        // Caption with modern typography
-                        if (!captureRequest.caption.isNullOrEmpty()) {
-                            Text(
-                                text = captureRequest.caption,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2
-                            )
-                        } else {
-                            Text(
-                                text = "No caption available",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(28.dp))
-                
-                // Modern tier selection with enhanced design
-                PluctCaptureTierSelection(
-                    onTierSelected = onTierSelected
-                )
             }
+            
+            Spacer(modifier = Modifier.height(28.dp))
+            
+            // Modern tier selection with enhanced design
+            PluctCaptureTierSelection(
+                onTierSelected = onTierSelected
+            )
         }
     }
 }

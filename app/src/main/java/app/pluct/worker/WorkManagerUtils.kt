@@ -21,7 +21,7 @@ object WorkManagerUtils {
                     .build()
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
-            .setInputData(TTTranscribeWork.input(videoId))
+            .setInputData(workDataOf("url" to videoId))
             .build()
         
         workManager.enqueueUniqueWork(

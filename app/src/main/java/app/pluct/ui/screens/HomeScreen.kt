@@ -39,6 +39,20 @@ import app.pluct.api.EngineApiProvider
 import app.pluct.ui.components.PluctUIStatusDisplay
 import app.pluct.ui.components.PluctStatusItem
 import app.pluct.ui.components.PluctUIVideoCard
+import app.pluct.ui.components.PluctHeaderCompact
+import app.pluct.ui.components.PluctUnifiedInput
+import app.pluct.ui.components.PluctProgressTimeline
+import app.pluct.ui.components.PluctCollapsibleProcessingOverlay
+import app.pluct.ui.components.PluctAnimatedProgress
+import app.pluct.ui.components.PluctAnimatedCard
+import app.pluct.ui.components.PluctFloatingActionButton
+import app.pluct.ui.components.PluctErrorDialog
+import app.pluct.ui.components.PluctErrorSnackbar
+import app.pluct.orchestrator.OrchestratorResult
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,6 +122,17 @@ fun HomeScreen(
         }
     }
     
+    // Handle shared URLs from Android Share Intent
+    LaunchedEffect(Unit) {
+        if (context is MainActivity) {
+            val sharedUrl = context.intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+            if (!sharedUrl.isNullOrEmpty()) {
+                android.util.Log.d("HomeScreen", "Shared URL detected: $sharedUrl")
+                viewModel.updateVideoUrl(sharedUrl)
+            }
+        }
+    }
+    
     // Modern gradient background
     Box(
         modifier = Modifier
@@ -123,21 +148,15 @@ fun HomeScreen(
     ) {
         Scaffold(
             topBar = {
-                PluctHomeTopBar(
-                    title = "Pluct",
-                    subtitle = "TikTok Transcripts & AI Insights",
-                    onSearchClick = { /* TODO: Implement search */ },
-                    onSettingsClick = { navController.navigate("settings") }
-                )
+                // Compact header instead of redundant top bar
+                PluctHeaderCompact()
             },
             bottomBar = {
                 ModernBottomNavigation(navController = navController)
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { /* TODO: Implement add video */ },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                PluctFloatingActionButton(
+                    onClick = { /* TODO: Implement add video */ }
                 ) {
                     Icon(
                         Icons.Default.Add,
@@ -154,14 +173,27 @@ fun HomeScreen(
                 contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Welcome section
+                // Unified input section
                 item {
-                    PluctHomeWelcomeSection()
+                    PluctUnifiedInput(
+                        value = uiState.videoUrl,
+                        onValueChange = { viewModel.updateVideoUrl(it) },
+                        onProcess = { 
+                            // TODO: Implement processing logic
+                            viewModel.updateCurrentStage("TOKEN")
+                        },
+                        isProcessing = uiState.currentStage != "IDLE" && uiState.currentStage != "COMPLETE"
+                    )
                 }
                 
-                // Quick actions
-                item {
-                    PluctHomeQuickActions()
+                // Progress timeline (only show when processing)
+                if (uiState.currentStage != "IDLE" && uiState.currentStage != "COMPLETE") {
+                    item {
+                        PluctProgressTimeline(
+                            currentStage = uiState.currentStage,
+                            progress = uiState.progress
+                        )
+                    }
                 }
                 
                 // Recent videos
@@ -230,26 +262,41 @@ fun HomeScreen(
         )
     }
 
-    // Status overlay for background tasks (always on top)
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
-            .zIndex(10f),
-        contentAlignment = Alignment.BottomEnd
-    ) {
-        PluctUIStatusDisplay(
-            statusItems = listOf(
-                PluctStatusItem(
-                    id = "example-video",
-                    title = "Processing Video",
-                    description = "https://example.com/video",
-                    status = app.pluct.data.entity.ProcessingStatus.TRANSCRIBING,
-                    progress = 50,
-                    details = "Processing videos..."
-                )
-            ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+    // Error handling
+    uiState.processError?.let { error ->
+        PluctErrorDialog(
+            error = error,
+            onRetry = { 
+                viewModel.clearProcessError()
+                // TODO: Implement retry logic
+            },
+            onDismiss = { viewModel.clearProcessError() },
+            onViewLogs = { logId -> viewModel.openLogs(logId) },
+            onReportIssue = { message, logId -> viewModel.reportIssue(message, logId) }
         )
+    }
+    
+    // Collapsible processing overlay (only show when processing)
+    if (uiState.currentStage != "IDLE" && uiState.currentStage != "COMPLETE") {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp)
+                .zIndex(10f),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            PluctCollapsibleProcessingOverlay(
+                currentStage = uiState.currentStage,
+                progress = uiState.progress,
+                onMinimize = { 
+                    // TODO: Implement minimize logic
+                    viewModel.updateCurrentStage("IDLE")
+                },
+                onCancel = { 
+                    // TODO: Implement cancel logic
+                    viewModel.updateCurrentStage("IDLE")
+                }
+            )
+        }
     }
 }

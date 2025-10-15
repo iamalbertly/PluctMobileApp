@@ -5,33 +5,16 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import app.pluct.api.EngineApiProvider
-import app.pluct.config.AppConfig
-import app.pluct.utils.BusinessEngineHealthChecker
-import app.pluct.utils.BusinessEngineCreditManager
-import kotlinx.coroutines.delay
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.MediaType.Companion.toMediaType
-import org.json.JSONObject
-import java.util.concurrent.TimeUnit
+import app.pluct.data.BusinessEngineClient
+import app.pluct.data.EngineError
+import kotlinx.coroutines.flow.first
 
 class TTTranscribeWork(
     ctx: Context,
     params: WorkerParameters
 ) : CoroutineWorker(ctx, params) {
 
-    private val api = EngineApiProvider.instance
-    private val userId = AppConfig.userId
-    
-    // Configure HTTP client with proper timeouts and retry logic
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
-        .build()
+    private val businessEngineClient = BusinessEngineClient()
 
     private suspend fun stage(s: String, url: String, reqId: String? = null, msg: String? = null, pct: Int? = null) {
         setProgress(workDataOf("stage" to s, "percent" to (pct ?: -1)))
@@ -42,167 +25,77 @@ class TTTranscribeWork(
         val videoUrl = inputData.getString("url") ?: return Result.failure()
         
         return try {
-            // Pre-flight health check
+            // Step 1: Health check
             Log.i("TTT", "stage=HEALTH_CHECK url=$videoUrl reqId=- msg=checking")
-            val healthCheck = BusinessEngineHealthChecker.checkBusinessEngineHealth()
-            if (!healthCheck) {
+            val health = businessEngineClient.health()
+            if (!health.isHealthy) {
                 Log.e("TTT", "Business Engine health check failed")
-                BusinessEngineHealthChecker.handleTTTError("HEALTH_CHECK", "Business Engine unavailable", videoUrl)
                 return Result.retry()
             }
             Log.i("TTT", "stage=HEALTH_CHECK url=$videoUrl reqId=- msg=success")
             
-            // Ensure user has credits
+            // Step 2: Check balance
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=checking")
-            val creditCheck = BusinessEngineCreditManager.ensureUserWithCredits("mobile", 10)
-            if (!creditCheck) {
-                Log.e("TTT", "Credit check failed")
-                BusinessEngineCreditManager.handleCreditError("User creation/credit check failed", "mobile")
+            val balance = businessEngineClient.balance()
+            if (balance.balance <= 0) {
+                Log.e("TTT", "Insufficient credits: ${balance.balance}")
                 return Result.retry()
             }
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=success")
             
-            // Stage 1: VEND TOKEN
+            // Step 3: Vend token
             Log.i("TTT", "stage=VENDING_TOKEN url=$videoUrl reqId=- msg=requesting")
-            val token = vendToken()
-            if (token == null) {
-                Log.e("TTT", "Token vending failed")
-                BusinessEngineHealthChecker.handleTTTError("VENDING_TOKEN", "Token vending failed", videoUrl)
-                return Result.retry() // Retry on token failure
+            val vendResult = try {
+                businessEngineClient.vendToken()
+            } catch (e: EngineError) {
+                if (e is EngineError.InsufficientCredits) {
+                    Log.e("TTT", "Insufficient credits for token vending")
+                    return Result.retry()
+                } else if (e is EngineError.RateLimited) {
+                    Log.e("TTT", "Rate limited for token vending")
+                    return Result.retry()
+                } else {
+                    Log.e("TTT", "Token vending failed: ${e.message}")
+                    return Result.retry()
+                }
             }
             Log.i("TTT", "stage=VENDING_TOKEN url=$videoUrl reqId=- msg=success")
             
-            // Stage 2: CALL TTTRANSCRIBE
+            // Step 4: Start transcription
             Log.i("TTT", "stage=TTTRANSCRIBE_CALL url=$videoUrl reqId=- msg=requesting")
-            val requestId = callTTTranscribe(token, videoUrl)
-            if (requestId == null) {
-                Log.e("TTT", "TTTranscribe call failed")
-                BusinessEngineHealthChecker.handleTTTError("TTTRANSCRIBE_CALL", "TTTranscribe call failed", videoUrl)
-                return Result.retry() // Retry on TTTranscribe failure
+            val requestId = try {
+                businessEngineClient.transcribe(videoUrl, vendResult.token)
+            } catch (e: EngineError) {
+                if (e is EngineError.InvalidUrl) {
+                    Log.e("TTT", "Invalid URL: $videoUrl")
+                    return Result.failure()
+                } else if (e is EngineError.Auth) {
+                    Log.e("TTT", "Authentication failed")
+                    return Result.retry()
+                } else {
+                    Log.e("TTT", "Transcription failed: ${e.message}")
+                    return Result.retry()
+                }
             }
             Log.i("TTT", "stage=TTTRANSCRIBE_CALL url=$videoUrl reqId=$requestId msg=success")
             
-            // Stage 3: POLL STATUS
+            // Step 5: Poll status
             Log.i("TTT", "stage=STATUS_POLLING url=$videoUrl reqId=$requestId msg=requesting")
-            val transcript = pollForCompletion(token, requestId)
-            if (transcript == null) {
-                Log.e("TTT", "Transcription polling failed")
-                BusinessEngineHealthChecker.handleTTTError("STATUS_POLLING", "Transcription polling failed", videoUrl)
-                return Result.retry() // Retry on polling failure
+            val finalStatus = businessEngineClient.pollStatus(requestId).first { status ->
+                status.phase == "COMPLETED" || status.phase == "FAILED"
             }
-            Log.i("TTT", "stage=COMPLETED url=$videoUrl reqId=$requestId msg=success")
             
-            Result.success()
+            if (finalStatus.phase == "COMPLETED") {
+                Log.i("TTT", "stage=COMPLETED url=$videoUrl reqId=$requestId msg=success")
+                Result.success()
+            } else {
+                Log.e("TTT", "Transcription failed: ${finalStatus.note}")
+                Result.retry()
+            }
+            
         } catch (e: Exception) {
             Log.e("TTT", "Worker error: ${e.message}")
-            BusinessEngineHealthChecker.handleTTTError("WORKER_ERROR", e.message ?: "Unknown error", videoUrl)
             Result.retry()
         }
-    }
-
-    private suspend fun vendToken(): String? {
-        try {
-            val requestBody = JSONObject().apply {
-                put("userId", "mobile") // Use consistent user ID
-            }
-            
-            val request = Request.Builder()
-                .url("https://pluct-business-engine.romeo-lya2.workers.dev/vend-token")
-                .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-            
-            val response = httpClient.newCall(request).execute()
-            
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-                val jsonResponse = JSONObject(responseBody ?: "")
-                return jsonResponse.getString("token")
-            } else {
-                Log.e("TTT", "Token vending failed: ${response.code}")
-                return null
-            }
-        } catch (e: Exception) {
-            Log.e("TTT", "Token vending error: ${e.message}")
-            return null
-        }
-    }
-
-    private suspend fun callTTTranscribe(token: String, videoUrl: String): String? {
-        try {
-            val requestBody = JSONObject().apply {
-                put("url", videoUrl)
-            }
-            
-            val request = Request.Builder()
-                .url("https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe")
-                .addHeader("Authorization", "Bearer $token")
-                .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-            
-            val response = httpClient.newCall(request).execute()
-            
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-                val jsonResponse = JSONObject(responseBody ?: "")
-                return jsonResponse.getString("request_id") // Extract request_id
-            } else {
-                Log.e("TTT", "TTTranscribe call failed: ${response.code}")
-                return null
-            }
-        } catch (e: Exception) {
-            Log.e("TTT", "TTTranscribe error: ${e.message}")
-            return null
-        }
-    }
-
-    private suspend fun checkTranscriptionStatus(token: String, requestId: String): String? {
-        try {
-            val request = Request.Builder()
-                .url("https://pluct-business-engine.romeo-lya2.workers.dev/ttt/status/$requestId")
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build()
-            
-            val response = httpClient.newCall(request).execute()
-            
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-                val jsonResponse = JSONObject(responseBody ?: "")
-                return jsonResponse.getString("transcript") // Extract transcript
-            } else {
-                Log.e("TTT", "Status check failed: ${response.code}")
-                return null
-            }
-        } catch (e: Exception) {
-            Log.e("TTT", "Status check error: ${e.message}")
-            return null
-        }
-    }
-
-    private suspend fun pollForCompletion(token: String, requestId: String): String? {
-        var attempts = 0
-        val maxAttempts = 30 // 5 minutes with 10-second intervals
-        
-        while (attempts < maxAttempts) {
-            val transcript = checkTranscriptionStatus(token, requestId)
-            if (transcript != null && transcript.isNotEmpty()) {
-                return transcript
-            }
-            
-            delay(10000) // Wait 10 seconds
-            attempts++
-            Log.i("TTT", "stage=STATUS_POLLING reqId=$requestId attempt=$attempts")
-        }
-        
-        return null
-    }
-
-    private fun persistResult(url: String, reqId: String, text: String) {
-        // TODO: write to Room DB (Transcripts table)
-        Log.i("TTT", "Persisting result for url=$url reqId=$reqId textLength=${text.length}")
-    }
-
-    companion object {
-        fun input(url: String) = workDataOf("url" to url)
     }
 }

@@ -75,19 +75,30 @@ function Build-SmartApp {
     try {
         # Clean build for better performance
         Write-SmartLog "Cleaning previous build artifacts..." "Gray"
-        $cleanResult = & .\gradlew clean 2>&1
+        $cleanResult = & .\gradlew clean --parallel --build-cache 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-SmartLog "Clean failed: $cleanResult" "Red"
             return $false
         }
         
-        # Build with optimizations
+        # Build with optimizations and progress monitoring
         Write-SmartLog "Building with smart optimizations..." "Gray"
-        $buildResult = & .\gradlew assembleDebug --no-daemon --parallel --build-cache 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-SmartLog "Build failed: $buildResult" "Red"
+        Write-SmartLog "Build progress will be shown below..." "Cyan"
+        
+        # Run build directly and capture result
+        $buildStartTime = Get-Date
+        $buildResult = & .\gradlew assembleDebug --parallel --build-cache 2>&1
+        $buildExitCode = $LASTEXITCODE
+        $buildElapsed = (Get-Date) - $buildStartTime
+        
+        # Check build result
+        if ($buildExitCode -ne 0) {
+            Write-SmartLog "Build failed with exit code $buildExitCode" "Red"
+            Write-SmartLog "Build output: $buildResult" "Red"
             return $false
         }
+        
+        Write-SmartLog "Build completed successfully in $($buildElapsed.TotalSeconds.ToString('F0'))s" "Green"
         
         Write-SmartLog "Smart build completed successfully" "Green"
         return $true

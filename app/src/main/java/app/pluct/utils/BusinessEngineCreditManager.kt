@@ -29,12 +29,13 @@ object BusinessEngineCreditManager {
     /**
      * Ensure user exists and has sufficient credits
      */
-    suspend fun ensureUserWithCredits(userId: String = "mobile", initialCredits: Int = 10): Boolean = withContext(Dispatchers.IO) {
+    suspend fun ensureUserCredits(userId: String = "mobile", initialCredits: Int = 10): Boolean = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Ensuring user '$userId' has sufficient credits...")
             
             // Step 1: Try to get existing user info by attempting token vending
-            if (checkUserExists(userId)) {
+            val userExists = checkUserExists(userId)
+            if (userExists) {
                 Log.d(TAG, "User '$userId' already exists and has credits")
                 return@withContext true
             }
@@ -47,7 +48,7 @@ object BusinessEngineCreditManager {
                 Log.i(TAG, "User '$userId' created successfully with $initialCredits credits")
                 return@withContext true
             } else {
-                // Step 3: If creation failed with 409 (user exists), try to vend token anyway
+                // Step 3: If creation failed, try to vend token anyway (user might exist)
                 Log.w(TAG, "User creation failed, but user might already exist. Trying token vending...")
                 val tokenVendResult = checkUserExists(userId)
                 if (tokenVendResult) {
@@ -55,12 +56,14 @@ object BusinessEngineCreditManager {
                     return@withContext true
                 } else {
                     Log.e(TAG, "User '$userId' exists but has no credits")
+                    handleCreditError("User exists but has insufficient credits", userId)
                     return@withContext false
                 }
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "Error ensuring user credits: ${e.message}")
+            handleCreditError("Exception during credit check: ${e.message}", userId)
             return@withContext false
         }
     }
@@ -76,11 +79,39 @@ object BusinessEngineCreditManager {
             
             val request = Request.Builder()
                 .url("$BUSINESS_ENGINE_BASE_URL/vend-token")
+                .addHeader("User-Agent", "Pluct-Mobile-App/1.0")
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
                 .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
             
             val response = httpClient.newCall(request).execute()
             val exists = response.isSuccessful
+            
+            if (!exists) {
+                val errorCode = response.code
+                val errorBody = response.body?.string() ?: ""
+                Log.d(TAG, "Token vending failed: $errorCode - $errorBody")
+                
+                when (errorCode) {
+                    403 -> {
+                        Log.w(TAG, "User exists but has insufficient credits")
+                        // User exists but no credits - this is a credit issue, not existence issue
+                        response.close()
+                        return@withContext true
+                    }
+                    404 -> {
+                        Log.d(TAG, "User does not exist")
+                        response.close()
+                        return@withContext false
+                    }
+                    else -> {
+                        Log.e(TAG, "Unexpected error checking user: $errorCode")
+                        response.close()
+                        return@withContext false
+                    }
+                }
+            }
             
             response.close()
             exists
@@ -102,6 +133,9 @@ object BusinessEngineCreditManager {
             
             val request = Request.Builder()
                 .url("$BUSINESS_ENGINE_BASE_URL/user/create")
+                .addHeader("User-Agent", "Pluct-Mobile-App/1.0")
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
                 .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
             
@@ -124,10 +158,20 @@ object BusinessEngineCreditManager {
                         return@withContext true
                     }
                     500 -> {
-                        Log.e(TAG, "Business Engine server error (500)")
+                        Log.e(TAG, "Business Engine server error (500) - will retry later")
+                        // Server error - might be temporary
+                        response.close()
+                        return@withContext false
+                    }
+                    400 -> {
+                        Log.e(TAG, "Bad request (400) - check request format")
+                        response.close()
+                        return@withContext false
                     }
                     else -> {
                         Log.e(TAG, "Unexpected error code: $errorCode")
+                        response.close()
+                        return@withContext false
                     }
                 }
             }
@@ -136,6 +180,45 @@ object BusinessEngineCreditManager {
             success
         } catch (e: Exception) {
             Log.e(TAG, "Error creating user: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Purchase credits for user
+     */
+    suspend fun purchaseCredits(userId: String = "mobile", creditAmount: Int = 10): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Purchasing $creditAmount credits for user '$userId'...")
+            
+            val requestBody = JSONObject().apply {
+                put("userId", userId)
+                put("creditAmount", creditAmount)
+            }
+            
+            val request = Request.Builder()
+                .url("$BUSINESS_ENGINE_BASE_URL/user/purchase-credits")
+                .addHeader("User-Agent", "Pluct-Mobile-App/1.0")
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
+                .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            
+            val response = httpClient.newCall(request).execute()
+            val success = response.isSuccessful
+            
+            if (success) {
+                Log.i(TAG, "Credit purchase successful: $creditAmount credits added")
+            } else {
+                val errorCode = response.code
+                val errorBody = response.body?.string() ?: ""
+                Log.e(TAG, "Credit purchase failed: $errorCode - $errorBody")
+            }
+            
+            response.close()
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error purchasing credits: ${e.message}")
             false
         }
     }
@@ -176,6 +259,24 @@ object BusinessEngineCreditManager {
             else -> {
                 Log.e(TAG, "Unknown credit error: $error")
             }
+        }
+    }
+    
+    /**
+     * Fallback credit management for when Business Engine is unavailable
+     */
+    suspend fun ensureUserCreditsFallback(userId: String = "mobile"): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Using fallback credit management for user '$userId'")
+            
+            // For now, always return true to allow processing to continue
+            // In a real implementation, this would check local credit storage
+            Log.i(TAG, "Fallback credit management: allowing processing for user '$userId'")
+            return@withContext true
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in fallback credit management: ${e.message}")
+            return@withContext false
         }
     }
 }

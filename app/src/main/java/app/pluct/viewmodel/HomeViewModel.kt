@@ -8,6 +8,7 @@ import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctRepository
 import app.pluct.data.service.VideoMetadataService
 import app.pluct.worker.WorkManagerUtils
+import app.pluct.orchestrator.OrchestratorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,11 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val lastProcessedUrl: String? = null,
-    val captureRequest: CaptureRequest? = null
+    val captureRequest: CaptureRequest? = null,
+    val videoUrl: String = "",
+    val currentStage: String = "IDLE",
+    val progress: Float = 0f,
+    val processError: OrchestratorResult.Failure? = null
 )
 
 @HiltViewModel
@@ -123,6 +128,47 @@ class HomeViewModel @Inject constructor(
                 )
             }
         }
+    }
+    
+    // NEW METHODS for unified flow
+    fun updateVideoUrl(url: String) {
+        _uiState.value = _uiState.value.copy(videoUrl = url)
+    }
+    
+    fun updateCurrentStage(stage: String) {
+        _uiState.value = _uiState.value.copy(currentStage = stage)
+    }
+    
+    fun updateProgress(progress: Float) {
+        _uiState.value = _uiState.value.copy(progress = progress)
+    }
+    
+    fun retry() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+    
+    fun setProcessError(error: OrchestratorResult.Failure) {
+        _uiState.value = _uiState.value.copy(processError = error)
+    }
+    
+    fun clearProcessError() {
+        _uiState.value = _uiState.value.copy(processError = null)
+    }
+    
+    fun reportIssue(message: String, logId: String?) {
+        viewModelScope.launch {
+            try {
+                // TODO: Implement issue reporting API call
+                android.util.Log.d("HomeViewModel", "Reporting issue: $message, Log ID: $logId")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to report issue: ${e.message}")
+            }
+        }
+    }
+    
+    fun openLogs(logId: String?) {
+        // TODO: Implement log viewing functionality
+        android.util.Log.d("HomeViewModel", "Opening logs for ID: $logId")
     }
 }
 

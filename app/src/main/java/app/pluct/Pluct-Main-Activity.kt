@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                         // Handle the initial intent
                         intent?.let { initialIntent ->
                             DebugLogger.log("Handling deep link: ${initialIntent.data}")
+                            handleSharedUrl(initialIntent)
                             navController.handleDeepLink(initialIntent)
                         }
                     }
@@ -92,6 +93,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(intent) {
                         intent?.let { currentIntent ->
                             DebugLogger.log("LaunchedEffect handling intent: ${currentIntent.data}")
+                            handleSharedUrl(currentIntent)
                             navController.handleDeepLink(currentIntent)
                         }
                     }
@@ -184,6 +186,9 @@ class MainActivity : ComponentActivity() {
                 return
             }
 
+            // Handle shared URLs
+            handleSharedUrl(newIntent)
+
             navControllerRef?.let { navController ->
                 android.util.Log.d("MainActivity", "Handling deep link with NavController (no URL equality gate)")
                 navController.handleDeepLink(newIntent)
@@ -191,6 +196,29 @@ class MainActivity : ComponentActivity() {
                 android.util.Log.w("MainActivity", "NavController not available yet, will handle deep link when UI is ready")
                 // Will be handled by LaunchedEffect(intent)
             }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        android.util.Log.d(TAG, "MainActivity onResume - ensuring app stays in foreground")
+        
+        // Ensure the app stays in foreground when resumed
+        if (intent?.action == "app.pluct.action.CAPTURE_INSIGHT" || 
+            intent?.getStringExtra(Intent.EXTRA_TEXT) != null) {
+            android.util.Log.d(TAG, "MainActivity onResume - handling pending intent to keep app in foreground")
+        }
+    }
+    
+    /**
+     * Handle shared URLs from Android Share Intent
+     */
+    private fun handleSharedUrl(intent: Intent) {
+        val sharedUrl = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+        if (!sharedUrl.isNullOrEmpty()) {
+            DebugLogger.log("Shared URL received: $sharedUrl")
+            // Store the shared URL for the ViewModel to pick up
+            // This will be handled by the HomeScreen when it observes the intent
         }
     }
 }

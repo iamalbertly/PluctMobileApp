@@ -17,12 +17,23 @@ object BusinessEngineHealthChecker {
     private const val TAG = "BusinessEngineHealthChecker"
     private const val BUSINESS_ENGINE_BASE_URL = "https://pluct-business-engine.romeo-lya2.workers.dev"
     
-    // Configure HTTP client with proper timeouts
+    // Configure HTTP client with proper timeouts and debugging
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
+        .addInterceptor { chain ->
+            val request = chain.request()
+            Log.d(TAG, "HTTP Request: ${request.method} ${request.url}")
+            Log.d(TAG, "Request headers: ${request.headers}")
+            
+            val response = chain.proceed(request)
+            Log.d(TAG, "HTTP Response: ${response.code} ${response.message}")
+            Log.d(TAG, "Response headers: ${response.headers}")
+            
+            response
+        }
         .build()
 
     /**
@@ -32,20 +43,29 @@ object BusinessEngineHealthChecker {
         try {
             Log.d(TAG, "Checking Business Engine health...")
             Log.i("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=checking")
+            Log.d(TAG, "Request URL: $BUSINESS_ENGINE_BASE_URL/health")
             
             val request = Request.Builder()
                 .url("$BUSINESS_ENGINE_BASE_URL/health")
+                .addHeader("User-Agent", "Pluct-Mobile-App/1.0")
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
                 .get()
                 .build()
             
+            Log.d(TAG, "Making HTTP request to: ${request.url}")
             val response = httpClient.newCall(request).execute()
             val isHealthy = response.isSuccessful
+            
+            Log.d(TAG, "Response code: ${response.code}")
+            Log.d(TAG, "Response headers: ${response.headers}")
             
             if (isHealthy) {
                 Log.i(TAG, "Business Engine is healthy")
                 Log.i("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=success")
             } else {
                 Log.e(TAG, "Business Engine health check failed: ${response.code}")
+                Log.e(TAG, "Response body: ${response.body?.string()}")
                 Log.e("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=failed code=${response.code}")
             }
             
@@ -53,6 +73,8 @@ object BusinessEngineHealthChecker {
             isHealthy
         } catch (e: Exception) {
             Log.e(TAG, "Business Engine health check error: ${e.message}")
+            Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+            Log.e(TAG, "Stack trace: ${e.stackTrace.joinToString("\n")}")
             Log.e("TTT", "stage=HEALTH_CHECK url=- reqId=- msg=exception ${e.message}")
             false
         }
