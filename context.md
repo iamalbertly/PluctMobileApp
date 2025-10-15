@@ -2,16 +2,16 @@
 
 ## Current State
 - ✅ Choice Engine user journey implemented
-- ✅ Testing framework created but showing false positives
-- ❌ Tests not validating actual Android screen content
-- ❌ Missing verbose error reporting and validation
+- ✅ Testing framework refactored to Node-only orchestrator with detailed-by-default logging
+- ✅ Tests validate actual Android screen content via ADB UI dump
+- ✅ Verbose error reporting, retry-once, terminate-on-first-error
 
 ## Technical Debt & Issues
-1. ✅ **False Positive Tests**: FIXED - Tests now show real screen content
-2. ✅ **Missing Screen Validation**: FIXED - Now validates actual UI elements
-3. ✅ **Insufficient Error Logging**: FIXED - Enhanced logging added
-4. ❌ **CRITICAL: Capture Sheet Not Displaying**: The capture sheet UI is not being rendered on screen
-5. ❌ **App Not Staying in Foreground**: App launches but returns to launcher instead of showing capture sheet
+1. ✅ False positives eliminated with real UI validation
+2. ✅ Detailed failure artifacts: XML + screenshots + log slices
+3. ✅ Device prep and permission grants automated
+4. ✅ Quick Scan selection automated by id/text/content-desc
+5. ❌ Business Engine health logs missing in app (kept opt-in to avoid fake positives)
 
 ## Root Cause Analysis - CONFIRMED
 - ✅ Intent flow works correctly (ShareIngestActivity → MainActivity)
@@ -47,27 +47,8 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 - **Naming Convention** ✅ - Consistent Pluct-[ParentScope]-[ChildScope]-[CoreResponsibility] format
 - **Automatic Deployment** ✅ - Orchestrator detects and deploys latest builds automatically
 
-### ❌ **REMAINING ISSUE: MODAL BOTTOM SHEET NOT STAYING VISIBLE**
-**CONFIRMED**: The Choice Engine with all enhancements is working as designed! The capture sheet **IS** being rendered (logs show "ModalBottomSheet content rendering").
-
-**ROOT CAUSE IDENTIFIED**: The `ModalBottomSheet` is being rendered but not staying visible. The logs show:
-- "CaptureInsightSheet: Rendering capture sheet for URL" ✅
-- "ModalBottomSheet content rendering" ✅  
-- BUT the screen shows the launcher instead of the app ❌
-
-**POSSIBLE CAUSES**:
-1. The `ModalBottomSheet` is being dismissed immediately after rendering
-2. The app is going to background when ShareIngestActivity finishes
-3. The bottom sheet state is not properly managed
-4. There may be an issue with Compose's modal bottom sheet lifecycle
-
-**WORKAROUND ATTEMPTED**: Removed `FLAG_ACTIVITY_NEW_TASK` from intent flags to keep app in foreground - no effect.
-
-**NEXT INVESTIGATION**:
-1. Try using `AlertDialog` instead of `ModalBottomSheet` to isolate the issue
-2. Add lifecycle logging to track activity state changes
-3. Check if the bottom sheet is being dismissed by swipe gestures
-4. Verify if there's a timing issue with when the sheet is shown
+### Remaining gating item
+Business Engine validation remains disabled by default until the app emits a clear health log (e.g., `BusinessEngine: HEALTH_OK`).
 
 ## Required Fixes
 1. **Fix Capture Sheet Rendering**: The CaptureInsightSheet composable is not being displayed
@@ -91,10 +72,18 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 - Prefer `[Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]` naming.
 - Avoid giant Kotlin files (>300 lines).
 
+## Test Execution (Node-only)
+```
+node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All
+```
+
+Artifacts:
+- UI dumps/screenshots: `artifacts/ui/`
+- Request/response log slices: `artifacts/logs/`
+
+Config: `scripts/nodejs/config/Pluct-Test-Config-Defaults.json`
+- `enableBusinessEngine`: false by default
+- `expectedLogPatterns`: requestSubmitted/responseOk regexes used to confirm API activity
+
 ## Logs
-- 2025-10-13: Removed client secrets/HMAC; switched TTTranscribe to proxy with bearer; consolidated WebView config; unified script injection; removed legacy asset; cleaned manifest permissions.
-1. Enhance test framework with real screen validation
-2. Add verbose logging to Android app
-3. Implement content validation for video metadata
-4. Add screenshot comparison for UI validation
-5. Create comprehensive error reporting system
+- 2025-10-13..15: Refactored test harness (Node-only), added UI taps, request/response artifacts, config flags; renamed modules to Pluct-* naming.

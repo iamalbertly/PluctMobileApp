@@ -145,14 +145,18 @@ The project includes a comprehensive modular test framework with Business Engine
 - ✅ **Stage-by-Stage Validation**: Monitors complete Business Engine flow
 - ✅ **Enhanced Logging**: Detailed error reporting and debugging information
 
-### **Test Execution**
+### **Test Execution (Node orchestrator)**
 ```bash
-# Run comprehensive tests
-powershell -ExecutionPolicy Bypass -File "scripts/Pluct-Test-Orchestrator-Main.ps1" -TestScope "All" -TestUrl "https://vm.tiktok.com/ZMAPTWV7o/"
+# Single entry point (detailed by default)
+node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All
 
-# Run Business Engine specific tests
-powershell -ExecutionPolicy Bypass -File "scripts/Pluct-Enhanced-Test-Framework.ps1" -TestScope "All" -Verbose
+# Core only
+node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope Core
 ```
+
+Config defaults: `scripts/nodejs/config/Pluct-Test-Config-Defaults.json`
+- `enableBusinessEngine`: false by default; set true to include BE checks
+- Artifacts saved to `artifacts/logs/` and `artifacts/ui/`
 
 ### **Test Coverage**
 - **Core User Journeys**: App launch, share intent handling, video processing

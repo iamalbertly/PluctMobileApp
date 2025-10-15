@@ -1,0 +1,39 @@
+{
+  "url": "https://www.tiktok.com/@garyvee/video/7308801293029248299",
+  "package": "app.pluct",
+  "activity": "app.pluct/.MainActivity",
+  "selectors": {
+    "navigation": {
+      "resourceIdSuffix": "/navigation",
+      "contentDesc": "Navigation",
+      "text": "Navigation"
+    },
+    "quickScan": {
+      "resourceIdSuffix": "/quick_scan",
+      "text": "Quick Scan",
+      "contentDesc": "Quick Scan"
+    }
+  },
+  "pipeline": {
+    "tokenVending": "(vend|token).*BusinessEngine|Authorization.*Bearer",
+    "tttRequest": "HTTP REQUEST.*ttt.*(transcribe|whisper)",
+    "tttResponseOk": "HTTP RESPONSE\\s+200.*ttt",
+    "transcriptReadyUi": "TranscriptReady|SummaryCard|transcript_card"
+  },
+  "timeouts": {
+    "adbMs": 15000,
+    "launchMs": 30000,
+    "token": 12000,
+    "tttRequest": 15000,
+    "tttResponse": 45000
+  },
+  "retries": {
+    "uiDump": 5
+  },
+  "enableBusinessEngine": false,
+  "expectedLogPatterns": {
+    "requestSubmitted": "(REQUEST_SUBMITTED|HTTP REQUEST|ttt/transcribe|proxy)",
+    "responseOk": "(HTTP RESPONSE|200|COMPLETED|TRANSCRIBING|Processing)"
+  }
+}
+

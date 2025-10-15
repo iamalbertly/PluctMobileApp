@@ -1,0 +1,16 @@
+{
+  "name": "pluct-mobile-tests",
+  "private": true,
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test:all": "node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All",
+    "test:core": "node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope Core",
+    "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}
+
+
