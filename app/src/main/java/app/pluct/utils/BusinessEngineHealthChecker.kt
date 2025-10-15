@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.util.concurrent.TimeUnit
 
 /**
@@ -28,11 +29,33 @@ object BusinessEngineHealthChecker {
             Log.d(TAG, "HTTP Request: ${request.method} ${request.url}")
             Log.d(TAG, "Request headers: ${request.headers}")
             
+            // Log request body if present
+            val requestBody = request.body
+            if (requestBody != null) {
+                Log.d(TAG, "Request body type: ${requestBody.contentType()}")
+                Log.d(TAG, "Request body length: ${requestBody.contentLength()}")
+            }
+            
             val response = chain.proceed(request)
             Log.d(TAG, "HTTP Response: ${response.code} ${response.message}")
             Log.d(TAG, "Response headers: ${response.headers}")
             
-            response
+            // Log response body
+            val responseBody = response.body
+            if (responseBody != null) {
+                Log.d(TAG, "Response body type: ${responseBody.contentType()}")
+                Log.d(TAG, "Response body length: ${responseBody.contentLength()}")
+                
+                // Read and log response body content
+                val responseBodyString = responseBody.string()
+                Log.d(TAG, "Response body content: $responseBodyString")
+                
+                // Create a new response body since we consumed the original
+                val newResponseBody = responseBodyString.toResponseBody(responseBody.contentType())
+                response.newBuilder().body(newResponseBody).build()
+            } else {
+                response
+            }
         }
         .build()
 

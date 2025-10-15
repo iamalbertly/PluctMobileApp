@@ -6,6 +6,15 @@ function Test-SmartBuildRequired {
         [switch]$ForceBuild
     )
     
+    # Initialize SmartBuildDetection object if it doesn't exist
+    if (-not $script:SmartTestSession.SmartBuildDetection) {
+        $script:SmartTestSession.SmartBuildDetection = @{
+            LastBuildTime = $null
+            ChangedFiles = @()
+            BuildReason = ""
+        }
+    }
+    
     if ($ForceBuild) {
         $script:SmartTestSession.SmartBuildDetection.BuildReason = "Force build requested"
         return $true
