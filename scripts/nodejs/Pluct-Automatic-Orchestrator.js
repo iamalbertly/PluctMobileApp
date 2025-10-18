@@ -126,23 +126,49 @@ function deployIfNeeded(skipInstall) {
 }
 
 function runScope(scope, url) {
+	// === DEVICE STABILIZATION ===
+	try {
+		execOk('adb shell settings put global animator_duration_scale 0');
+		execOk('adb shell settings put global transition_animation_scale 0');
+		execOk('adb shell settings put global window_animation_scale 0');
+		execOk('adb shell svc wifi enable');
+		execOk('adb shell cmd jobscheduler run -u 0 -f app.pluct 0 || true');
+		logInfo('Device stabilized for precise UI interactions', 'DeviceManager');
+	} catch (e) {
+		logWarn(`Device stabilization failed: ${e.message}`, 'DeviceManager');
+	}
+	
 	const s = String(scope || '').toLowerCase();
 	switch (s) {
 		case 'core':
 			return JourneyEngine.testCoreUserJourneys(url);
 		case 'all':
-            const coreOk = JourneyEngine.testCoreUserJourneys(url);
-            if (!coreOk) return false;
-            const enhOk = JourneyEngine.testEnhancementsJourney(url);
-            if (!enhOk) return false;
-            // Business Engine optional based on config
-            const defaults = loadDefaults();
-            if (defaults.enableBusinessEngine) {
-                return JourneyEngine.testBusinessEngineIntegration(url);
-            }
-            // After core flows, validate pipeline path as queued journey
-            try { if (!JourneyEngine.testPipeline_Transcription || !JourneyEngine.testPipeline_Transcription(defaults)) return false; } catch {}
-            return true;
+			const coreOk = JourneyEngine.testCoreUserJourneys(url);
+			if (!coreOk) return false;
+			const enhOk = JourneyEngine.testEnhancementsJourney(url);
+			if (!enhOk) return false;
+			// Credit balance display test
+			const creditOk = JourneyEngine.testCreditBalanceDisplay(url);
+			if (!creditOk) return false;
+			// Business Engine optional based on config
+			const defaults = loadDefaults();
+			if (defaults.enableBusinessEngine) {
+				const businessOk = JourneyEngine.testBusinessEngineIntegration(url);
+				if (!businessOk) return false;
+			}
+			// After core flows, validate pipeline path as queued journey
+			try { if (!JourneyEngine.testPipeline_Transcription || !JourneyEngine.testPipeline_Transcription(defaults)) return false; } catch {}
+			
+			// === TRUTHY GATES: Never pass if pipeline didn't happen ===
+			const vendSeen = !!Logcat.findLastHttpExchange('vend-token');
+			const tttSeen  = !!Logcat.findLastHttpExchange('ttt/transcribe');
+			if (!vendSeen || !tttSeen) {
+				reportCriticalError('Pipeline not executed',
+					`vendSeen=${vendSeen} tttSeen=${tttSeen} (tests cannot pass without both)`, 'Core');
+				return false;
+			}
+			
+			return true;
 		default:
 			reportCriticalError('Invalid TestScope', `Scope '${scope}' not supported`, 'Validation');
 			return false;
@@ -154,14 +180,10 @@ function main() {
     const args = Object.assign({}, defaults, parseArgs(process.argv.slice(2)));
 	logInfo('=== Pluct Automatic Tests (Node.js) ===', 'Entry');
 	logInfo(`Scope=${args.scope} Url=${args.url}`, 'Entry');
-	// Default to verbose logging by saving logcat slices for key scopes
-	try { Logcat.saveRecent('app.pluct|TTT|BusinessEngine|proxy|Authorization|Bearer', path.join('artifacts','logs',`boot-${Date.now()}.log`), 500); } catch {}
-    // Start live logcat streaming for richer, real-time output and HTTP surfacing
+	// Start live logcat streaming for richer, real-time output and HTTP surfacing
     try {
         const liveFilter = 'app.pluct|TTT|BusinessEngine|REQUEST_SUBMITTED|HTTP REQUEST|HTTP RESPONSE|proxy|Authorization|Bearer|ttt/|am_start|START u0';
-        const liveFile = path.join('artifacts','logs',`session_${Date.now()}.log`);
-        Logcat.startLive && Logcat.startLive(liveFilter, liveFile);
-        try { TestSession.Artifacts.sessionLogFile = liveFile; } catch {}
+        Logcat.startLive && Logcat.startLive(liveFilter, null); // No file output, just console
     } catch {}
 
 	TestSession.TestUrl = args.url;

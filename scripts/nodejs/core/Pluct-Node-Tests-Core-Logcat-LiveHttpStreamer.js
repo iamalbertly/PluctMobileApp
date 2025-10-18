@@ -48,12 +48,60 @@ let liveProc = null;
 let liveWriteStream = null;
 let recentHttpDetailLines = [];
 
+// HTTP telemetry parsing
+const HTTP_TAG = 'PLUCT_HTTP';
+let _buf = [];
+function clear(){ _buf = []; execOk('adb logcat -c'); }
+function ingest() {
+  const out = execOut('adb logcat -d');
+  out.split('\n').forEach(l => {
+    if (l.includes(HTTP_TAG)) {
+      const jsonStr = l.substring(l.indexOf(HTTP_TAG)+HTTP_TAG.length+1).trim();
+      try { _buf.push(JSON.parse(jsonStr)); } catch {}
+    }
+  });
+}
+function recent(pattern, limit=50){
+  ingest();
+  const re = new RegExp(pattern,'i');
+  return _buf.filter(x =>
+    (x.url && re.test(x.url)) ||
+    (x.event && re.test(x.event)) ||
+    (x.body && typeof x.body==='string' && re.test(x.body))
+  ).slice(-limit);
+}
+function findLastHttpExchange(hint){
+  ingest();
+  // pair request/response by reqId
+  const reqs = {};
+  for (const x of _buf) {
+    if (x.event==='request') reqs[x.reqId] = x;
+    if (x.event==='response' && reqs[x.reqId]) {
+      const pair = { req: reqs[x.reqId], res: x };
+      if (!hint) return pair;
+      const h = hint.toLowerCase();
+      const url = (pair.req.url||'').toLowerCase();
+      if (url.includes(h)) return pair;
+    }
+  }
+  return null;
+}
+function saveRecentHttpDetails(file, limit=400){
+  ingest();
+  const lines = _buf.slice(-limit).map(o=>JSON.stringify(o)).join('\n');
+  fs.mkdirSync(path.dirname(file), {recursive:true});
+  fs.writeFileSync(file, lines, 'utf8');
+}
+
 function startLive(filter, outFile) {
     try {
         stopLive();
-        const dir = path.dirname(outFile);
-        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
-        liveWriteStream = fs.createWriteStream(outFile, { flags: 'a' });
+        // Only create file stream if outFile is provided
+        if (outFile) {
+            const dir = path.dirname(outFile);
+            try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+            liveWriteStream = fs.createWriteStream(outFile, { flags: 'a' });
+        }
         liveProc = spawn('adb', ['logcat']);
         const re = filter ? new RegExp(filter, 'i') : null;
         liveProc.stdout.on('data', (buf) => {
@@ -62,47 +110,84 @@ function startLive(filter, outFile) {
             for (const line of lines) {
                 if (!line) continue;
                 if (!re || re.test(line)) {
-                    try { liveWriteStream.write(line + '\n'); } catch {}
+                    // Only write to file if outFile was provided
+                    if (liveWriteStream) {
+                        try { liveWriteStream.write(line + '\n'); } catch {}
+                    }
                     logInfo(line, 'Logcat');
                     try {
                         const redacted = line.replace(/(Authorization:\s*Bearer\s+)[A-Za-z0-9\-_.+=/]+/i, '$1<redacted>');
-                        const reqMatch = /HTTP REQUEST\s+(GET|POST|PUT|PATCH|DELETE)\s+([^\s]+)(?:.*?content[- ]length[:=]\s*(\d+))?/i.exec(redacted);
-                        if (reqMatch) {
-                            const method = reqMatch[1];
-                            const url = reqMatch[2];
-                            const clen = reqMatch[3] || '';
-                            logInfo(`REQUEST ${method} ${url} len=${clen}`, 'HTTP');
-                            recentHttpDetailLines.push(`[REQ] ${redacted}`);
-                            if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
-                            continue;
-                        }
-                        const resMatch = /HTTP RESPONSE\s+(\d{3})(?:\s+in\s+(\d+\s*ms))?(?:.*?content[- ]length[:=]\s*(\d+))?/i.exec(redacted);
-                        if (resMatch) {
-                            const status = resMatch[1];
-                            const dur = resMatch[2] || '';
-                            const clen = resMatch[3] || '';
-                            logInfo(`RESPONSE ${status}${dur ? ' ' + dur : ''} len=${clen}`, 'HTTP');
-                            recentHttpDetailLines.push(`[RES] ${redacted}`);
-                            if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
-                            continue;
-                        }
-                        if (/(Headers?:|Payload:|Body:|Content[- ]Type:|Host:|User-Agent:)/i.test(redacted)) {
-                            const sanitized = redacted.replace(/(Authorization:\s*Bearer\s+)[A-Za-z0-9\-_.+=/]+/i, '$1<redacted>');
-                            logInfo(sanitized, 'HTTP');
-                            recentHttpDetailLines.push(sanitized);
-                            if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
-                            continue;
-                        }
-                        if (/(REQUEST_SUBMITTED|ttt\/transcribe|proxy|am_start|START u0|android\.intent\.action\.SEND)/i.test(redacted)) {
-                            logInfo(redacted, 'HTTP');
-                            recentHttpDetailLines.push(redacted);
-                            if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
-                        }
+                                const reqMatch = /HTTP REQUEST\s+(GET|POST|PUT|PATCH|DELETE)\s+([^\s]+)(?:.*?content[- ]length[:=]\s*(\d+))?/i.exec(redacted);
+                                if (reqMatch) {
+                                    const method = reqMatch[1];
+                                    const url = reqMatch[2];
+                                    const clen = reqMatch[3] || '';
+                                    logInfo(`[HTTP REQUEST] ${method} ${url} len=${clen}`, 'HTTP');
+                                    logInfo(`[HTTP DETAIL] ${redacted}`, 'HTTP');
+                                    recentHttpDetailLines.push(`[REQ] ${redacted}`);
+                                    if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                    continue;
+                                }
+                                const resMatch = /HTTP RESPONSE\s+(\d{3})(?:\s+in\s+(\d+\s*ms))?(?:.*?content[- ]length[:=]\s*(\d+))?/i.exec(redacted);
+                                if (resMatch) {
+                                    const status = resMatch[1];
+                                    const dur = resMatch[2] || '';
+                                    const clen = resMatch[3] || '';
+                                    logInfo(`[HTTP RESPONSE] ${status}${dur ? ' ' + dur : ''} len=${clen}`, 'HTTP');
+                                    logInfo(`[HTTP DETAIL] ${redacted}`, 'HTTP');
+                                    recentHttpDetailLines.push(`[RES] ${redacted}`);
+                                    if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                    continue;
+                                }
+                                // Enhanced JSON parsing for PLUCT_HTTP logs
+                                const pluctHttpMatch = /PLUCT_HTTP:\s*(\{.*\})/i.exec(redacted);
+                                if (pluctHttpMatch) {
+                                    try {
+                                        const httpData = JSON.parse(pluctHttpMatch[1]);
+                                        if (httpData.event === 'request') {
+                                            logInfo(`[HTTP REQUEST] ${httpData.method} ${httpData.url}`, 'HTTP');
+                                            logInfo(`[HTTP REQUEST] Headers: ${JSON.stringify(httpData.headers, null, 2)}`, 'HTTP');
+                                            logInfo(`[HTTP REQUEST] Body: ${httpData.body}`, 'HTTP');
+                                        } else if (httpData.event === 'response') {
+                                            logInfo(`[HTTP RESPONSE] ${httpData.code} ${httpData.url}`, 'HTTP');
+                                            logInfo(`[HTTP RESPONSE] Duration: ${httpData.duration}ms`, 'HTTP');
+                                            logInfo(`[HTTP RESPONSE] Body: ${httpData.body}`, 'HTTP');
+                                        } else if (httpData.event === 'error') {
+                                            logInfo(`[HTTP ERROR] ${httpData.url}: ${httpData.error}`, 'HTTP');
+                                        }
+                                        recentHttpDetailLines.push(`[PLUCT_HTTP] ${redacted}`);
+                                        if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                        continue;
+                                    } catch (e) {
+                                        // Fall through to regular processing
+                                    }
+                                }
+                                
+                                if (/(Headers?:|Payload:|Body:|Content[- ]Type:|Host:|User-Agent:)/i.test(redacted)) {
+                                    const sanitized = redacted.replace(/(Authorization:\s*Bearer\s+)[A-Za-z0-9\-_.+=/]+/i, '$1<redacted>');
+                                    logInfo(`[HTTP DETAIL] ${sanitized}`, 'HTTP');
+                                    recentHttpDetailLines.push(sanitized);
+                                    if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                    continue;
+                                }
+                                if (/(REQUEST_SUBMITTED|ttt\/transcribe|proxy|am_start|START u0|android\.intent\.action\.SEND)/i.test(redacted)) {
+                                    logInfo(`[ACTIVITY] ${redacted}`, 'HTTP');
+                                    recentHttpDetailLines.push(redacted);
+                                    if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                }
                     } catch {}
                 }
             }
         });
-        liveProc.stderr.on('data', (buf) => { const text = buf.toString(); if (text) { try { liveWriteStream.write('[stderr] ' + text); } catch {} } });
+        liveProc.stderr.on('data', (buf) => { 
+            const text = buf.toString(); 
+            if (text) { 
+                if (liveWriteStream) {
+                    try { liveWriteStream.write('[stderr] ' + text); } catch {} 
+                }
+                logInfo(`[stderr] ${text}`, 'Logcat');
+            } 
+        });
         liveProc.on('close', () => { stopLive(); });
         return true;
     } catch { stopLive(); return false; }
@@ -131,6 +216,6 @@ function saveRecentHttpDetails(outFile, limit = 300) {
     } catch { return false; }
 }
 
-module.exports = { clear, dump, recent, waitForPattern, saveRecent, startLive, stopLive, recentHttpDetails, saveRecentHttpDetails };
+module.exports = { clear, dump, recent, waitForPattern, saveRecent, startLive, stopLive, recentHttpDetails, saveRecentHttpDetails, findLastHttpExchange, saveRecentHttpDetails };
 
 

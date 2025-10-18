@@ -30,7 +30,7 @@
   "retries": {
     "uiDump": 5
   },
-  "enableBusinessEngine": false,
+  "enableBusinessEngine": true,
   "expectedLogPatterns": {
     "requestSubmitted": "(REQUEST_SUBMITTED|HTTP REQUEST|ttt/transcribe|proxy)",
     "responseOk": "(HTTP RESPONSE|200|COMPLETED|TRANSCRIBING|Processing)"

@@ -1,15 +1,20 @@
 package app.pluct.viewmodel
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.*
 import app.pluct.data.manager.UserManager
 import app.pluct.data.repository.PluctRepository
 import app.pluct.api.PluctCoreApiService
 import app.pluct.api.VendTokenRequest
 import app.pluct.transcription.PluctTranscriptionProcessor
 import app.pluct.transcription.PluctTranscriptionCoordinator
+import app.pluct.worker.TTTranscribeWork
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -22,6 +27,7 @@ class IngestViewModel @Inject constructor(
     private val transcriptionCoordinator: PluctTranscriptionCoordinator,
     private val userManager: UserManager,
     private val repository: PluctRepository,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -46,62 +52,39 @@ class IngestViewModel @Inject constructor(
             }
 
             try {
-                // Step 1: Vend the token from your Business Engine
-                _uiState.value = _uiState.value.copy(state = IngestState.LOADING, message = "Requesting access token...")
-                val tokenResponse = apiService.vendToken(VendTokenRequest(userId = userId))
-
-                if (!tokenResponse.isSuccessful) {
-                    if (tokenResponse.code() == 403) {
-                         // THIS IS THE MONETIZATION HOOK!
-                        _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "You're out of credits! Go to settings to buy more.")
-                    } else {
-                        _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "Could not get token: ${tokenResponse.message()}")
-                    }
-                    return@launch
-                }
-                val jwt = "Bearer ${tokenResponse.body()!!.token}"
-
-                    // Step 2: Use TTTranscribe service for transcription
-                    _uiState.value = _uiState.value.copy(state = IngestState.PROCESSING, message = "Transcribing video with TTTranscribe...")
-                    
-                    var transcript = ""
-                    var transcriptionSuccess = false
-                    
-                    // Process URL for transcription
-                    val processingResult = transcriptionProcessor.processUrlForTranscript(url)
-                    when (processingResult) {
-                        is app.pluct.transcription.TranscriptProcessingResult.ReadyForExtraction -> {
-                            _uiState.value = _uiState.value.copy(message = "Extracting transcript...")
-                            
-                            // Extract transcript
-                            val extractionResult = transcriptionProcessor.extractTranscript(processingResult.processedUrl)
-                            when (extractionResult) {
-                                is app.pluct.transcription.TranscriptExtractionResult.Success -> {
-                                    transcript = extractionResult.transcript
-                                    transcriptionSuccess = true
-                                }
-                                is app.pluct.transcription.TranscriptExtractionResult.Error -> {
-                                    _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "TTTranscribe failed: ${extractionResult.message}")
-                                }
+                // Step 1: Get user JWT for authentication
+                val userJwt = userManager.getOrCreateUserJwt()
+                Log.d("IngestViewModel", "Using user JWT: ${userJwt.take(20)}...")
+                
+                // Step 2: Start transcription work with JWT
+                val workRequest = OneTimeWorkRequestBuilder<TTTranscribeWork>()
+                    .setInputData(workDataOf("url" to url, "userJwt" to userJwt))
+                    .setConstraints(Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build())
+                    .build()
+                
+                WorkManager.getInstance(context).enqueue(workRequest)
+                _uiState.value = _uiState.value.copy(state = IngestState.PROCESSING, message = "Processing video...")
+                
+                // Step 3: Monitor work progress
+                WorkManager.getInstance(context)
+                    .getWorkInfoByIdLiveData(workRequest.id)
+                    .observeForever { workInfo ->
+                        when (workInfo?.state) {
+                            WorkInfo.State.RUNNING -> {
+                                _uiState.value = _uiState.value.copy(state = IngestState.PROCESSING, message = "Transcribing...")
                             }
-                        }
-                        is app.pluct.transcription.TranscriptProcessingResult.Error -> {
-                            _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "URL processing failed: ${processingResult.message}")
+                            WorkInfo.State.SUCCEEDED -> {
+                                val transcript = workInfo.outputData.getString("transcript") ?: ""
+                                _uiState.value = _uiState.value.copy(state = IngestState.SUCCESS, message = "Transcription completed", transcript = transcript)
+                            }
+                            WorkInfo.State.FAILED -> {
+                                _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "Transcription failed")
+                            }
+                            else -> {}
                         }
                     }
-                    
-                    if (!transcriptionSuccess) {
-                        return@launch
-                    }
-
-                // Step 3: Save and show the result
-                _uiState.value = _uiState.value.copy(state = IngestState.LOADING, message = "Saving...")
-                repository.saveTranscript(userId, transcript)
-                _uiState.value = _uiState.value.copy(
-                    state = IngestState.SUCCESS, 
-                    transcript = transcript, 
-                    message = "Transcription completed successfully!"
-                )
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(state = IngestState.ERROR, message = "An error occurred: ${e.message}")

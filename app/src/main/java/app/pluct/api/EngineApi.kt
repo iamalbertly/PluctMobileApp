@@ -4,8 +4,12 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface EngineApi {
-    @POST("vend-token")
-    suspend fun vendToken(@Body body: Map<String, String>): Response<Map<String, String>>
+    @POST("v1/vend-token")
+    suspend fun vendToken(
+        @Header("Authorization") bearer: String,
+        @Header("X-Client-Request-Id") reqId: String,
+        @Body body: Map<String, String>
+    ): Response<Map<String, String>>
 
     @POST("ttt/transcribe")
     suspend fun transcribe(
@@ -19,6 +23,6 @@ interface EngineApi {
         @Path("id") id: String
     ): Response<Map<String, Any>>
 
-    @POST("meta/resolve")
-    suspend fun resolveMeta(@Body body: Map<String, String>): Response<Map<String, Any>>
+    @GET("meta")
+    suspend fun meta(@Query("url") url: String): Response<Map<String, Any>>
 }

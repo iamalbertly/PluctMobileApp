@@ -24,6 +24,7 @@ class UserManager @Inject constructor(
         private const val TAG = "UserManager"
         private const val PREFS_NAME = "user_preferences"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_USER_JWT = "user_jwt"
         private const val KEY_IS_FIRST_TIME = "is_first_time"
         private const val KEY_CREDITS = "credits"
         
@@ -148,4 +149,52 @@ class UserManager @Inject constructor(
         }
         return false
     }
+    
+    /**
+     * Get or create user JWT for authentication
+     */
+    suspend fun getOrCreateUserJwt(): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val existingJwt = prefs.getString(KEY_USER_JWT, null)
+                if (existingJwt != null) {
+                    Log.d(TAG, "Existing user JWT found: ${existingJwt.take(20)}...")
+                    return@withContext existingJwt
+                }
+                
+                // Generate a simple JWT for mobile app (in production, this would come from auth service)
+                val userId = getOrCreateUserId()
+                val jwt = generateSimpleJwt(userId)
+                
+                // Save JWT locally
+                prefs.edit()
+                    .putString(KEY_USER_JWT, jwt)
+                    .apply()
+                
+                Log.d(TAG, "Generated new user JWT: ${jwt.take(20)}...")
+                jwt
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting or creating user JWT: ${e.message}", e)
+                // Return a fallback JWT
+                generateSimpleJwt("mobile")
+            }
+        }
+    }
+    
+    /**
+     * Generate a simple JWT for mobile app authentication
+     * In production, this would come from a proper auth service
+     */
+        private fun generateSimpleJwt(userId: String): String {
+            val header = """{"alg":"HS256","typ":"JWT"}"""
+            val payload = """{"sub":"$userId","iat":${System.currentTimeMillis() / 1000},"exp":${(System.currentTimeMillis() / 1000) + 86400}}"""
+            
+            val headerB64 = android.util.Base64.encodeToString(header.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+            val payloadB64 = android.util.Base64.encodeToString(payload.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+            
+            // Simple signature (in production, use proper secret)
+            val signature = android.util.Base64.encodeToString("pluct-mobile-secret".toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+            
+            return "$headerB64.$payloadB64.$signature"
+        }
 }

@@ -18,6 +18,30 @@ function reportCriticalError(type, message, stage = 'Unknown') {
     logError(`Stage: ${stage}`, 'Report');
     logError(`Error Details: ${message}`, 'Report');
     TestSession.CriticalErrors.push({ type, message, stage, timestamp: Date.now() });
+    
+    // === FORENSIC BUNDLE ON CRITICAL ERROR ===
+    try {
+        const { execOk } = require('../core/Pluct-Test-Core-Exec');
+        const Logcat = require('../core/Pluct-Node-Tests-Core-Logcat-LiveHttpStreamer');
+        const UI = require('./UIValidator');
+        
+        // Screenshot
+        execOk('adb exec-out screencap -p > artifacts/ui/last-failure.png');
+        
+        // UI XML
+        UI.captureUiArtifacts(`fail-${Date.now()}`);
+        
+        // HTTP telemetry - log to console instead of file
+        const recent = Logcat.recentHttpDetails && Logcat.recentHttpDetails(100);
+        if (recent && recent.length > 0) {
+            logInfo('[Forensics] Recent HTTP activity:', 'Report');
+            recent.forEach(l => logInfo(`  ${l}`, 'Report'));
+        }
+        
+        logInfo('Forensic bundle captured: screenshot + UI XML + HTTP telemetry logged to console', 'Report');
+    } catch (e) {
+        logError(`Forensic bundle failed: ${e.message}`, 'Report');
+    }
 }
 
 function reportStepFailure(stepName, expectation, observation, extra = {}) {
@@ -55,9 +79,7 @@ function showTestReport(overallSuccess) {
     logInfo(`Test URL: ${TestSession.TestUrl}`, 'Report');
     logInfo(`Build Required: ${TestSession.BuildRequired}`, 'Report');
     if (TestSession.SmartBuildDetection.BuildReason) logInfo(`Build Reason: ${TestSession.SmartBuildDetection.BuildReason}`, 'Report');
-    if (TestSession.Artifacts.sessionLogFile) logInfo(`Session Log: ${TestSession.Artifacts.sessionLogFile}`, 'Report');
-    if (TestSession.Artifacts.lastUiActionsFile) logInfo(`UI Actions: ${TestSession.Artifacts.lastUiActionsFile}`, 'Report');
-    logInfo(`Artifacts: ui=${TestSession.Artifacts.uiDir} logs=${TestSession.Artifacts.logsDir}`, 'Report');
+    logInfo(`Artifacts: ui=${TestSession.Artifacts.uiDir} (screenshots and UI dumps)`, 'Report');
     if (TestSession.CriticalErrors.length > 0) {
         logError(`Critical Errors: ${TestSession.CriticalErrors.length}`, 'Report');
         for (const e of TestSession.CriticalErrors) logError(` - ${e.type}: ${e.message}`, 'Report');

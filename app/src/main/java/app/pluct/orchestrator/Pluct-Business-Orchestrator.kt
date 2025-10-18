@@ -261,8 +261,10 @@ class PluctBusinessOrchestrator @Inject constructor(
     
     private suspend fun vendToken(): OrchestratorResult<String> {
         return try {
-            val requestBody = mapOf("userId" to userId)
-            val response = api.vendToken(requestBody)
+            val reqId = UUID.randomUUID().toString()
+            val userJwt = System.getenv("USER_JWT") ?: ""
+            val requestBody = mapOf("clientRequestId" to reqId)
+            val response = api.vendToken("Bearer $userJwt", reqId, requestBody)
             if (response.isSuccessful && response.body() != null) {
                 val token = response.body()!!["token"] as String
                 OrchestratorResult.Success(token)

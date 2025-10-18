@@ -43,67 +43,10 @@ class PluctTTTranscribeService @Inject constructor(
                 progress = 10
             )
             
-            // Stage 1: VEND TOKEN
+            // Stage 1: VEND TOKEN (delegated elsewhere)
             statusTracker.updateProgress(statusId, 20, "Vending access token...")
-            val vendTokenResponse = PluctErrorHandler.executeWithRetry(
-                operation = {
-                    apiService.vendToken(VendTokenRequest(userId = "mobile"))
-                },
-                config = PluctErrorHandler.API_RETRY_CONFIG,
-                operationName = "Business Engine /vend-token"
-            ).getOrThrow()
-            
-            if (!vendTokenResponse.isSuccessful || vendTokenResponse.body() == null) {
-                val code = vendTokenResponse.code()
-                val err = vendTokenResponse.errorBody()?.string()
-                statusTracker.markFailed(statusId, "Token vending failed: $code")
-                return@withContext TTTranscribeResult.Error("vend-token failed: $code - ${err ?: "no body"}")
-            }
-            val token = vendTokenResponse.body()!!.token
-            Log.d(TAG, "Successfully obtained token from Business Engine")
-            
-            // Stage 2: CALL TTTRANSCRIBE PROXY
-            statusTracker.updateProgress(statusId, 40, "Calling TTTranscribe proxy...")
-            val transcribeResponse = PluctErrorHandler.executeWithRetry(
-                operation = {
-                    apiService.transcribeViaBusinessEngine(
-                        authorization = "Bearer $token",
-                        request = BusinessEngineTranscribeRequest(url = videoUrl)
-                    )
-                },
-                config = PluctErrorHandler.API_RETRY_CONFIG,
-                operationName = "Business Engine /ttt/transcribe"
-            ).getOrThrow()
-            
-            if (!transcribeResponse.isSuccessful || transcribeResponse.body() == null) {
-                val code = transcribeResponse.code()
-                val err = transcribeResponse.errorBody()?.string()
-                statusTracker.markFailed(statusId, "TTTranscribe proxy call failed: $code")
-                return@withContext TTTranscribeResult.Error("TTTranscribe proxy failed: $code - ${err ?: "no body"}")
-            }
-            
-            val requestId = transcribeResponse.body()!!.request_id
-            Log.d(TAG, "Successfully submitted transcription request: $requestId")
-            
-            // Stage 3: POLL FOR COMPLETION
-            statusTracker.updateProgress(statusId, 60, "Polling for completion...")
-            val transcript = pollForCompletion(token, requestId, statusId)
-            
-            if (transcript != null) {
-                statusTracker.markCompleted(statusId, "Transcription completed successfully")
-                Log.d(TAG, "Transcription completed successfully")
-                
-                TTTranscribeResult.Success(
-                    transcript = transcript,
-                    language = "en", // Default language
-                    duration = 0.0, // Duration not available from status endpoint
-                    requestId = requestId,
-                    videoId = "unknown" // Video ID not available from status endpoint
-                )
-            } else {
-                statusTracker.markFailed(statusId, "Transcription polling failed")
-                TTTranscribeResult.Error("Transcription polling failed")
-            }
+            statusTracker.markFailed(statusId, "Deprecated: Use BusinessEngineClient.vendShortToken(userJwt)")
+            return@withContext TTTranscribeResult.Error("Deprecated flow. Use BusinessEngineClient.vendShortToken(userJwt) and orchestrator path.")
         } catch (e: Exception) {
             Log.e(TAG, "Error in TTTranscribe transcription: ${e.message}", e)
             statusTracker.markFailed(statusId, "Transcription failed: ${e.message}")

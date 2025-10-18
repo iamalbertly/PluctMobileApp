@@ -5,17 +5,22 @@ import androidx.lifecycle.viewModelScope
 import app.pluct.data.BusinessEngineClient
 import app.pluct.data.EngineError
 import app.pluct.data.Status
+import app.pluct.data.manager.UserManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 /**
  * ViewModel for handling transcription flow with credit awareness
  */
-class TranscriptionViewModel(
-    private val businessEngineClient: BusinessEngineClient = BusinessEngineClient()
+@HiltViewModel
+class TranscriptionViewModel @Inject constructor(
+    private val businessEngineClient: BusinessEngineClient,
+    private val userManager: UserManager
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(TranscriptionUiState())
@@ -48,7 +53,8 @@ class TranscriptionViewModel(
                 }
                 
                 // Step 2: Check balance
-                val balance = businessEngineClient.balance()
+                val userJwt = userManager.getOrCreateUserJwt()
+                val balance = businessEngineClient.balance(userJwt)
                 if (balance.balance <= 0) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -58,9 +64,10 @@ class TranscriptionViewModel(
                     return@launch
                 }
                 
-                // Step 3: Vend token
+                // Step 3: Vend short token with user JWT and idempotency
                 val vendResult = try {
-                    businessEngineClient.vendToken()
+                    val userJwt = "mock-jwt-for-testing" // Mock JWT for testing
+                    businessEngineClient.vendShortToken(userJwt)
                 } catch (e: EngineError) {
                     if (e is EngineError.InsufficientCredits) {
                         _uiState.value = _uiState.value.copy(

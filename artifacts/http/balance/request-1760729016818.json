@@ -1,0 +1,13 @@
+{
+  "event": "request",
+  "reqId": "be2be069-c49a-43b2-91c7-c5b42bceb929",
+  "method": "POST",
+  "url": "https://pluct-business-engine.romeo-lya2.workers.dev/user/balance",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json",
+    "user-agent": "Pluct-Mobile-App/1.0",
+    "x-correlation-id": "5afe9a72-1f02-4ec7-aec2-d08a8e4c8eeb"
+  },
+  "body": "{\"userId\":\"mobile\"}"
+}

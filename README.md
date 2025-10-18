@@ -22,7 +22,7 @@ Pluct is a professional video-to-data pipeline designed for AI builders, researc
 
 ### **Business Engine Flow**
 ```
-HEALTH_CHECK → CREDIT_CHECK → VENDING_TOKEN → TTTRANSCRIBE_CALL → STATUS_POLLING → COMPLETED
+HEALTH_CHECK → CREDIT_CHECK → VENDING_TOKEN (/v1/vend-token) → TTTRANSCRIBE_CALL (/ttt/transcribe) → STATUS_POLLING → COMPLETED
 ```
 
 ### **Key Features Added**
@@ -157,6 +157,13 @@ node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope Core
 Config defaults: `scripts/nodejs/config/Pluct-Test-Config-Defaults.json`
 - `enableBusinessEngine`: false by default; set true to include BE checks
 - Artifacts saved to `artifacts/logs/` and `artifacts/ui/`
+
+### Current Backend Routes Used
+- Public metadata preview: GET `/meta?url={tiktokUrl}` (no auth)
+- Vend short-lived token: POST `/v1/vend-token` with `Authorization: Bearer {userJwt}` and `X-Client-Request-Id: {uuid}`
+- Transcription: POST `/ttt/transcribe` with `Authorization: Bearer {shortToken}`
+
+Structured HTTP traces are emitted from the Android app (`PLUCT_HTTP` JSON via OkHttp interceptor) and are parsed by the Node test runner. Pretty-printed details and saved request/response JSON are available under `artifacts/http/`.
 
 ### **Test Coverage**
 - **Core User Journeys**: App launch, share intent handling, video processing

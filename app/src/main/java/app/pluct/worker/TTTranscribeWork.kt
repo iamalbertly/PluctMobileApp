@@ -8,13 +8,14 @@ import androidx.work.workDataOf
 import app.pluct.data.BusinessEngineClient
 import app.pluct.data.EngineError
 import kotlinx.coroutines.flow.first
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 
-class TTTranscribeWork(
-    ctx: Context,
-    params: WorkerParameters
+class TTTranscribeWork @Inject constructor(
+    @ApplicationContext ctx: Context,
+    params: WorkerParameters,
+    private val businessEngineClient: BusinessEngineClient
 ) : CoroutineWorker(ctx, params) {
-
-    private val businessEngineClient = BusinessEngineClient()
 
     private suspend fun stage(s: String, url: String, reqId: String? = null, msg: String? = null, pct: Int? = null) {
         setProgress(workDataOf("stage" to s, "percent" to (pct ?: -1)))
@@ -36,17 +37,28 @@ class TTTranscribeWork(
             
             // Step 2: Check balance
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=checking")
-            val balance = businessEngineClient.balance()
+            val userJwt = inputData.getString("userJwt") ?: ""
+            if (userJwt.isEmpty()) {
+                Log.e("TTT", "No user JWT provided for balance check")
+                return Result.failure()
+            }
+            val balance = businessEngineClient.balance(userJwt)
             if (balance.balance <= 0) {
                 Log.e("TTT", "Insufficient credits: ${balance.balance}")
                 return Result.retry()
             }
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=success")
             
-            // Step 3: Vend token
+            // Step 3: Vend token (requires user JWT; obtain from app session)
             Log.i("TTT", "stage=VENDING_TOKEN url=$videoUrl reqId=- msg=requesting")
             val vendResult = try {
-                businessEngineClient.vendToken()
+                val userJwt = inputData.getString("userJwt") ?: ""
+                if (userJwt.isEmpty()) {
+                    Log.e("TTT", "No user JWT provided for token vending")
+                    return Result.failure()
+                }
+                val reqId = java.util.UUID.randomUUID().toString()
+                businessEngineClient.vendShortToken(userJwt, reqId)
             } catch (e: EngineError) {
                 if (e is EngineError.InsufficientCredits) {
                     Log.e("TTT", "Insufficient credits for token vending")

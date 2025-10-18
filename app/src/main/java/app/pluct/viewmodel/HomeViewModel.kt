@@ -7,6 +7,9 @@ import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctRepository
 import app.pluct.data.service.VideoMetadataService
+import app.pluct.data.BusinessEngineClient
+import app.pluct.data.EngineError
+import app.pluct.data.manager.UserManager
 import app.pluct.worker.WorkManagerUtils
 import app.pluct.orchestrator.OrchestratorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,13 +36,18 @@ data class HomeUiState(
     val videoUrl: String = "",
     val currentStage: String = "IDLE",
     val progress: Float = 0f,
-    val processError: OrchestratorResult.Failure? = null
+    val processError: OrchestratorResult.Failure? = null,
+    val creditBalance: Int = 0,
+    val isCreditBalanceLoading: Boolean = false,
+    val creditBalanceError: String? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: PluctRepository,
     private val metadataService: VideoMetadataService,
+    private val businessEngineClient: BusinessEngineClient,
+    private val userManager: UserManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     
@@ -56,6 +64,7 @@ class HomeViewModel @Inject constructor(
     
     init {
         loadVideos()
+        loadCreditBalance()
     }
     
     private fun loadVideos() {
@@ -71,6 +80,33 @@ class HomeViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "Unknown error"
+                )
+            }
+        }
+    }
+    
+    private fun loadCreditBalance() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCreditBalanceLoading = true, creditBalanceError = null)
+            try {
+                // Get user JWT for authentication
+                val userJwt = userManager.getOrCreateUserJwt()
+                android.util.Log.d("HomeViewModel", "Loading credit balance with JWT: ${userJwt.take(20)}...")
+                
+                val balance = businessEngineClient.balance(userJwt)
+                _uiState.value = _uiState.value.copy(
+                    creditBalance = balance.balance,
+                    isCreditBalanceLoading = false,
+                    creditBalanceError = null
+                )
+                android.util.Log.d("HomeViewModel", "Credit balance loaded: ${balance.balance}")
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to load credit balance: ${e.message}", e)
+                // Set a default balance of 0 instead of showing error
+                _uiState.value = _uiState.value.copy(
+                    creditBalance = 0,
+                    isCreditBalanceLoading = false,
+                    creditBalanceError = null
                 )
             }
         }
@@ -169,6 +205,10 @@ class HomeViewModel @Inject constructor(
     fun openLogs(logId: String?) {
         // TODO: Implement log viewing functionality
         android.util.Log.d("HomeViewModel", "Opening logs for ID: $logId")
+    }
+    
+    fun refreshCreditBalance() {
+        loadCreditBalance()
     }
 }
 

@@ -48,6 +48,7 @@ import app.pluct.ui.components.PluctAnimatedCard
 import app.pluct.ui.components.PluctFloatingActionButton
 import app.pluct.ui.components.PluctErrorDialog
 import app.pluct.ui.components.PluctErrorSnackbar
+import app.pluct.ui.components.PluctCreditBalanceDisplay
 import app.pluct.orchestrator.OrchestratorResult
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.CheckCircle
@@ -82,14 +83,14 @@ fun HomeScreen(
                     if (url != null && url != lastProcessedUrl) {
                         android.util.Log.i("HomeScreen", "Processing capture request for URL: $url")
                         
-                        // Resolve metadata first
+                        // Resolve metadata first via EngineApi.meta
                         try {
-                            val meta = EngineApiProvider.instance.resolveMeta(mapOf("url" to url)).body()
-                            if (meta == null) {
-                                android.util.Log.w("HomeScreen", "META_RESOLVE_FAILED url=$url")
-                                // TODO: show toast and block processing
+                            val response = EngineApiProvider.instance.meta(url)
+                            if (!response.isSuccessful || response.body() == null) {
+                                android.util.Log.w("HomeScreen", "META_RESOLVE_FAILED url=$url code=${response.code()}")
                             } else {
-                                android.util.Log.i("HomeScreen", "Metadata resolved: title=${meta["title"]}, author=${meta["author"]}")
+                                val meta = response.body()!!
+                                android.util.Log.i("HomeScreen", "Metadata resolved: title=${meta["title"]}, description=${meta["description"]}")
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("HomeScreen", "Failed to resolve metadata for $url", e)
@@ -148,8 +149,13 @@ fun HomeScreen(
     ) {
         Scaffold(
             topBar = {
-                // Compact header instead of redundant top bar
-                PluctHeaderCompact()
+                // Compact header with integrated credit balance
+                PluctHeaderCompact(
+                    creditBalance = uiState.creditBalance,
+                    isCreditBalanceLoading = uiState.isCreditBalanceLoading,
+                    creditBalanceError = uiState.creditBalanceError,
+                    onRefreshCreditBalance = { viewModel.refreshCreditBalance() }
+                )
             },
             bottomBar = {
                 ModernBottomNavigation(navController = navController)

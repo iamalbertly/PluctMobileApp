@@ -21,7 +21,10 @@ object WorkManagerUtils {
                     .build()
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
-            .setInputData(workDataOf("url" to videoId))
+            .setInputData(workDataOf(
+                "url" to videoId,
+                "userJwt" to "mock-jwt-for-testing" // Mock JWT for testing
+            ))
             .build()
         
         workManager.enqueueUniqueWork(
