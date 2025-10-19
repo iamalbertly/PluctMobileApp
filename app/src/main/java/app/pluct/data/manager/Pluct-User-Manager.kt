@@ -156,45 +156,85 @@ class UserManager @Inject constructor(
     suspend fun getOrCreateUserJwt(): String {
         return withContext(Dispatchers.IO) {
             try {
+                Log.i(TAG, "🎯 GETTING OR CREATING USER JWT")
+                Log.i("JWT_GENERATION", "🎯 JWT GENERATION STARTED")
+                
                 val existingJwt = prefs.getString(KEY_USER_JWT, null)
                 if (existingJwt != null) {
-                    Log.d(TAG, "Existing user JWT found: ${existingJwt.take(20)}...")
+                    Log.i(TAG, "🎯 EXISTING USER JWT FOUND: ${existingJwt.take(20)}...")
+                    Log.i("JWT_GENERATION", "🎯 EXISTING JWT FOUND: ${existingJwt.take(20)}...")
                     return@withContext existingJwt
                 }
                 
-                // Generate a simple JWT for mobile app (in production, this would come from auth service)
+                Log.i(TAG, "🎯 NO EXISTING JWT - GENERATING NEW ONE")
+                Log.i("JWT_GENERATION", "🎯 GENERATING NEW JWT")
+                
+                // Generate a proper JWT for mobile app authentication
                 val userId = getOrCreateUserId()
-                val jwt = generateSimpleJwt(userId)
+                Log.i("JWT_GENERATION", "🎯 USER ID FOR JWT: $userId")
+                
+                val jwt = generateUserJWT(userId)
                 
                 // Save JWT locally
                 prefs.edit()
                     .putString(KEY_USER_JWT, jwt)
                     .apply()
                 
-                Log.d(TAG, "Generated new user JWT: ${jwt.take(20)}...")
+                Log.i(TAG, "🎯 GENERATED NEW USER JWT: ${jwt.take(20)}...")
+                Log.i("JWT_GENERATION", "🎯 JWT GENERATION COMPLETED: ${jwt.take(20)}...")
+                Log.i("JWT_GENERATION", "🎯 JWT FULL TOKEN: $jwt")
+                
                 jwt
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting or creating user JWT: ${e.message}", e)
+                Log.e("JWT_GENERATION", "🎯 JWT GENERATION ERROR: ${e.message}")
                 // Return a fallback JWT
-                generateSimpleJwt("mobile")
+                val fallbackJwt = generateUserJWT("mobile")
+                Log.i("JWT_GENERATION", "🎯 FALLBACK JWT GENERATED: ${fallbackJwt.take(20)}...")
+                fallbackJwt
             }
         }
     }
     
     /**
-     * Generate a simple JWT for mobile app authentication
-     * In production, this would come from a proper auth service
+     * Generate a proper JWT for mobile app authentication with HMAC256 signing
+     * Uses the same secret as the server for consistency
      */
-        private fun generateSimpleJwt(userId: String): String {
-            val header = """{"alg":"HS256","typ":"JWT"}"""
-            val payload = """{"sub":"$userId","iat":${System.currentTimeMillis() / 1000},"exp":${(System.currentTimeMillis() / 1000) + 86400}}"""
-            
-            val headerB64 = android.util.Base64.encodeToString(header.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
-            val payloadB64 = android.util.Base64.encodeToString(payload.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
-            
-            // Simple signature (in production, use proper secret)
-            val signature = android.util.Base64.encodeToString("pluct-mobile-secret".toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
-            
-            return "$headerB64.$payloadB64.$signature"
-        }
+    private fun generateUserJWT(userId: String): String {
+        val now = System.currentTimeMillis() / 1000
+        val payload = mapOf(
+            "sub" to userId,
+            "scope" to "ttt:transcribe", 
+            "iat" to now,
+            "exp" to (now + 900) // 15 minutes
+        )
+        
+        // Use the same secret as the Business Engine
+        val secret = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
+        
+        // Create header
+        val header = """{"alg":"HS256","typ":"JWT"}"""
+        val headerB64 = android.util.Base64.encodeToString(header.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+        
+        // Create payload
+        val payloadJson = """{"sub":"$userId","scope":"ttt:transcribe","iat":$now,"exp":${now + 900}}"""
+        val payloadB64 = android.util.Base64.encodeToString(payloadJson.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+        
+        // Create signature using HMAC256
+        val message = "$headerB64.$payloadB64"
+        val signature = createHmacSha256Signature(message, secret)
+        val signatureB64 = android.util.Base64.encodeToString(signature, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+        
+        return "$headerB64.$payloadB64.$signatureB64"
+    }
+    
+    /**
+     * Create HMAC SHA256 signature for JWT
+     */
+    private fun createHmacSha256Signature(message: String, secret: String): ByteArray {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        val secretKey = javax.crypto.spec.SecretKeySpec(secret.toByteArray(), "HmacSHA256")
+        mac.init(secretKey)
+        return mac.doFinal(message.toByteArray())
+    }
 }

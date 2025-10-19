@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.ProcessingTier
@@ -26,28 +27,25 @@ import app.pluct.R
  */
 @Composable
 fun PluctCaptureTierSelection(
+    url: String?,
+    credits: Int,
     onTierSelected: (ProcessingTier) -> Unit
 ) {
+    android.util.Log.i("PluctCaptureTierSelection", "🎯 RENDERING TIER SELECTION COMPONENT url=$url credits=$credits")
     val cdProcess = stringResource(R.string.cd_process)
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Quick Scan Option
-        PluctTierSelectionCard(
-            title = "Quick Scan",
-            subtitle = "Free • Fast transcript",
-            icon = "⚡️",
-            description = "Get a quick transcript in seconds",
-            onClick = { 
-                android.util.Log.d("PluctCaptureTierSelection", "Quick Scan selected")
-                onTierSelected(ProcessingTier.QUICK_SCAN) 
-            },
-            isRecommended = false,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = cdProcess }
-                .testTag("btn_process_quick")
+        // Quick Scan Option - using dedicated QuickScanCard
+        QuickScanCard(
+            url = url,
+            credits = credits,
+            onStart = { reqId ->
+                android.util.Log.i("PluctCaptureTierSelection", "🎯 QUICK SCAN SELECTED reqId=$reqId")
+                android.util.Log.i("pluct-http", """PLUCT_HTTP>OUT {"event":"tier_selected","tier":"QUICK_SCAN","reqId":"$reqId","timestamp":${System.currentTimeMillis()}}""")
+                onTierSelected(ProcessingTier.QUICK_SCAN)
+            }
         )
         
         // AI Analysis Option
@@ -57,7 +55,7 @@ fun PluctCaptureTierSelection(
             icon = "✨",
             description = "AI-powered summary, key takeaways & actionable steps",
             onClick = { 
-                android.util.Log.d("PluctCaptureTierSelection", "AI Analysis selected")
+                android.util.Log.i("PluctCaptureTierSelection", "🎯 AI ANALYSIS SELECTED")
                 onTierSelected(ProcessingTier.AI_ANALYSIS) 
             },
             isRecommended = true,
@@ -83,9 +81,16 @@ private fun PluctTierSelectionCard(
     
     Card(
         modifier = modifier
-            .clickable { 
+            .clickable(role = Role.Button) { 
                 isPressed = true
+                // Emit telemetry for UI clicks
+                android.util.Log.i("pluct-http", """PLUCT_HTTP>OUT {"event":"ui_click","target":"$title","timestamp":${System.currentTimeMillis()}}""")
+                android.util.Log.i("PluctTierSelectionCard", "🎯 CARD CLICKED: $title")
                 onClick()
+            }
+            .semantics { 
+                contentDescription = title
+                role = Role.Button
             }
             .animateContentSize(),
         colors = CardDefaults.cardColors(

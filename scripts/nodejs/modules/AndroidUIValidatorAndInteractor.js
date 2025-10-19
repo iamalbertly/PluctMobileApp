@@ -49,6 +49,152 @@ const selectorCoverageCounters = {
     classMatches: 0,
 };
 
+// Enhanced UI helper functions
+function dumpHierarchy(deviceId, outDir, tag) {
+    // Create directory if it doesn't exist
+    try { fs.mkdirSync(outDir, { recursive: true }); } catch {}
+    
+    // Dump UI hierarchy
+    execOut(`adb -s ${deviceId} shell uiautomator dump /sdcard/uidump.xml`);
+    
+    // Get the XML content
+    const xml = execOut(`adb -s ${deviceId} shell cat /sdcard/uidump.xml`);
+    
+    
+    const f = path.join(outDir, `${tag}.xml`);
+    fs.writeFileSync(f, xml, 'utf8');
+    return { xml, file: f };
+}
+
+function parse(xml) {
+    const nodes = [];
+    const regex = /<node[^>]*>/g;
+    let m;
+    while ((m = regex.exec(xml))) {
+        const s = m[0];
+        const pick = (k) => (s.match(new RegExp(`${k}="([^"]*)"`))||[])[1]||"-";
+        const id   = pick("resource-id");
+        const desc = pick("content-desc");
+        const text = pick("text");
+        const cls  = pick("class").split(".").pop();
+        const clk  = pick("clickable")==="true";
+        const b    = pick("bounds");
+        
+        // Parse bounds into coordinates
+        const boundsMatch = b.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+        const bounds = boundsMatch ? {
+            x1: parseInt(boundsMatch[1]),
+            y1: parseInt(boundsMatch[2]),
+            x2: parseInt(boundsMatch[3]),
+            y2: parseInt(boundsMatch[4])
+        } : { x1: 0, y1: 0, x2: 0, y2: 0 };
+        
+        nodes.push({ 
+            id: id||"-", 
+            desc: desc||"-", 
+            text: text||"-", 
+            cls, 
+            clickable: clk, 
+            bounds 
+        });
+    }
+    return nodes;
+}
+
+function nearestClickable(nodes, idx) {
+    // Walk upwards (by containment) to find a clickable ancestor
+    const n = nodes[idx];
+    const isInside = (a, b) => a.x1 >= b.x1 && a.y1 >= b.y1 && a.x2 <= b.x2 && a.y2 <= b.y2;
+    let best = null;
+    
+    for (const c of nodes) {
+        if (c.clickable && isInside(n.bounds, c.bounds)) {
+            const cArea = (c.bounds.x2 - c.bounds.x1) * (c.bounds.y2 - c.bounds.y1);
+            const bestArea = best ? (best.bounds.x2 - best.bounds.x1) * (best.bounds.y2 - best.bounds.y1) : Infinity;
+            if (!best || cArea <= bestArea) {
+                best = c;
+            }
+        }
+    }
+    return best || n;
+}
+
+function logInventory(log, nodes, label, limit=120) {
+    log.info(`\n[UI] Inventory @ ${label} (showing ${nodes.length} of ${nodes.length})`);
+    nodes.slice(0,limit).forEach((n, i) =>
+        log.info(` #${i} id=${n.id} desc=${n.desc||"-"} text=${(n.text||"-").substring(0,28)} cls=${n.cls} b=${n.b} clk=${n.clk}`));
+}
+
+function findTapTarget(nodes, want) {
+    // stable selector priority: id suffix → content-desc → exact text → loose text → class
+    const by = want.by || "auto";
+    const q  = want.q;
+
+    const idMatch = n => n.id.endsWith(q);
+    const descMatch = n => n.desc === q;
+    const textExact = n => n.text === q;
+    const textLoose = n => (n.text||"").toLowerCase().includes(q.toLowerCase());
+    const byClass = n => n.cls === q;
+
+    let fns = [idMatch, descMatch, textExact, textLoose, byClass];
+    if (by === "id") fns = [idMatch];
+    if (by === "desc") fns = [descMatch];
+    if (by === "text") fns = [textExact, textLoose];
+    if (by === "class") fns = [byClass];
+
+    for (const fn of fns) {
+        const hit = nodes.find(fn);
+        if (hit) return hit;
+    }
+    return null;
+}
+
+function tap(deviceId, node, log) {
+    const [x1,y1,x2,y2] = node.b.match(/\d+/g).map(Number);
+    const x = Math.floor((x1+x2)/2), y = Math.floor((y1+y2)/2);
+    log.info(`[UI] ADB TAP ${node.cls} id=${node.id} text='${node.text}' @ (${x},${y})`);
+    execOk(`adb -s ${deviceId} shell input tap ${x} ${y}`);
+    return { x,y };
+}
+
+async function clickAndVerify({ deviceId, artifactsDir, step, want, log, waitMs = 1500, deltaMin = 1 }) {
+    const pre = dumpHierarchy(deviceId, artifactsDir, `${step}-pre`);
+    const nodesPre = parse(pre.xml); 
+    logInventory(log, nodesPre, `${step}-pre`);
+
+    // Find target by id/desc/text (loose text match fallback)
+    const idx = nodesPre.findIndex(n =>
+        (want.by === 'id' && (n.id||'').includes(want.q)) ||
+        (want.by === 'desc' && (n.desc||'') === want.q) ||
+        (want.by === 'text' && (n.text||'') === want.q) ||
+        (want.by === 'textLoose' && (n.text||'').toLowerCase().includes(String(want.q).toLowerCase()))
+    );
+    
+    if (idx < 0) {
+        throw new Error(`Target not found: ${JSON.stringify(want)}`);
+    }
+    
+    // Find nearest clickable ancestor
+    const tapNode = nearestClickable(nodesPre, idx);
+    const cx = Math.round((tapNode.bounds.x1 + tapNode.bounds.x2) / 2);
+    const cy = Math.round((tapNode.bounds.y1 + tapNode.bounds.y2) / 2);
+    
+    log.info(`[UI] TAP via ${want.by}='${want.q}' → picked cls=${tapNode.cls} id=${tapNode.id||'-'} @ (${cx},${cy})`);
+    execOut(`adb -s ${deviceId} shell input tap ${cx} ${cy}`);
+    
+    await new Promise(r => setTimeout(r, waitMs));
+
+    const post = dumpHierarchy(deviceId, artifactsDir, `${step}-post`);
+    const nodesPost = parse(post.xml); 
+    logInventory(log, nodesPost, `${step}-post`);
+
+    const delta = Math.abs(nodesPost.length - nodesPre.length);
+    log.info(`[UI] delta after '${step}': ${delta} (before=${nodesPre.length}, after=${nodesPost.length})`);
+    if (delta < deltaMin) log.info(`[UI] delta < ${deltaMin} — relying on background logs/HTTP to confirm effect`);
+
+    return { before: nodesPre, after: nodesPost, target: tapNode };
+}
+
 function centerOf(bounds) {
     const m = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(bounds || '');
     if (!m) return null;
@@ -333,6 +479,53 @@ function captureUiArtifacts(tag = 'state') {
     } catch { return false; }
 }
 
+function captureCaptureRequestLogs(tag = 'capture_request') {
+    try {
+        const ts = Date.now();
+        const safeTag = String(tag).replace(/[^a-z0-9-_]/gi, '_');
+        const dir = path.join('artifacts', 'logs');
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+        
+        // Capture recent logs related to capture request processing
+        const logcatOutput = execOut('adb logcat -d | grep -E "(CAPTURE_INSIGHT|CaptureInsightSheet|PluctCaptureTierSelection|HomeScreen|HomeViewModel)" | tail -50');
+        if (logcatOutput) {
+            fs.writeFileSync(path.join(dir, `capture-request-${safeTag}-${ts}.log`), logcatOutput);
+            logInfo(`🎯 CAPTURE REQUEST LOGS CAPTURED for tag='${safeTag}'`, 'UIValidator');
+            
+            // Display key capture request details
+            const lines = logcatOutput.split('\n').filter(line => line.trim());
+            logInfo(`🎯 CAPTURE REQUEST LOG ANALYSIS (${lines.length} relevant lines):`, 'UIValidator');
+            
+            lines.forEach((line, index) => {
+                if (line.includes('🎯') || line.includes('CAPTURE_INSIGHT') || line.includes('DISPLAYING CAPTURE SHEET')) {
+                    logInfo(`  ${index + 1}. ${line.trim()}`, 'UIValidator');
+                }
+            });
+            
+            // Check for specific capture request events
+            const hasCaptureIntent = lines.some(line => line.includes('CAPTURE_INSIGHT detected'));
+            const hasCaptureSheet = lines.some(line => line.includes('DISPLAYING CAPTURE SHEET'));
+            const hasTierSelection = lines.some(line => line.includes('TIER SELECTED'));
+            const hasVideoCreation = lines.some(line => line.includes('CREATING VIDEO WITH TIER'));
+            
+            logInfo(`🎯 CAPTURE REQUEST STATUS:`, 'UIValidator');
+            logInfo(`  - Intent Detected: ${hasCaptureIntent ? '✅' : '❌'}`, 'UIValidator');
+            logInfo(`  - Sheet Displayed: ${hasCaptureSheet ? '✅' : '❌'}`, 'UIValidator');
+            logInfo(`  - Tier Selected: ${hasTierSelection ? '✅' : '❌'}`, 'UIValidator');
+            logInfo(`  - Video Created: ${hasVideoCreation ? '✅' : '❌'}`, 'UIValidator');
+            
+            try { recordUiAction('capture.captureRequest', { tag: safeTag, hasCaptureIntent, hasCaptureSheet, hasTierSelection, hasVideoCreation }); } catch {}
+        } else {
+            logWarn('No capture request logs found', 'UIValidator');
+        }
+        
+        return true;
+    } catch (e) {
+        logError(`Failed to capture capture request logs: ${e.message}`, 'UIValidator');
+        return false;
+    }
+}
+
 module.exports = {
     getUIHierarchy,
     waitForElement,
@@ -350,7 +543,15 @@ module.exports = {
     compareUiCounts,
     UIElements,
     captureUiArtifacts,
+    captureCaptureRequestLogs,
     selectorCoverageCounters,
+    // Enhanced UI helper functions
+    dumpHierarchy,
+    parse,
+    logInventory,
+    findTapTarget,
+    tap,
+    clickAndVerify,
 };
 
 

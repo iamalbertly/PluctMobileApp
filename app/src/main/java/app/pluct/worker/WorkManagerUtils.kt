@@ -4,14 +4,21 @@ import android.content.Context
 import androidx.work.*
 import app.pluct.data.entity.ProcessingTier
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-object WorkManagerUtils {
+@Singleton
+class WorkManagerUtils @Inject constructor() {
     
     fun enqueueTranscriptionWork(
         context: Context,
         videoId: String,
-        processingTier: ProcessingTier
+        processingTier: ProcessingTier,
+        userJwt: String
     ) {
+        android.util.Log.i("WorkManagerUtils", "🎯 ENQUEUING TRANSCRIPTION WORK: $videoId, tier=$processingTier")
+        android.util.Log.i("WorkManagerUtils", "🎯 USING JWT: ${userJwt.take(20)}... (${if (userJwt.startsWith("mock-")) "MOCK JWT for Quick Scan" else "REAL JWT for AI Analysis"})")
+        
         val workManager = WorkManager.getInstance(context)
         
         val workRequest = OneTimeWorkRequestBuilder<TTTranscribeWork>()
@@ -23,7 +30,8 @@ object WorkManagerUtils {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .setInputData(workDataOf(
                 "url" to videoId,
-                "userJwt" to "mock-jwt-for-testing" // Mock JWT for testing
+                "processingTier" to processingTier.name, // Pass processing tier
+                "userJwt" to userJwt // Use provided JWT
             ))
             .build()
         
@@ -32,5 +40,7 @@ object WorkManagerUtils {
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
+        
+        android.util.Log.i("WorkManagerUtils", "🎯 WORK ENQUEUED SUCCESSFULLY: $videoId")
     }
 }

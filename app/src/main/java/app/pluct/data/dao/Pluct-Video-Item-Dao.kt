@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VideoItemDao {
-    @Query("SELECT * FROM video_items ORDER BY createdAt DESC")
+    @Query("SELECT * FROM video_items WHERE isArchived = 0 ORDER BY createdAt DESC")
     fun streamAll(): Flow<List<VideoItem>>
 
     @Query("SELECT * FROM video_items WHERE sourceUrl = :url LIMIT 1")
@@ -17,6 +17,9 @@ interface VideoItemDao {
 
     @Query("SELECT * FROM video_items WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): VideoItem?
+    
+    @Query("SELECT * FROM video_items ORDER BY createdAt DESC")
+    suspend fun getAll(): List<VideoItem>
 
     @Update
     suspend fun updateVideo(video: VideoItem)

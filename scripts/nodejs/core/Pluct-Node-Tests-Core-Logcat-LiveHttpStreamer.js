@@ -47,6 +47,7 @@ function saveRecent(filter, outFile, last = 200) {
 let liveProc = null;
 let liveWriteStream = null;
 let recentHttpDetailLines = [];
+let httpTracerEnabled = false;
 
 // HTTP telemetry parsing
 const HTTP_TAG = 'PLUCT_HTTP';
@@ -85,6 +86,40 @@ function findLastHttpExchange(hint){
     }
   }
   return null;
+}
+
+// Enhanced HTTP telemetry functions
+function findCreditBalanceExchange() {
+  return findLastHttpExchange('balance');
+}
+
+function findTokenVendingExchange() {
+  return findLastHttpExchange('vend-token');
+}
+
+function findTranscriptionExchange() {
+  return findLastHttpExchange('transcribe');
+}
+
+function findQuickScanExchange() {
+  return findLastHttpExchange('quick_scan');
+}
+
+function getAllHttpExchanges() {
+  ingest();
+  const exchanges = [];
+  const reqs = {};
+  
+  for (const x of _buf) {
+    if (x.event === 'request') {
+      reqs[x.reqId] = x;
+    }
+    if (x.event === 'response' && reqs[x.reqId]) {
+      exchanges.push({ req: reqs[x.reqId], res: x });
+    }
+  }
+  
+  return exchanges;
 }
 function saveRecentHttpDetails(file, limit=400){
   ingest();
@@ -139,19 +174,84 @@ function startLive(filter, outFile) {
                                     if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
                                     continue;
                                 }
-                                // Enhanced JSON parsing for PLUCT_HTTP logs
-                                const pluctHttpMatch = /PLUCT_HTTP:\s*(\{.*\})/i.exec(redacted);
+                                // Enhanced JSON parsing for PLUCT_HTTP logs with new format
+                                const pluctHttpMatch = /PLUCT_HTTP>OUT\s+(\{.*\})/i.exec(redacted);
                                 if (pluctHttpMatch) {
                                     try {
                                         const httpData = JSON.parse(pluctHttpMatch[1]);
+                                        logInfo(`(HTTP) ➡️  REQUEST`, 'HTTP');
+                                        logInfo(` method: ${httpData.method}`, 'HTTP');
+                                        logInfo(` url   : ${httpData.url}`, 'HTTP');
+                                        logInfo(` headers: ${JSON.stringify(httpData.headers, null, 2)}`, 'HTTP');
+                                        logInfo(` body   : ${JSON.stringify(httpData.body, null, 2)}`, 'HTTP');
+                                        recentHttpDetailLines.push(`[PLUCT_HTTP] ${redacted}`);
+                                        if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                        continue;
+                                    } catch (e) {
+                                        // Fall through to regular processing
+                                    }
+                                }
+                                
+                                const pluctHttpInMatch = /PLUCT_HTTP>IN\s+(\{.*\})/i.exec(redacted);
+                                if (pluctHttpInMatch) {
+                                    try {
+                                        const httpData = JSON.parse(pluctHttpInMatch[1]);
+                                        const status = httpData.code >= 200 && httpData.code < 400 ? 
+                                            `\x1b[32m${httpData.code}\x1b[0m` : `\x1b[31m${httpData.code}\x1b[0m`;
+                                        logInfo(`(HTTP) ⬅️  RESPONSE`, 'HTTP');
+                                        logInfo(` code  : ${status}`, 'HTTP');
+                                        logInfo(` url   : ${httpData.url}`, 'HTTP');
+                                        logInfo(` headers: ${JSON.stringify(httpData.headers, null, 2)}`, 'HTTP');
+                                        logInfo(` timeMs: ${httpData.bodyMillis}`, 'HTTP');
+                                        logInfo(` body  : ${JSON.stringify(httpData.body, null, 2)}`, 'HTTP');
+                                        recentHttpDetailLines.push(`[PLUCT_HTTP] ${redacted}`);
+                                        if (recentHttpDetailLines.length > 500) recentHttpDetailLines = recentHttpDetailLines.slice(-500);
+                                        continue;
+                                    } catch (e) {
+                                        // Fall through to regular processing
+                                    }
+                                }
+                                
+                                // Legacy PLUCT_HTTP format support
+                                const legacyPluctHttpMatch = /PLUCT_HTTP:\s*(\{.*\})/i.exec(redacted);
+                                if (legacyPluctHttpMatch) {
+                                    try {
+                                        const httpData = JSON.parse(legacyPluctHttpMatch[1]);
                                         if (httpData.event === 'request') {
                                             logInfo(`[HTTP REQUEST] ${httpData.method} ${httpData.url}`, 'HTTP');
                                             logInfo(`[HTTP REQUEST] Headers: ${JSON.stringify(httpData.headers, null, 2)}`, 'HTTP');
                                             logInfo(`[HTTP REQUEST] Body: ${httpData.body}`, 'HTTP');
+                                            // Enhanced payload logging for credit balance and API calls
+                                            if (httpData.url && httpData.url.includes('balance')) {
+                                                logInfo(`[CREDIT BALANCE REQUEST] URL: ${httpData.url}`, 'HTTP');
+                                                logInfo(`[CREDIT BALANCE REQUEST] Method: ${httpData.method}`, 'HTTP');
+                                                logInfo(`[CREDIT BALANCE REQUEST] Headers: ${JSON.stringify(httpData.headers, null, 2)}`, 'HTTP');
+                                            }
+                                            if (httpData.url && httpData.url.includes('vend-token')) {
+                                                logInfo(`[TOKEN VENDING REQUEST] URL: ${httpData.url}`, 'HTTP');
+                                                logInfo(`[TOKEN VENDING REQUEST] Body: ${httpData.body}`, 'HTTP');
+                                            }
+                                            if (httpData.url && httpData.url.includes('ttt/transcribe')) {
+                                                logInfo(`[TRANSCRIPTION REQUEST] URL: ${httpData.url}`, 'HTTP');
+                                                logInfo(`[TRANSCRIPTION REQUEST] Body: ${httpData.body}`, 'HTTP');
+                                            }
                                         } else if (httpData.event === 'response') {
                                             logInfo(`[HTTP RESPONSE] ${httpData.code} ${httpData.url}`, 'HTTP');
                                             logInfo(`[HTTP RESPONSE] Duration: ${httpData.duration}ms`, 'HTTP');
                                             logInfo(`[HTTP RESPONSE] Body: ${httpData.body}`, 'HTTP');
+                                            // Enhanced payload logging for responses
+                                            if (httpData.url && httpData.url.includes('balance')) {
+                                                logInfo(`[CREDIT BALANCE RESPONSE] Status: ${httpData.code}`, 'HTTP');
+                                                logInfo(`[CREDIT BALANCE RESPONSE] Body: ${httpData.body}`, 'HTTP');
+                                            }
+                                            if (httpData.url && httpData.url.includes('vend-token')) {
+                                                logInfo(`[TOKEN VENDING RESPONSE] Status: ${httpData.code}`, 'HTTP');
+                                                logInfo(`[TOKEN VENDING RESPONSE] Body: ${httpData.body}`, 'HTTP');
+                                            }
+                                            if (httpData.url && httpData.url.includes('ttt/transcribe')) {
+                                                logInfo(`[TRANSCRIPTION RESPONSE] Status: ${httpData.code}`, 'HTTP');
+                                                logInfo(`[TRANSCRIPTION RESPONSE] Body: ${httpData.body}`, 'HTTP');
+                                            }
                                         } else if (httpData.event === 'error') {
                                             logInfo(`[HTTP ERROR] ${httpData.url}: ${httpData.error}`, 'HTTP');
                                         }
@@ -216,6 +316,11 @@ function saveRecentHttpDetails(outFile, limit = 300) {
     } catch { return false; }
 }
 
-module.exports = { clear, dump, recent, waitForPattern, saveRecent, startLive, stopLive, recentHttpDetails, saveRecentHttpDetails, findLastHttpExchange, saveRecentHttpDetails };
+module.exports = { 
+    clear, dump, recent, waitForPattern, saveRecent, startLive, stopLive, 
+    recentHttpDetails, saveRecentHttpDetails, findLastHttpExchange, 
+    findCreditBalanceExchange, findTokenVendingExchange, findTranscriptionExchange,
+    findQuickScanExchange, getAllHttpExchanges
+};
 
 

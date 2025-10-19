@@ -33,6 +33,7 @@ data class VideoItem(
     // NEW FIELDS for Choice Engine
     val status: ProcessingStatus = ProcessingStatus.PENDING,
     val processingTier: ProcessingTier, // Must be provided on creation
-    val failureReason: String? = null // To store error messages
+    val failureReason: String? = null, // To store error messages
+    val isArchived: Boolean = false // For archive functionality
 )
 

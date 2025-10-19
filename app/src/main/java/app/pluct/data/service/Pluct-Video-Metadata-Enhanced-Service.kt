@@ -74,18 +74,81 @@ class EnhancedVideoMetadataService @Inject constructor(
     }
 
     private suspend fun extractBasicMetadata(url: String): BasicVideoMetadata {
-        // Implementation for basic metadata extraction
-        // This would integrate with existing VideoMetadataService
+        return try {
+            Log.d(TAG, "Extracting metadata for URL: $url")
+            
+            // Parse TikTok URL to extract video ID
+            val videoId = extractVideoIdFromUrl(url)
+            if (videoId == null) {
+                Log.w(TAG, "Could not extract video ID from URL: $url")
+                return createFallbackMetadata(url)
+            }
+            
+            // Make HTTP request to TikTok's oEmbed endpoint for metadata
+            val metadataUrl = "https://www.tiktok.com/oembed?url=${url}"
+            val connection = URL(metadataUrl).openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(response)
+                
+                BasicVideoMetadata(
+                    title = json.optString("title", "Untitled Video"),
+                    description = json.optString("description", ""),
+                    author = json.optString("author_name", "Unknown Creator"),
+                    thumbnailUrl = json.optString("thumbnail_url", ""),
+                    duration = 0, // Not available in oEmbed
+                    viewCount = 0, // Not available in oEmbed
+                    likeCount = 0, // Not available in oEmbed
+                    shareCount = 0, // Not available in oEmbed
+                    commentCount = 0 // Not available in oEmbed
+                )
+            } else {
+                Log.w(TAG, "Failed to fetch metadata, response code: ${connection.responseCode}")
+                createFallbackMetadata(url)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting metadata: ${e.message}", e)
+            createFallbackMetadata(url)
+        }
+    }
+    
+    private fun extractVideoIdFromUrl(url: String): String? {
+        return try {
+            // Extract video ID from TikTok URL patterns
+            val patterns = listOf(
+                Regex("tiktok\\.com/@[^/]+/video/(\\d+)"),
+                Regex("vm\\.tiktok\\.com/([A-Za-z0-9]+)"),
+                Regex("tiktok\\.com/t/([A-Za-z0-9]+)")
+            )
+            
+            for (pattern in patterns) {
+                val match = pattern.find(url)
+                if (match != null) {
+                    return match.groupValues[1]
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting video ID: ${e.message}", e)
+            null
+        }
+    }
+    
+    private fun createFallbackMetadata(url: String): BasicVideoMetadata {
+        val videoId = extractVideoIdFromUrl(url) ?: "unknown"
         return BasicVideoMetadata(
-            title = "Sample Video Title",
-            description = "Sample description",
-            author = "Sample Author",
-            thumbnailUrl = "https://example.com/thumbnail.jpg",
-            duration = 60,
-            viewCount = 1000,
-            likeCount = 50,
-            shareCount = 10,
-            commentCount = 25
+            title = "TikTok Video",
+            description = "Shared from TikTok",
+            author = "TikTok Creator",
+            thumbnailUrl = "",
+            duration = 0,
+            viewCount = 0,
+            likeCount = 0,
+            shareCount = 0,
+            commentCount = 0
         )
     }
 

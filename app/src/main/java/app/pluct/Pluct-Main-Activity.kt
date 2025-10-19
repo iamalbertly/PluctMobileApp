@@ -45,6 +45,13 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userManager: UserManager
     
+    // Store reference to HomeViewModel to handle CAPTURE_INSIGHT intents
+    private var homeViewModelRef: app.pluct.viewmodel.HomeViewModel? = null
+    
+    fun setHomeViewModel(viewModel: app.pluct.viewmodel.HomeViewModel) {
+        homeViewModelRef = viewModel
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -181,8 +188,25 @@ class MainActivity : ComponentActivity() {
             // Handle CAPTURE_INSIGHT action for the Choice Engine
             if (newIntent.action == "app.pluct.action.CAPTURE_INSIGHT") {
                 android.util.Log.d("MainActivity", "Handling CAPTURE_INSIGHT intent")
-                // The capture request will be handled by the HomeViewModel
-                // No navigation needed here, just pass the data to the ViewModel
+                
+                // Extract the URL and caption from the intent
+                val url = newIntent.getStringExtra("capture_url")
+                val caption = newIntent.getStringExtra("capture_caption")
+                android.util.Log.d("MainActivity", "CAPTURE_INSIGHT data: url=$url, caption=$caption")
+                
+                // Pass the capture request directly to the HomeViewModel
+                if (url != null) {
+                    homeViewModelRef?.let { viewModel ->
+                        android.util.Log.d("MainActivity", "Setting capture request in HomeViewModel: url=$url")
+                        viewModel.setCaptureRequest(url, caption)
+                        android.util.Log.d("MainActivity", "Capture request set successfully")
+                    } ?: run {
+                        android.util.Log.w("MainActivity", "HomeViewModel not available yet, will handle when UI is ready")
+                    }
+                } else {
+                    android.util.Log.e("MainActivity", "ERROR: URL is null in CAPTURE_INSIGHT intent")
+                }
+                
                 return
             }
 

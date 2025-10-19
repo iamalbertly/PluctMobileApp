@@ -28,6 +28,8 @@ class PluctRepository @Inject constructor(
     
     suspend fun findByUrl(url: String): VideoItem? = videoItemDao.findByUrl(url)
     
+    suspend fun updateVideo(video: VideoItem) = videoItemDao.updateVideo(video)
+    
     suspend fun upsertVideo(url: String): String {
         // Fetch metadata for the video
         val metadata = metadataService.fetchVideoMetadata(url)
@@ -45,20 +47,21 @@ class PluctRepository @Inject constructor(
     }
     
     suspend fun createVideoWithTier(url: String, processingTier: ProcessingTier): String {
-        // Fetch metadata for the video
+        // Fetch enhanced metadata for the video
         val metadata = metadataService.fetchVideoMetadata(url)
         
         val video = VideoItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = url,
-            title = metadata?.title,
-            description = metadata?.description,
-            author = metadata?.author,
+            title = metadata?.title ?: "TikTok Video",
+            description = metadata?.description ?: "Shared from TikTok",
+            author = metadata?.author ?: "TikTok Creator",
             thumbnailUrl = metadata?.thumbnailUrl,
-            processingTier = processingTier
+            processingTier = processingTier,
+            status = ProcessingStatus.PENDING
         )
         val videoId = videoItemDao.upsertVideo(video)
-        android.util.Log.i("PluctRepository", "Video created with ID: $videoId")
+        android.util.Log.i("PluctRepository", "Video created with ID: $videoId, title: ${video.title}, author: ${video.author}")
         return videoId
     }
     
@@ -122,6 +125,10 @@ class PluctRepository @Inject constructor(
     
     suspend fun getVideoById(videoId: String): VideoItem? {
         return videoItemDao.getById(videoId)
+    }
+    
+    suspend fun getAllVideos(): List<VideoItem> {
+        return videoItemDao.getAll()
     }
     
     suspend fun saveTranscriptForVideo(videoId: String, transcript: String) {

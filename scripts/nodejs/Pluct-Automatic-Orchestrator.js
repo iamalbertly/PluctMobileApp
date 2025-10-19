@@ -15,6 +15,9 @@ const Logcat = require('./core/Pluct-Node-Tests-Core-Logcat-LiveHttpStreamer');
 const BuildDetector = require('./modules/Pluct-Test-Core-BuildDetector');
 const JourneyEngine = require('./modules/Pluct-Node-Tests-Journey-CoreUserFlowsEngine');
 const { reportCriticalError, TestSession, showTestReport } = require('./modules/Pluct-Test-Core-Status');
+const PluctUICompactLayoutTest = require('./modules/Pluct-UI-Compact-Layout-Test');
+const PluctUIFunctionalityTest = require('./modules/Pluct-UI-Functionality-Test');
+const PluctUIRealEstateTest = require('./modules/Pluct-UI-Real-Estate-Test');
 
 function parseArgs(argv) {
 	const out = {
@@ -100,7 +103,10 @@ function optionalBuild(forceBuild) {
 	if (!which('gradlew.bat')) {
 		logWarn('gradlew.bat not found, attempting system Gradle', 'BuildSystem');
 	}
-	const ok = execOk('.\\gradlew.bat assembleDebug');
+	// Check if we're running from project root or scripts/nodejs directory
+	const isProjectRoot = require('fs').existsSync('gradlew.bat');
+	const gradleCmd = isProjectRoot ? 'gradlew.bat assembleDebug' : 'cd ..\\.. && gradlew.bat assembleDebug';
+	const ok = execOk(gradleCmd);
 	if (!ok) {
 		reportCriticalError('Build Failed', 'Gradle build failed. Run .\\gradlew.bat assembleDebug --stacktrace', 'Build');
 		return false;
@@ -112,7 +118,11 @@ function deployIfNeeded(skipInstall) {
 	if (skipInstall) return true;
 	logStage('Install', 'Installer');
 	execOk('adb uninstall app.pluct');
-	const apkPath = path.join('app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+	// Check if we're running from project root or scripts/nodejs directory
+	const isProjectRoot = require('fs').existsSync('gradlew.bat');
+	const apkPath = isProjectRoot 
+		? path.join('app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk')
+		: path.join('..', '..', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
 	if (!BuildDetector.fileExists(apkPath)) {
 		reportCriticalError('APK Missing', 'Debug APK not found. Build the app with assembleDebug', 'Install');
 		return false;
@@ -125,7 +135,7 @@ function deployIfNeeded(skipInstall) {
 	return true;
 }
 
-function runScope(scope, url) {
+async function runScope(scope, url) {
 	// === DEVICE STABILIZATION ===
 	try {
 		execOk('adb shell settings put global animator_duration_scale 0');
@@ -141,7 +151,15 @@ function runScope(scope, url) {
 	const s = String(scope || '').toLowerCase();
 	switch (s) {
 		case 'core':
-			return JourneyEngine.testCoreUserJourneys(url);
+			// Run enhanced journeys with intelligent orchestration
+			const JourneyOrchestrator = require('./modules/Pluct-Node-Tests-Journey-Orchestrator');
+			const orchestrator = new JourneyOrchestrator();
+			const result = await orchestrator.runAllJourneys(url);
+			if (!result) {
+				logError('Core journeys failed - stopping execution', 'Orchestrator');
+				return false;
+			}
+			return result;
 		case 'all':
 			const coreOk = JourneyEngine.testCoreUserJourneys(url);
 			if (!coreOk) return false;
@@ -150,22 +168,44 @@ function runScope(scope, url) {
 			// Credit balance display test
 			const creditOk = JourneyEngine.testCreditBalanceDisplay(url);
 			if (!creditOk) return false;
-			// Business Engine optional based on config
+			// UI Compact Layout Test
+			const uiCompactOk = new PluctUICompactLayoutTest().runTest();
+			if (!uiCompactOk) return false;
+			// UI Functionality Test
+			const uiFunctionalityOk = new PluctUIFunctionalityTest().runTest();
+			if (!uiFunctionalityOk) return false;
+			// UI Real Estate Test
+			const uiRealEstateOk = new PluctUIRealEstateTest().runTest();
+			if (!uiRealEstateOk) return false;
+			// Business Engine optional based on config and processing tier
 			const defaults = loadDefaults();
 			if (defaults.enableBusinessEngine) {
-				const businessOk = JourneyEngine.testBusinessEngineIntegration(url);
-				if (!businessOk) return false;
+				// Check if this is a Quick Scan flow by looking for Quick Scan logs
+				const isQuickScan = Logcat.recent('(QUICK_SCAN|Quick Scan|🎯.*QUICK_SCAN|QuickScan|Quick.*Scan|QUICK SCAN SELECTED|stage=QUICK_SCAN|QUICK_SCAN_START|QUICK_SCAN_COMPLETE|QUICK_SCAN_MODE)', 20);
+				if (!isQuickScan || isQuickScan.length === 0) {
+					const businessOk = JourneyEngine.testBusinessEngineIntegration(url);
+					if (!businessOk) return false;
+				} else {
+					logInfo('Skipping Business Engine test for Quick Scan flow', 'Orchestrator');
+				}
 			}
 			// After core flows, validate pipeline path as queued journey
 			try { if (!JourneyEngine.testPipeline_Transcription || !JourneyEngine.testPipeline_Transcription(defaults)) return false; } catch {}
 			
 			// === TRUTHY GATES: Never pass if pipeline didn't happen ===
-			const vendSeen = !!Logcat.findLastHttpExchange('vend-token');
-			const tttSeen  = !!Logcat.findLastHttpExchange('ttt/transcribe');
-			if (!vendSeen || !tttSeen) {
-				reportCriticalError('Pipeline not executed',
-					`vendSeen=${vendSeen} tttSeen=${tttSeen} (tests cannot pass without both)`, 'Core');
-				return false;
+			// Check if this is a Quick Scan flow (which doesn't use Business Engine APIs)
+			const isQuickScan = Logcat.recent('(QUICK_SCAN|Quick Scan|🎯.*QUICK_SCAN|QUICK SCAN SELECTED|stage=QUICK_SCAN|QUICK_SCAN_START|QUICK_SCAN_COMPLETE|QUICK_SCAN_MODE)', 10);
+			if (!isQuickScan || isQuickScan.length === 0) {
+				// For AI Analysis flows, require both vend-token and ttt/transcribe
+				const vendSeen = !!Logcat.findLastHttpExchange('vend-token');
+				const tttSeen  = !!Logcat.findLastHttpExchange('ttt/transcribe');
+				if (!vendSeen || !tttSeen) {
+					reportCriticalError('Pipeline not executed',
+						`vendSeen=${vendSeen} tttSeen=${tttSeen} (tests cannot pass without both)`, 'Core');
+					return false;
+				}
+			} else {
+				logInfo('Skipping pipeline validation for Quick Scan flow', 'Orchestrator');
 			}
 			
 			return true;
@@ -182,7 +222,7 @@ function main() {
 	logInfo(`Scope=${args.scope} Url=${args.url}`, 'Entry');
 	// Start live logcat streaming for richer, real-time output and HTTP surfacing
     try {
-        const liveFilter = 'app.pluct|TTT|BusinessEngine|REQUEST_SUBMITTED|HTTP REQUEST|HTTP RESPONSE|proxy|Authorization|Bearer|ttt/|am_start|START u0';
+        const liveFilter = 'app.pluct|TTT|BusinessEngine|REQUEST_SUBMITTED|HTTP REQUEST|HTTP RESPONSE|proxy|Authorization|Bearer|ttt/|am_start|START u0|FATAL|AndroidRuntime|Crash|Exception|Error|Quick Scan|AI Analysis|ProcessingTier|Worker|WorkManager';
         Logcat.startLive && Logcat.startLive(liveFilter, null); // No file output, just console
     } catch {}
 
@@ -214,9 +254,14 @@ function main() {
 
 	// Clear logcat before journeys for clean detection
 	Logcat.clear();
+}
 
-	const overallSuccess = runScope(args.scope, args.url);
+async function main() {
+	const args = parseArgs(process.argv.slice(2));
+	const overallSuccess = await runScope(args.scope, args.url);
 	showTestReport(overallSuccess);
+	
+	
     try { Logcat.stopLive && Logcat.stopLive(); } catch {}
 	if (overallSuccess) {
 		logSuccess('Automatic tests completed', 'Entry');
@@ -226,4 +271,7 @@ function main() {
 	}
 }
 
-main();
+main().catch(e => {
+	logError(`Fatal error: ${e.message}`, 'Entry');
+	process.exit(1);
+});

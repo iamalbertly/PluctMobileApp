@@ -1,26 +1,22 @@
 package app.pluct.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctRepository
-import app.pluct.data.service.VideoMetadataService
-import app.pluct.data.BusinessEngineClient
-import app.pluct.data.EngineError
-import app.pluct.data.manager.UserManager
-import app.pluct.worker.WorkManagerUtils
 import app.pluct.orchestrator.OrchestratorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * HomeViewModel - Main screen view model
+ * Refactored to use focused components following naming convention
+ */
 
 data class CaptureRequest(
     val url: String,
@@ -30,37 +26,32 @@ data class CaptureRequest(
 data class HomeUiState(
     val videos: List<VideoItem> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null,
-    val lastProcessedUrl: String? = null,
-    val captureRequest: CaptureRequest? = null,
+    val isProcessing: Boolean = false,
     val videoUrl: String = "",
-    val currentStage: String = "IDLE",
-    val progress: Float = 0f,
-    val processError: OrchestratorResult.Failure? = null,
     val creditBalance: Int = 0,
     val isCreditBalanceLoading: Boolean = false,
-    val creditBalanceError: String? = null
+    val creditBalanceError: String? = null,
+    val captureRequest: CaptureRequest? = null,
+    val lastProcessedUrl: String? = null,
+    val currentStage: String = "IDLE",
+    val progress: Float = 0f,
+    val error: String? = null,
+    val processError: OrchestratorResult.Failure? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: PluctRepository,
-    private val metadataService: VideoMetadataService,
-    private val businessEngineClient: BusinessEngineClient,
-    private val userManager: UserManager,
-    @ApplicationContext private val context: Context
+    private val videoOperations: PluctVideoOperations,
+    private val creditManager: PluctCreditManager,
+    private val processingEngine: PluctProcessingEngine
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     
-    // Use StateFlow with proper sharing strategy
-    val videos: StateFlow<List<VideoItem>> = repository.streamAll()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _videos = MutableStateFlow<List<VideoItem>>(emptyList())
+    val videos: StateFlow<List<VideoItem>> = _videos.asStateFlow()
     
     init {
         loadVideos()
@@ -71,15 +62,18 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // The videos StateFlow will automatically update
+                val videosList = repository.getAllVideos()
+                _videos.value = videosList
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = null
+                    videos = videosList,
+                    isLoading = false
                 )
+                android.util.Log.i("HomeViewModel", "🎯 VIDEOS LOADED: ${videosList.size} videos")
             } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "❌ ERROR LOADING VIDEOS: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Unknown error"
+                    error = e.message
                 )
             }
         }
@@ -89,126 +83,145 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCreditBalanceLoading = true, creditBalanceError = null)
             try {
-                // Get user JWT for authentication
-                val userJwt = userManager.getOrCreateUserJwt()
-                android.util.Log.d("HomeViewModel", "Loading credit balance with JWT: ${userJwt.take(20)}...")
-                
-                val balance = businessEngineClient.balance(userJwt)
+                val balance = creditManager.loadCreditBalance()
                 _uiState.value = _uiState.value.copy(
-                    creditBalance = balance.balance,
+                    creditBalance = balance,
                     isCreditBalanceLoading = false,
                     creditBalanceError = null
                 )
-                android.util.Log.d("HomeViewModel", "Credit balance loaded: ${balance.balance}")
-            } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Failed to load credit balance: ${e.message}", e)
-                // Set a default balance of 0 instead of showing error
+                android.util.Log.i("HomeViewModel", "🎯 CREDIT BALANCE LOADED: $balance")
+            } catch (e: Throwable) {
+                android.util.Log.e("HomeViewModel", "❌ ERROR LOADING CREDIT BALANCE: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
-                    creditBalance = 0,
                     isCreditBalanceLoading = false,
-                    creditBalanceError = null
+                    creditBalanceError = e.message
                 )
             }
         }
     }
     
-    fun setLastProcessedUrl(url: String) {
-        _uiState.value = _uiState.value.copy(lastProcessedUrl = url)
+    fun refreshCreditBalance() {
+        android.util.Log.i("HomeViewModel", "🎯 REFRESHING CREDIT BALANCE")
+        loadCreditBalance()
     }
     
-    fun deleteVideo(videoId: String) {
-        viewModelScope.launch {
-            try {
-                repository.deleteVideo(videoId)
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Failed to delete video"
-                )
-            }
-        }
-    }
-    
-    // NEW METHODS for Choice Engine
     fun setCaptureRequest(url: String, caption: String?) {
-        android.util.Log.i("HomeViewModel", "Setting capture request: url=$url, caption=$caption")
+        android.util.Log.i("HomeViewModel", "🎯 SETTING CAPTURE REQUEST: url=$url, caption=$caption")
         _uiState.value = _uiState.value.copy(
             captureRequest = CaptureRequest(url, caption)
         )
-        android.util.Log.d("HomeViewModel", "Capture request set in UI state")
+        android.util.Log.i("HomeViewModel", "🎯 CAPTURE REQUEST SET SUCCESSFULLY")
     }
     
     fun clearCaptureRequest() {
+        android.util.Log.i("HomeViewModel", "🎯 CLEARING CAPTURE REQUEST")
         _uiState.value = _uiState.value.copy(
             captureRequest = null
         )
     }
     
-    fun createVideoWithTier(url: String, processingTier: ProcessingTier) {
+    fun createVideoWithTier(url: String, processingTier: ProcessingTier, context: android.content.Context? = null) {
         viewModelScope.launch {
             try {
-                android.util.Log.i("HomeViewModel", "Creating video with tier: $processingTier for URL: $url")
-                val videoId = repository.createVideoWithTier(url, processingTier)
-                android.util.Log.i("HomeViewModel", "Video created successfully with ID: $videoId")
-                
-                // Enqueue the background worker
-                WorkManagerUtils.enqueueTranscriptionWork(context, videoId, processingTier)
-                android.util.Log.i("HomeViewModel", "Background work enqueued for video: $videoId")
-                
-                // Add a delay to allow the user to see the toast message before clearing the capture request
-                kotlinx.coroutines.delay(2000) // 2 seconds delay
-                clearCaptureRequest()
+                android.util.Log.i("HomeViewModel", "🎯 CREATING VIDEO WITH TIER: $url, tier=$processingTier")
+                processingEngine.createVideoWithTier(url, processingTier, context)
+                android.util.Log.i("HomeViewModel", "🎯 VIDEO CREATION COMPLETED")
+                // Reload videos to show the new one
+                loadVideos()
             } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Error creating video: ${e.message}", e)
+                android.util.Log.e("HomeViewModel", "❌ ERROR CREATING VIDEO: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Failed to create video"
+                    error = e.message
                 )
             }
         }
     }
     
-    // NEW METHODS for unified flow
     fun updateVideoUrl(url: String) {
         _uiState.value = _uiState.value.copy(videoUrl = url)
     }
     
-    fun updateCurrentStage(stage: String) {
-        _uiState.value = _uiState.value.copy(currentStage = stage)
-    }
-    
-    fun updateProgress(progress: Float) {
-        _uiState.value = _uiState.value.copy(progress = progress)
-    }
-    
-    fun retry() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-    
-    fun setProcessError(error: OrchestratorResult.Failure) {
-        _uiState.value = _uiState.value.copy(processError = error)
-    }
-    
-    fun clearProcessError() {
-        _uiState.value = _uiState.value.copy(processError = null)
-    }
-    
-    fun reportIssue(message: String, logId: String?) {
+    fun retryVideo(videoId: String) {
         viewModelScope.launch {
             try {
-                // TODO: Implement issue reporting API call
-                android.util.Log.d("HomeViewModel", "Reporting issue: $message, Log ID: $logId")
+                android.util.Log.i("HomeViewModel", "🎯 RETRYING VIDEO: $videoId")
+                videoOperations.retryVideo(videoId)
+                android.util.Log.i("HomeViewModel", "🎯 VIDEO RETRY COMPLETED")
+                // Reload videos to show updated status
+                loadVideos()
             } catch (e: Exception) {
-                android.util.Log.e("HomeViewModel", "Failed to report issue: ${e.message}")
+                android.util.Log.e("HomeViewModel", "❌ ERROR RETRYING VIDEO: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    error = e.message
+                )
             }
         }
     }
     
-    fun openLogs(logId: String?) {
-        // TODO: Implement log viewing functionality
-        android.util.Log.d("HomeViewModel", "Opening logs for ID: $logId")
+    fun archiveVideo(videoId: String) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.i("HomeViewModel", "🎯 ARCHIVING VIDEO: $videoId")
+                videoOperations.archiveVideo(videoId)
+                android.util.Log.i("HomeViewModel", "🎯 VIDEO ARCHIVED")
+                // Reload videos to show updated status
+                loadVideos()
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "❌ ERROR ARCHIVING VIDEO: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    error = e.message
+                )
+            }
+        }
     }
     
-    fun refreshCreditBalance() {
-        loadCreditBalance()
+    fun deleteVideo(videoId: String) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.i("HomeViewModel", "🎯 DELETING VIDEO: $videoId")
+                videoOperations.deleteVideo(videoId)
+                android.util.Log.i("HomeViewModel", "🎯 VIDEO DELETED")
+                // Reload videos to show updated status
+                loadVideos()
+                // Refresh credit balance after deletion
+                refreshCreditBalance()
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "❌ ERROR DELETING VIDEO: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    error = e.message
+                )
+            }
+        }
+    }
+    
+    fun processVideo(url: String, processingTier: ProcessingTier = ProcessingTier.QUICK_SCAN) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.i("HomeViewModel", "🎬 PROCESSING VIDEO: $url with tier $processingTier")
+                _uiState.value = _uiState.value.copy(
+                    videoUrl = url,
+                    isProcessing = true
+                )
+                
+                // Create video with processing tier
+                createVideoWithTier(url, processingTier)
+                
+                // Clear the URL input after processing
+                _uiState.value = _uiState.value.copy(
+                    videoUrl = "",
+                    isProcessing = false
+                )
+                
+                // Refresh credit balance after processing
+                refreshCreditBalance()
+                
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "❌ ERROR PROCESSING VIDEO: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    error = e.message,
+                    isProcessing = false
+                )
+            }
+        }
     }
 }
-

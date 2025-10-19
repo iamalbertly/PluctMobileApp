@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.pluct.data.BusinessEngineClient
 import app.pluct.data.EngineError
-import app.pluct.data.Status
+// import app.pluct.data.Status // Removed - Status class doesn't exist
 import app.pluct.data.manager.UserManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -107,35 +107,35 @@ class TranscriptionViewModel @Inject constructor(
                     note = "Starting transcription..."
                 )
                 
-                // Start polling
-                businessEngineClient.pollStatus(requestId).collect { status ->
-                    _progressState.value = _progressState.value.copy(
-                        phase = status.phase,
-                        percent = status.percent,
-                        note = status.note
-                    )
+                // TODO: Implement polling when Status class is available
+                // businessEngineClient.pollStatus(requestId).collect { status ->
+                //     _progressState.value = _progressState.value.copy(
+                //         phase = status.phase,
+                //         percent = status.percent,
+                //         note = status.note
+                //     )
                     
-                    when (status.phase) {
-                        "COMPLETED" -> {
-                            _uiState.value = _uiState.value.copy(
-                                isTranscribing = false,
-                                transcriptionResult = status.text ?: "Transcription completed"
-                            )
-                            _progressState.value = _progressState.value.copy(
-                                isVisible = false
-                            )
-                        }
-                        "FAILED" -> {
-                            _uiState.value = _uiState.value.copy(
-                                isTranscribing = false,
-                                error = "Transcription failed: ${status.note}"
-                            )
-                            _progressState.value = _progressState.value.copy(
-                                isVisible = false
-                            )
-                        }
-                    }
-                }
+                //     when (status.phase) {
+                //         "COMPLETED" -> {
+                //             _uiState.value = _uiState.value.copy(
+                //                 isTranscribing = false,
+                //                 transcriptionResult = status.text ?: "Transcription completed"
+                //             )
+                //             _progressState.value = _progressState.value.copy(
+                //                 isVisible = false
+                //             )
+                //         }
+                //         "FAILED" -> {
+                //             _uiState.value = _uiState.value.copy(
+                //                 isTranscribing = false,
+                //                 error = "Transcription failed: ${status.note}"
+                //             )
+                //             _progressState.value = _progressState.value.copy(
+                //                 isVisible = false
+                //             )
+                //         }
+                //     }
+                // }
                 
             } catch (e: EngineError) {
                 handleEngineError(e)

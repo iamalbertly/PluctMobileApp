@@ -36,15 +36,22 @@ fun CaptureInsightSheet(
     captureRequest: CaptureRequest,
     onDismiss: () -> Unit,
     onTierSelected: (ProcessingTier) -> Unit,
-    viewModel: HomeViewModel
+    @Suppress("UNUSED_PARAMETER") viewModel: HomeViewModel
 ) {
     // Debug logging
-    android.util.Log.d("CaptureInsightSheet", "Rendering capture sheet for URL: ${captureRequest.url}")
-    android.util.Log.d("CaptureInsightSheet", "Capture sheet component is being composed")
+    android.util.Log.i("CaptureInsightSheet", "🎯 RENDERING CAPTURE SHEET for URL: ${captureRequest.url}")
+    android.util.Log.i("CaptureInsightSheet", "🎯 Capture sheet component is being composed")
+    android.util.Log.i("CaptureInsightSheet", "🎯 Capture request details - URL: ${captureRequest.url}, Caption: ${captureRequest.caption}")
+    android.util.Log.i("CaptureInsightSheet", "🎯 ModalBottomSheet is about to be rendered")
     
-    // Use ModalBottomSheet for proper bottom sheet behavior
+    // Use ModalBottomSheet for proper bottom sheet behavior with auto-expansion
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    LaunchedEffect(Unit) { sheetState.expand() }
+    
     ModalBottomSheet(
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null
     ) {
         // Precompute localized labels usable in non-composable scopes
         val captureCd = stringResource(R.string.cd_capture_sheet)
@@ -144,6 +151,8 @@ fun CaptureInsightSheet(
             
             // Modern tier selection with enhanced design
             PluctCaptureTierSelection(
+                url = captureRequest.url,
+                credits = 1, // TODO: Get actual credits from viewModel
                 onTierSelected = onTierSelected
             )
         }
