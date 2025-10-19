@@ -29,7 +29,7 @@ import app.pluct.R
 fun PluctCaptureTierSelection(
     url: String?,
     credits: Int,
-    onTierSelected: (ProcessingTier) -> Unit
+    onTierSelected: (ProcessingTier, String?) -> Unit
 ) {
     android.util.Log.i("PluctCaptureTierSelection", "🎯 RENDERING TIER SELECTION COMPONENT url=$url credits=$credits")
     val cdProcess = stringResource(R.string.cd_process)
@@ -41,10 +41,10 @@ fun PluctCaptureTierSelection(
         QuickScanCard(
             url = url,
             credits = credits,
-            onStart = { reqId ->
-                android.util.Log.i("PluctCaptureTierSelection", "🎯 QUICK SCAN SELECTED reqId=$reqId")
-                android.util.Log.i("pluct-http", """PLUCT_HTTP>OUT {"event":"tier_selected","tier":"QUICK_SCAN","reqId":"$reqId","timestamp":${System.currentTimeMillis()}}""")
-                onTierSelected(ProcessingTier.QUICK_SCAN)
+            onStart = { clientRequestId ->
+                android.util.Log.i("PluctCaptureTierSelection", "🎯 QUICK SCAN SELECTED clientRequestId=$clientRequestId")
+                android.util.Log.i("pluct-http", """PLUCT_HTTP>OUT {"event":"tier_selected","tier":"QUICK_SCAN","clientRequestId":"$clientRequestId"}""")
+                onTierSelected(ProcessingTier.QUICK_SCAN, clientRequestId)
             }
         )
         
@@ -56,7 +56,7 @@ fun PluctCaptureTierSelection(
             description = "AI-powered summary, key takeaways & actionable steps",
             onClick = { 
                 android.util.Log.i("PluctCaptureTierSelection", "🎯 AI ANALYSIS SELECTED")
-                onTierSelected(ProcessingTier.AI_ANALYSIS) 
+                onTierSelected(ProcessingTier.AI_ANALYSIS, null) 
             },
             isRecommended = true,
             modifier = Modifier

@@ -1,5 +1,6 @@
 package app.pluct.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import java.util.UUID
-import android.util.Log
+import androidx.compose.ui.platform.LocalContext
+import android.view.View
+import android.widget.Button
+import androidx.compose.ui.viewinterop.AndroidView
 
 /**
  * Quick Scan Card - fully clickable with stable test tags
@@ -29,93 +34,32 @@ import android.util.Log
 fun QuickScanCard(
     url: String?,
     credits: Int,
-    onStart: (reqId: String) -> Unit
+    onStart: (clientRequestId: String) -> Unit
 ) {
     val enabled = !url.isNullOrBlank() && credits > 0
-    val reqId = remember { UUID.randomUUID().toString() }
-    var firing by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+    val clientRequestId = remember { UUID.randomUUID().toString() }
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { 
-                contentDescription = "quick_scan"
+            .semantics(mergeDescendants = true) {
+                contentDescription = "quick_scan"     // <- test anchor (content-desc)
                 role = Role.Button
             }
-            .testTag("quick_scan")
-            .clickable(enabled = enabled && !firing, role = Role.Button) {
-                if (!firing) {
-                    firing = true
-                    android.util.Log.i("TTT", "QUICK_SCAN_UI_CLICK reqId=$reqId")
-                    android.util.Log.i("pluct-http", """PLUCT_HTTP>OUT {"event":"ui_click","target":"quick_scan","reqId":"$reqId","timestamp":${System.currentTimeMillis()}}""")
-                    onStart(reqId)
-                    // Reset firing state after a delay
-                    coroutineScope.launch {
-                        delay(1000)
-                        firing = false
-                    }
-                }
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (enabled) 
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            else 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (enabled) 4.dp else 2.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon
-            Text(
-                text = "⚡️",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(end = 16.dp)
-            )
-            
-            // Content
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Quick Scan",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Text(
-                    text = "Free • Fast transcript",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = "Get a quick transcript in seconds",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.3
-                )
+            .clickable(enabled = enabled, role = Role.Button) {
+                Log.i("TTT", "QUICK_SCAN_UI_CLICK id=$clientRequestId")
+                onStart(clientRequestId)                  // enqueue work (below)
             }
-            
-            // Action icon
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = "Start Quick Scan",
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(24.dp)
-            )
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = if (enabled) 2.dp else 0.dp
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("⚡️"); Spacer(Modifier.width(12.dp))
+            Column { 
+                Text("Quick Scan"); 
+                Text("Free • Fast transcript") 
+            }
         }
     }
 }

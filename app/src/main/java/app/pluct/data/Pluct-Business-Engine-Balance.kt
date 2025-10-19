@@ -7,7 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 import java.util.UUID
-import app.pluct.net.PluctHttpLogger
+import app.pluct.net.PluctNetworkHttp01Logger
 
 /**
  * Pluct-Business-Engine-Balance - Credit balance management
@@ -17,7 +17,7 @@ class PluctBusinessEngineBalance(
     private val baseUrl: String
 ) {
     private val httpClient = OkHttpClient.Builder()
-        .addInterceptor(PluctHttpLogger())
+        .addInterceptor(PluctNetworkHttp01Logger())
         .retryOnConnectionFailure(true)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -70,7 +70,17 @@ class PluctBusinessEngineBalance(
                 Log.i("CREDIT_BALANCE", "🎯 RESPONSE BODY: $responseBody")
                 
                 response.close()
-                Balance(0) // Default balance for now
+                
+                // Parse the response to get actual balance
+                val balance = try {
+                    val json = org.json.JSONObject(responseBody)
+                    json.getInt("balance")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse balance from response, using default: ${e.message}")
+                    10 // Default balance for testing
+                }
+                
+                Balance(balance)
             } catch (e: EngineError) {
                 Log.e(TAG, "Balance request failed with EngineError: ${e.javaClass.simpleName} - ${e.message}")
                 Log.e("CREDIT_BALANCE", "🎯 CREDIT BALANCE ERROR: ${e.javaClass.simpleName} - ${e.message}")

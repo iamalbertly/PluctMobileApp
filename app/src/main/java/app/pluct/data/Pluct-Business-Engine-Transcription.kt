@@ -10,7 +10,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import java.util.UUID
-import app.pluct.net.PluctHttpLogger
+import app.pluct.net.PluctNetworkHttp01Logger
 
 /**
  * Pluct-Business-Engine-Transcription - Transcription functionality
@@ -20,7 +20,7 @@ class PluctBusinessEngineTranscription(
     private val baseUrl: String
 ) {
     private val httpClient = OkHttpClient.Builder()
-        .addInterceptor(PluctHttpLogger())
+        .addInterceptor(PluctNetworkHttp01Logger())
         .retryOnConnectionFailure(true)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)

@@ -12,7 +12,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import java.util.UUID
-import app.pluct.net.PluctHttpLogger
+import app.pluct.net.PluctNetworkHttp01Logger
 
 /**
  * Pluct-Business-Engine-Metadata - Metadata fetching functionality
@@ -22,7 +22,7 @@ class PluctBusinessEngineMetadata(
     private val baseUrl: String
 ) {
     private val httpClient = OkHttpClient.Builder()
-        .addInterceptor(PluctHttpLogger())
+        .addInterceptor(PluctNetworkHttp01Logger())
         .retryOnConnectionFailure(true)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)

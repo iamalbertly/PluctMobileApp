@@ -1,8 +1,8 @@
 const { execOk, execOut } = require('../core/Pluct-Test-Core-Exec');
 const { logInfo, logWarn, logSuccess, logError } = require('../core/Logger');
-const { reportCriticalError, reportStepFailure } = require('./StatusTracker');
-const Logcat = require('../core/AndroidLogcatLiveHttpStreamer');
-const UI = require('./AndroidUIValidatorAndInteractor');
+const { reportCriticalError, reportStepFailure } = require('./Pluct-Test-Core-Status');
+const Logcat = require('../core/Pluct-Node-Tests-Core-Logcat-LiveHttpStreamer');
+const UI = require('./Pluct-Node-Tests-UI-01Validator');
 const { Steps } = require('./TestStepExpectations.AndroidUI');
 
 function sleep(ms){ Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }

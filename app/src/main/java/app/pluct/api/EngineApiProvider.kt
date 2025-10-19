@@ -8,7 +8,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import app.pluct.net.PluctHttpTraceInterceptor
+import app.pluct.net.PluctNetworkHttp01Logger
 
 object EngineApiProvider {
     val instance: EngineApi by lazy {
@@ -27,7 +27,7 @@ object EngineApiProvider {
         }
         val client = OkHttpClient.Builder()
             .addInterceptor(apiKeyHeaderInterceptor)
-            .addInterceptor(PluctHttpTraceInterceptor())
+            .addInterceptor(PluctNetworkHttp01Logger())
             .build()
             
         Retrofit.Builder()

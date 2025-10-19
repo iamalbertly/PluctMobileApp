@@ -34,6 +34,19 @@ data class VideoItem(
     val status: ProcessingStatus = ProcessingStatus.PENDING,
     val processingTier: ProcessingTier, // Must be provided on creation
     val failureReason: String? = null, // To store error messages
-    val isArchived: Boolean = false // For archive functionality
+    val isArchived: Boolean = false, // For archive functionality
+    
+    // ENHANCED METADATA FIELDS
+    val creatorName: String? = null, // Full creator name
+    val creatorUsername: String? = null, // @username
+    val videoId: String? = null, // TikTok video ID
+    val duration: Long? = null, // Video duration in seconds
+    val viewCount: Long? = null, // View count
+    val likeCount: Long? = null, // Like count
+    val shareCount: Long? = null, // Share count
+    val hashtags: String? = null, // Comma-separated hashtags
+    val musicTitle: String? = null, // Music title
+    val musicArtist: String? = null, // Music artist
+    val lastUpdated: Long = System.currentTimeMillis() // Last metadata update
 )
 

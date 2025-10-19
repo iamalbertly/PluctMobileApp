@@ -82,10 +82,17 @@ private fun PluctCompactTranscriptCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        onClick = onClick,
+        onClick = {
+            android.util.Log.i("PluctCompactTranscriptCard", "🎯 TRANSCRIPT CARD CLICKED: ${video.title}")
+            onClick()
+        },
         modifier = modifier
             .width(200.dp)
-            .testTag("transcript_card")
+            .testTag("transcript_card"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(12.dp)
@@ -93,7 +100,8 @@ private fun PluctCompactTranscriptCard(
             Text(
                 text = video.title ?: "TikTok Video",
                 style = MaterialTheme.typography.titleSmall,
-                maxLines = 2
+                maxLines = 2,
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -106,24 +114,11 @@ private fun PluctCompactTranscriptCard(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Status chip
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            ) {
-                Text(
-                    text = when (video.status) {
-                        app.pluct.data.entity.ProcessingStatus.COMPLETED -> "Completed"
-                        app.pluct.data.entity.ProcessingStatus.TRANSCRIBING -> "Transcribing"
-                        app.pluct.data.entity.ProcessingStatus.ANALYZING -> "Analyzing"
-                        app.pluct.data.entity.ProcessingStatus.PENDING -> "Pending"
-                        app.pluct.data.entity.ProcessingStatus.FAILED -> "Failed"
-                        else -> "Unknown"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
+            // Status pill
+            PluctStatusPill(
+                status = video.status,
+                modifier = Modifier.testTag("status_pill")
+            )
         }
     }
 }

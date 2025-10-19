@@ -12,7 +12,7 @@ const {
 } = require('./core/Logger');
 const { execOk, execOut, which } = require('./core/Pluct-Test-Core-Exec');
 const Logcat = require('./core/Pluct-Node-Tests-Core-Logcat-LiveHttpStreamer');
-const BuildDetector = require('./modules/Pluct-Test-Core-BuildDetector');
+const BuildDetector = require('./modules/Pluct-Test-Core-Build-01Detector');
 const JourneyEngine = require('./modules/Pluct-Node-Tests-Journey-CoreUserFlowsEngine');
 const { reportCriticalError, TestSession, showTestReport } = require('./modules/Pluct-Test-Core-Status');
 const PluctUICompactLayoutTest = require('./modules/Pluct-UI-Compact-Layout-Test');
@@ -151,6 +151,14 @@ async function runScope(scope, url) {
 	const s = String(scope || '').toLowerCase();
 	switch (s) {
 		case 'core':
+			// Perform health checks before running journeys
+			const HealthChecker = require('./modules/Pluct-Node-Tests-Health-Checker');
+			const healthPassed = await HealthChecker.performHealthChecks();
+			if (!healthPassed) {
+				logError('Health checks failed - infrastructure may be down', 'Orchestrator');
+				logWarn('Skipping pipeline journey due to infrastructure issues', 'Orchestrator');
+			}
+			
 			// Run enhanced journeys with intelligent orchestration
 			const JourneyOrchestrator = require('./modules/Pluct-Node-Tests-Journey-Orchestrator');
 			const orchestrator = new JourneyOrchestrator();

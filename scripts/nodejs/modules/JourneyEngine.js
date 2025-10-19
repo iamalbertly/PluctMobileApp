@@ -1,6 +1,6 @@
 const { execOk, execOut } = require('../core/Pluct-Test-Core-Exec');
 const { logInfo, logWarn, logSuccess, logError } = require('../core/Logger');
-const { reportCriticalError, reportStepFailure } = require('./StatusTracker');
+const { reportCriticalError, reportStepFailure } = require('./Pluct-Test-Core-Status');
 const Logcat = require('../core/Logcat');
 const UI = require('./UIValidator');
 const { Steps } = require('./Steps');

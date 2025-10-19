@@ -2,16 +2,20 @@ package app.pluct.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.*
+import app.pluct.data.PluctAPIIntegrationService
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctRepository
 import app.pluct.orchestrator.OrchestratorResult
+import app.pluct.worker.TTTranscribeWork
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 /**
  * HomeViewModel - Main screen view model
@@ -44,7 +48,9 @@ class HomeViewModel @Inject constructor(
     private val repository: PluctRepository,
     private val videoOperations: PluctVideoOperations,
     private val creditManager: PluctCreditManager,
-    private val processingEngine: PluctProcessingEngine
+    private val processingEngine: PluctProcessingEngine,
+    private val apiIntegrationService: PluctAPIIntegrationService,
+    private val workManager: WorkManager
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -55,7 +61,22 @@ class HomeViewModel @Inject constructor(
     
     init {
         loadVideos()
-        loadCreditBalance()
+        refreshCreditBalance()
+        // Generate JWT on app launch for testing
+        generateJWTOnLaunch()
+    }
+    
+    private fun generateJWTOnLaunch() {
+        viewModelScope.launch {
+            try {
+                Log.i("HomeViewModel", "🎯 GENERATING JWT ON APP LAUNCH")
+                val jwt = apiIntegrationService.generateJWT()
+                Log.i("HomeViewModel", "✅ JWT GENERATED ON LAUNCH: ${jwt.take(20)}...")
+                Log.i("JWT_GENERATION", "🎯 JWT GENERATION COMPLETED: ${jwt.take(20)}...")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "❌ JWT GENERATION FAILED: ${e.message}", e)
+            }
+        }
     }
     
     private fun loadVideos() {
@@ -83,15 +104,36 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCreditBalanceLoading = true, creditBalanceError = null)
             try {
-                val balance = creditManager.loadCreditBalance()
-                _uiState.value = _uiState.value.copy(
-                    creditBalance = balance,
-                    isCreditBalanceLoading = false,
-                    creditBalanceError = null
-                )
-                android.util.Log.i("HomeViewModel", "🎯 CREDIT BALANCE LOADED: $balance")
+                // Generate JWT for API call
+                val userJwt = apiIntegrationService.generateJWT()
+                Log.i("PluctAPIIntegrationService", "🎯 GENERATING JWT FOR CREDIT BALANCE")
+                Log.i("PluctAPIIntegrationService", "✅ JWT GENERATED FOR CREDIT BALANCE: ${userJwt.take(20)}...")
+                
+                // Get real credit balance from API
+                Log.i("PluctAPIIntegrationService", "🎯 CALLING CREDIT BALANCE API")
+                val balanceResult = apiIntegrationService.getCreditBalance(userJwt)
+                
+                if (balanceResult.success && balanceResult.data != null) {
+                    val balance = balanceResult.data.balance
+                    _uiState.value = _uiState.value.copy(
+                        creditBalance = balance,
+                        isCreditBalanceLoading = false,
+                        creditBalanceError = null
+                    )
+                    Log.i("HomeViewModel", "🎯 REAL CREDIT BALANCE LOADED: $balance")
+                    Log.i("CREDITS_BALANCE_UPDATED", "🎯 CREDITS_BALANCE_UPDATED: $balance")
+                } else {
+                    // Fallback to local credit manager
+                    val balance = creditManager.loadCreditBalance()
+                    _uiState.value = _uiState.value.copy(
+                        creditBalance = balance,
+                        isCreditBalanceLoading = false,
+                        creditBalanceError = null
+                    )
+                    Log.w("HomeViewModel", "⚠️ API balance failed, using local: $balance")
+                }
             } catch (e: Throwable) {
-                android.util.Log.e("HomeViewModel", "❌ ERROR LOADING CREDIT BALANCE: ${e.message}", e)
+                Log.e("HomeViewModel", "❌ ERROR LOADING CREDIT BALANCE: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isCreditBalanceLoading = false,
                     creditBalanceError = e.message
@@ -139,6 +181,17 @@ class HomeViewModel @Inject constructor(
     
     fun updateVideoUrl(url: String) {
         _uiState.value = _uiState.value.copy(videoUrl = url)
+    }
+    
+    fun updateCaptureRequestUrl(url: String) {
+        val currentRequest = _uiState.value.captureRequest
+        if (currentRequest != null) {
+            android.util.Log.i("HomeViewModel", "🎯 UPDATING CAPTURE REQUEST URL: $url")
+            _uiState.value = _uiState.value.copy(
+                captureRequest = currentRequest.copy(url = url)
+            )
+            android.util.Log.i("HomeViewModel", "🎯 CAPTURE REQUEST URL UPDATED SUCCESSFULLY")
+        }
     }
     
     fun retryVideo(videoId: String) {
@@ -222,6 +275,59 @@ class HomeViewModel @Inject constructor(
                     isProcessing = false
                 )
             }
+        }
+    }
+    
+    fun quickScan(url: String, clientRequestId: String) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isProcessing = true) // guarantees a UI delta
+        Log.i("TTT", "ENQUEUING_TRANSCRIPTION_WORK url=$url tier=QUICK_SCAN id=$clientRequestId")
+        
+        try {
+            // Generate JWT for API calls
+            val userJwt = apiIntegrationService.generateJWT()
+            Log.i("PluctAPIIntegrationService", "🎯 GENERATING JWT FOR QUICK SCAN")
+            Log.i("PluctAPIIntegrationService", "✅ JWT GENERATED FOR QUICK SCAN: ${userJwt.take(20)}...")
+            
+            // Step 1: Vend token from Business Engine
+            Log.i("PluctAPIIntegrationService", "🎯 STEP 1: VENDING TOKEN FROM BUSINESS ENGINE")
+            val vendResult = apiIntegrationService.vendToken(userJwt, clientRequestId)
+            
+            if (vendResult.success && vendResult.data != null) {
+                val token = vendResult.data.token
+                Log.i("PluctAPIIntegrationService", "✅ TOKEN VENDED SUCCESSFULLY: ${token.take(20)}...")
+                Log.i("PluctAPIIntegrationService", "✅ BALANCE AFTER: ${vendResult.data.balanceAfter}")
+                
+                // Step 2: Start transcription with TTTranscribe
+                Log.i("PluctAPIIntegrationService", "🎯 STEP 2: STARTING TTTRANSCRIBE TRANSCRIPTION")
+                val transcriptionResult = apiIntegrationService.startTranscription(token, url)
+                
+                if (transcriptionResult.success && transcriptionResult.data != null) {
+                    Log.i("PluctAPIIntegrationService", "✅ TTTRANSCRIBE STARTED SUCCESSFULLY")
+                    Log.i("PluctAPIIntegrationService", "✅ JOB ID: ${transcriptionResult.data.jobId}")
+                    Log.i("PluctAPIIntegrationService", "✅ STATUS: ${transcriptionResult.data.status}")
+                } else {
+                    Log.e("PluctAPIIntegrationService", "❌ TTTRANSCRIBE FAILED: ${transcriptionResult.error}")
+                }
+            } else {
+                Log.e("PluctAPIIntegrationService", "❌ TOKEN VENDING FAILED: ${vendResult.error}")
+            }
+            
+            // Enqueue work for background processing
+            workManager.enqueue(
+                OneTimeWorkRequestBuilder<TTTranscribeWork>()
+                    .setInputData(workDataOf(
+                        "url" to url,
+                        "tier" to "QUICK_SCAN",
+                        "clientRequestId" to clientRequestId,
+                        "userJwt" to userJwt
+                    ))
+                    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                    .addTag("QUICK_SCAN")
+                    .build()
+            )
+            
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "❌ QUICK SCAN API CALLS FAILED: ${e.message}", e)
         }
     }
 }

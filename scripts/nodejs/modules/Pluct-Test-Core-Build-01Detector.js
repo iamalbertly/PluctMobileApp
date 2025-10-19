@@ -3,6 +3,11 @@ const path = require('path');
 const { execOut, fileExists } = require('../core/Pluct-Test-Core-Exec');
 const { TestSession } = require('./Pluct-Test-Core-Status');
 
+/**
+ * Consolidated build detector for Pluct tests
+ * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[increment][CoreResponsibility]
+ */
+
 function listChangedFiles() {
     const out = execOut('git status --porcelain');
     return out
@@ -29,5 +34,3 @@ function isBuildRequired(forceBuild) {
 }
 
 module.exports = { isBuildRequired, fileExists };
-
-

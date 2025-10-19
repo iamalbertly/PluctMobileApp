@@ -35,7 +35,8 @@ import kotlinx.coroutines.delay
 fun CaptureInsightSheet(
     captureRequest: CaptureRequest,
     onDismiss: () -> Unit,
-    onTierSelected: (ProcessingTier) -> Unit,
+    onTierSelected: (ProcessingTier, String?) -> Unit,
+    onUrlChange: (String) -> Unit,
     @Suppress("UNUSED_PARAMETER") viewModel: HomeViewModel
 ) {
     // Debug logging
@@ -95,64 +96,19 @@ fun CaptureInsightSheet(
             
             Spacer(modifier = Modifier.height(20.dp))
             
-            // Modern content preview with gradient
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    // Creator info with modern styling
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "Video",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "@${extractCreatorFromUrl(captureRequest.url)}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Caption with modern typography
-                    if (!captureRequest.caption.isNullOrEmpty()) {
-                        Text(
-                            text = captureRequest.caption,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2
-                        )
-                    } else {
-                        Text(
-                            text = "No caption available",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        )
-                    }
-                }
-            }
+            // URL input field (moved from Home screen)
+            PluctCompactUrlBox(
+                value = captureRequest.url,
+                onValueChange = onUrlChange,
+                modifier = Modifier.fillMaxWidth()
+            )
             
             Spacer(modifier = Modifier.height(28.dp))
             
             // Modern tier selection with enhanced design
             PluctCaptureTierSelection(
                 url = captureRequest.url,
-                credits = 1, // TODO: Get actual credits from viewModel
+                credits = 10, // TODO: Get actual credits from viewModel
                 onTierSelected = onTierSelected
             )
         }

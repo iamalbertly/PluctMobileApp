@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import app.pluct.R
 import app.pluct.ui.components.ApiKeyBanner
-import app.pluct.ui.components.ModernBottomNavigation
 import app.pluct.ui.navigation.Screen
 import app.pluct.ui.utils.ProviderSettings
 import app.pluct.ui.utils.TranscriptProvider
@@ -65,9 +64,6 @@ fun SettingsScreen(navController: NavController) {
                 }
             )
         },
-        bottomBar = {
-            ModernBottomNavigation(navController = navController)
-        }
     ) { paddingValues ->
         Column(
             modifier = Modifier

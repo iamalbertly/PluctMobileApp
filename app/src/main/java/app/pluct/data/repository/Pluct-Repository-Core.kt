@@ -11,6 +11,7 @@ import app.pluct.data.entity.Transcript
 import android.util.Log
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.service.VideoMetadataService
+import app.pluct.data.service.VideoMetadataExtractor
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import javax.inject.Inject
@@ -21,7 +22,8 @@ class PluctRepository @Inject constructor(
     private val videoItemDao: VideoItemDao,
     private val transcriptDao: TranscriptDao,
     private val outputArtifactDao: OutputArtifactDao,
-    private val metadataService: VideoMetadataService
+    private val metadataService: VideoMetadataService,
+    private val metadataExtractor: VideoMetadataExtractor
 ) {
     // Video operations
     fun streamAll(): Flow<List<VideoItem>> = videoItemDao.streamAll()
@@ -47,16 +49,28 @@ class PluctRepository @Inject constructor(
     }
     
     suspend fun createVideoWithTier(url: String, processingTier: ProcessingTier): String {
-        // Fetch enhanced metadata for the video
-        val metadata = metadataService.fetchVideoMetadata(url)
+        // Fetch enhanced metadata for the video using the advanced extractor
+        val metadataJson = metadataExtractor.extractVideoMetadata(url)
+        val metadata = try {
+            org.json.JSONObject(metadataJson)
+        } catch (e: Exception) {
+            android.util.Log.w("PluctRepository", "Failed to parse metadata JSON: ${e.message}")
+            org.json.JSONObject()
+        }
+        
+        val title = metadata.optString("title", "TikTok Video")
+        val author = metadata.optString("author", "TikTok Creator")
+        val description = metadata.optString("description", "Shared from TikTok")
+        
+        android.util.Log.i("PluctRepository", "🎯 EXTRACTED METADATA: title='$title', author='$author', description='$description'")
         
         val video = VideoItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = url,
-            title = metadata?.title ?: "TikTok Video",
-            description = metadata?.description ?: "Shared from TikTok",
-            author = metadata?.author ?: "TikTok Creator",
-            thumbnailUrl = metadata?.thumbnailUrl,
+            title = title,
+            description = description,
+            author = author,
+            thumbnailUrl = null, // Will be extracted if available
             processingTier = processingTier,
             status = ProcessingStatus.PENDING
         )

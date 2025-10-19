@@ -85,7 +85,7 @@ function showTestReport(overallSuccess) {
         for (const e of TestSession.CriticalErrors) logError(` - ${e.type}: ${e.message}`, 'Report');
     }
     try {
-        const counters = require('./Pluct-Node-Tests-UI-AndroidValidatorAndInteractor').selectorCoverageCounters;
+        const counters = require('./Pluct-Node-Tests-UI-01Validator').selectorCoverageCounters;
         if (counters) {
             logInfo(`Selector coverage: id=${counters.resourceIdMatches||0} desc=${counters.contentDescMatches||0} text=${counters.textMatches||0} class=${counters.classMatches||0}`, 'Report');
         }

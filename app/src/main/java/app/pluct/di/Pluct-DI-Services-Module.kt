@@ -17,6 +17,7 @@ import app.pluct.status.PluctStatusTrackingManager
 import app.pluct.api.PluctCoreApiService
 import app.pluct.api.PluctTTTranscribeService
 import app.pluct.data.dao.UserCoinsDao
+import androidx.work.WorkManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -137,5 +138,13 @@ object PluctDIServicesModule {
         @ApplicationContext context: Context
     ): PluctStatusTrackingManager {
         return PluctStatusTrackingManager(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideWorkManager(
+        @ApplicationContext context: Context
+    ): WorkManager {
+        return WorkManager.getInstance(context)
     }
 }
