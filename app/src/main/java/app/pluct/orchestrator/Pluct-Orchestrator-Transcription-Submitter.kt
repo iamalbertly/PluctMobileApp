@@ -1,6 +1,6 @@
 package app.pluct.orchestrator
 
-import app.pluct.data.BusinessEngineClient
+import app.pluct.data.PluctBusinessEngineUnifiedClientNew
 import app.pluct.orchestrator.OrchestratorResult
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,7 +11,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PluctOrchestratorTranscriptionSubmitter @Inject constructor(
-    private val businessEngineClient: BusinessEngineClient
+    private val businessEngineClient: PluctBusinessEngineUnifiedClientNew
 ) {
     
     /**

@@ -21,7 +21,7 @@
         tools:targetApi="31">
         
         <activity
-            android:name=".MainActivity"
+            android:name=".PluctUIMain01ActivitySimple"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.Pluct"
@@ -36,7 +36,23 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="pluct" android:host="ingest" />
             </intent-filter>
+            <!-- Debug deep link for error testing -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pluct" android:host="debug" android:path="/error" />
+            </intent-filter>
         </activity>
+        
+        <!-- Debug broadcast receiver for error testing -->
+        <receiver
+            android:name=".debug.ErrorTriggerReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="app.pluct.action.TRIGGER_ERROR" />
+            </intent-filter>
+        </receiver>
         
         <!-- Share activity for handling ACTION_SEND intents -->
         <activity

@@ -3,7 +3,7 @@ package app.pluct.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.pluct.data.manager.UserManager
-import app.pluct.data.BusinessEngineClient
+import app.pluct.data.PluctBusinessEngineUnifiedClientNew
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -13,7 +13,7 @@ import javax.inject.Inject
  */
 class PluctCreditManager @Inject constructor(
     private val userManager: UserManager,
-    private val businessEngineClient: BusinessEngineClient
+    private val businessEngineClient: PluctBusinessEngineUnifiedClientNew
 ) {
     
     /**

@@ -32,6 +32,23 @@ class PluctRepository @Inject constructor(
     
     suspend fun updateVideo(video: VideoItem) = videoItemDao.updateVideo(video)
     
+    suspend fun updateVideoMetadata(videoId: String, title: String, description: String, author: String) {
+        try {
+            val video = getVideoById(videoId)
+            if (video != null) {
+                val updatedVideo = video.copy(
+                    title = title,
+                    description = description,
+                    author = author
+                )
+                videoItemDao.updateVideo(updatedVideo)
+                Log.d("PluctRepository", "✅ Updated metadata for video: $videoId")
+            }
+        } catch (e: Exception) {
+            Log.e("PluctRepository", "❌ Failed to update metadata for video: $videoId", e)
+        }
+    }
+    
     suspend fun upsertVideo(url: String): String {
         // Fetch metadata for the video
         val metadata = metadataService.fetchVideoMetadata(url)

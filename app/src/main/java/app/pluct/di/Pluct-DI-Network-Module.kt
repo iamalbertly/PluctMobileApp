@@ -5,6 +5,7 @@ import app.pluct.api.PluctTTTranscribeAuthenticator
 import app.pluct.api.PluctTTTranscribeService
 import app.pluct.config.AppConfig
 import app.pluct.status.PluctStatusTrackingManager
+import app.pluct.net.PluctErrorInterceptor
 import android.util.Log
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -29,7 +30,7 @@ object PluctDINetworkModule {
     
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(errorInterceptor: PluctErrorInterceptor): OkHttpClient {
         val apiKeyHeaderInterceptor = Interceptor { chain ->
             val original = chain.request()
             val builder = original.newBuilder()
@@ -64,6 +65,7 @@ object PluctDINetworkModule {
             .addInterceptor(apiKeyHeaderInterceptor)
             .addInterceptor(loggingInterceptor)
             .addInterceptor(debugInterceptor)
+            .addInterceptor(errorInterceptor)
             .build()
     }
 

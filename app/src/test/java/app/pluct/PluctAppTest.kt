@@ -1,12 +1,9 @@
 package app.pluct
 
 import app.pluct.data.entity.VideoItem
+import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.repository.PluctRepository
 import app.pluct.data.service.VideoMetadataService
-import app.pluct.share.PluctShareIngestActivity
-import app.pluct.ui.components.ScriptTokAuditWebView
-import app.pluct.viewmodel.HomeViewModel
-import app.pluct.viewmodel.IngestViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -29,19 +26,11 @@ class PluctAppTest {
     private lateinit var mockRepository: PluctRepository
     private lateinit var mockMetadataService: VideoMetadataService
 
-    private lateinit var homeViewModel: HomeViewModel
-    private lateinit var ingestViewModel: IngestViewModel
-
     @Before
     fun setup() {
         // Initialize mocks
         mockRepository = mock(PluctRepository::class.java)
         mockMetadataService = mock(VideoMetadataService::class.java)
-        
-        // Initialize view models
-        homeViewModel = HomeViewModel(mockRepository, mockMetadataService)
-        // Note: IngestViewModel constructor needs SavedStateHandle in real implementation
-        // For testing purposes, we'll skip initializing it as it's not used in tests
     }
 
     @Test
@@ -77,6 +66,7 @@ class PluctAppTest {
             id = "test-id",
             sourceUrl = videoUrl,
             title = "Test Video",
+            processingTier = ProcessingTier.QUICK_SCAN,
             createdAt = System.currentTimeMillis()
         )
 
@@ -95,11 +85,11 @@ class PluctAppTest {
         val transcriptText = "This is a test transcript from the video content."
         
         // Test transcript saving
-        doNothing().`when`(mockRepository).saveTranscript(videoId, transcriptText, "en")
+        doNothing().`when`(mockRepository).saveTranscript(videoId, transcriptText)
         
-        mockRepository.saveTranscript(videoId, transcriptText, "en")
+        mockRepository.saveTranscript(videoId, transcriptText)
         
-        verify(mockRepository, times(1)).saveTranscript(videoId, transcriptText, "en")
+        verify(mockRepository, times(1)).saveTranscript(videoId, transcriptText)
     }
 
     @Test
@@ -136,6 +126,7 @@ class PluctAppTest {
                 sourceUrl = "https://vm.tiktok.com/ZMAF56hjK//",
                 title = "Test Video 1",
                 author = "testuser1",
+                processingTier = ProcessingTier.QUICK_SCAN,
                 createdAt = System.currentTimeMillis()
             ),
             VideoItem(
@@ -143,6 +134,7 @@ class PluctAppTest {
                 sourceUrl = "https://vm.tiktok.com/ABC123/",
                 title = "Test Video 2",
                 author = "testuser2",
+                processingTier = ProcessingTier.AI_ANALYSIS,
                 createdAt = System.currentTimeMillis() - 1000
             )
         )

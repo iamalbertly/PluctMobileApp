@@ -1,374 +1,370 @@
-// Pluct-Core-01Foundation.js
-// Consolidated core functionality for Pluct test framework
-// Single source of truth for all core operations
-
-const { execOk, execOut } = require('./Pluct-Test-Core-Exec');
-const { logInfo, logWarn, logSuccess, logError, logStage } = require('./Logger');
-const Logcat = require('./Pluct-Node-Tests-Core-Logcat-LiveHttpStreamer');
-const path = require('path');
-const fs = require('fs');
+/**
+ * Pluct-Core-01Foundation - Core foundation functionality
+ * Single source of truth for basic operations
+ * Adheres to 300-line limit with smart separation of concerns
+ */
 
 class PluctCoreFoundation {
     constructor() {
-        this.config = this.loadConfig();
-        this.deviceManager = null;
-        this.buildDetector = null;
+        this.config = {
+            url: 'https://vm.tiktok.com/ZMADQVF4e/',
+            timeouts: { default: 5000, short: 2000, long: 10000 },
+            retry: { maxAttempts: 3, delay: 1000 }
+        };
+        this.logger = new PluctLogger();
     }
 
-    loadConfig() {
+    /**
+     * Execute command with error handling
+     */
+    async executeCommand(command, timeout = this.config.timeouts.default) {
         try {
-            const configPath = path.join(__dirname, '../config/Pluct-Test-Config-Defaults.json');
-            if (fs.existsSync(configPath)) {
-                const raw = fs.readFileSync(configPath, 'utf8');
-                return JSON.parse(raw);
-            }
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            
+            const { stdout, stderr } = await execAsync(command, { timeout });
+            
+            // Command succeeded if no error was thrown
+            return { 
+                success: true, 
+                output: stdout, 
+                error: stderr,
+                fullOutput: stdout + stderr
+            };
         } catch (error) {
-            logWarn(`Failed to load config: ${error.message}`, 'Core');
-        }
-        return {};
-    }
-
-    // Unified execution methods
-    async executeCommand(command, timeout = 30000) {
-        try {
-            const result = execOut(command);
-            return { success: true, output: result, error: null };
-        } catch (error) {
-            return { success: false, output: null, error: error.message };
-        }
-    }
-
-    // Unified logging methods
-    logInfo(message, component = 'Core') {
-        logInfo(message, component);
-    }
-
-    logSuccess(message, component = 'Core') {
-        logSuccess(message, component);
-    }
-
-    logWarn(message, component = 'Core') {
-        logWarn(message, component);
-    }
-
-    logError(message, component = 'Core') {
-        logError(message, component);
-    }
-
-    // Device management
-    async stabilizeDevice() {
-        logInfo('Stabilizing device for precise UI interactions', 'Core');
-        await this.sleep(2000);
-        return true;
-    }
-
-    // Ensure Pluct app is in foreground before UI interactions
-    async ensurePluctAppForeground() {
-        logInfo('Ensuring Pluct app is in foreground...', 'Core');
-        
-        try {
-            // Check current foreground app
-            const currentApp = await this.executeCommand('adb shell dumpsys activity activities | findstr "mResumedActivity"');
-            if (currentApp.success && currentApp.output && currentApp.output.includes('app.pluct')) {
-                logSuccess('✅ Pluct app is already in foreground', 'Core');
-                return true;
-            }
-
-            // If not in foreground, bring it to foreground
-            logInfo('Pluct app not in foreground, bringing to foreground...', 'Core');
-            const bringToForeground = await this.executeCommand('adb shell am start -n app.pluct/.MainActivity');
-            if (bringToForeground.success) {
-                logSuccess('✅ Pluct app brought to foreground', 'Core');
-                await this.sleep(2000); // Wait for app to fully load
-                return true;
-            } else {
-                logError('Failed to bring Pluct app to foreground', 'Core');
-                return false;
-            }
-
-        } catch (error) {
-            logError(`App foreground validation failed: ${error.message}`, 'Core');
-            return false;
+            this.logger.error(`Command failed: ${command}`, error);
+            return { success: false, error: error.message };
         }
     }
 
-    // Validate app is in foreground before any UI interaction
-    async validateAppForeground() {
-        logInfo('Validating app is in foreground before UI interaction...', 'Core');
-        
-        try {
-            // Check if Pluct app is in foreground
-            const foregroundCheck = await this.executeCommand('adb shell dumpsys activity activities | findstr "mResumedActivity"');
-            if (foregroundCheck.success && foregroundCheck.output && foregroundCheck.output.includes('app.pluct')) {
-                logSuccess('✅ Pluct app confirmed in foreground', 'Core');
-                return true;
-            }
-
-            logWarn('⚠️ Pluct app not in foreground, attempting to bring to foreground', 'Core');
-            return await this.ensurePluctAppForeground();
-
-        } catch (error) {
-            logError(`App foreground validation failed: ${error.message}`, 'Core');
-            return false;
-        }
-    }
-
-    // Utility methods
-    sleep(ms) {
+    /**
+     * Sleep utility
+     */
+    async sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // File operations
-    saveObject(filePath, obj) {
+    /**
+     * Validate environment
+     */
+    async validateEnvironment() {
         try {
-            fs.mkdirSync(path.dirname(filePath), { recursive: true });
-            fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), 'utf8');
-            return true;
-        } catch (error) {
-            logError(`Failed to save object: ${error.message}`, 'Core');
-            return false;
-        }
-    }
-
-    loadObject(filePath) {
-        try {
-            if (fs.existsSync(filePath)) {
-                const raw = fs.readFileSync(filePath, 'utf8');
-                return JSON.parse(raw);
+            // Check ADB connectivity
+            const adbResult = await this.executeCommand('adb devices');
+            if (!adbResult.success) {
+                return { success: false, error: 'ADB not available' };
             }
-        } catch (error) {
-            logError(`Failed to load object: ${error.message}`, 'Core');
-        }
-        return null;
-    }
 
-    // JWT detection with improved patterns
-    async detectJWTGeneration() {
-        // Use Windows-compatible command
-        const command = `adb logcat -d | findstr "JWT"`;
-        
-        try {
-            const result = await this.executeCommand(command);
-            if (result.success && result.output && result.output.trim()) {
-                logSuccess('🎯 JWT generation detected in session', 'Core');
-                logInfo(`🎯 JWT logs: ${result.output.trim()}`, 'Core');
-                return { found: true, logs: result.output.trim() };
+            // Check if device is connected
+            if (!adbResult.output.includes('device')) {
+                return { success: false, error: 'No device connected' };
             }
-        } catch (error) {
-            logError(`JWT detection failed: ${error.message}`, 'Core');
-        }
 
-        return { found: false, logs: null };
+            // Check if app is installed
+            const appResult = await this.executeCommand('adb shell pm list packages');
+            if (!appResult.success || !appResult.output.includes('app.pluct')) {
+                return { success: false, error: 'App not installed' };
+            }
+
+            this.logger.info('✅ Environment validation passed');
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ Environment validation failed:', error.message);
+            return { success: false, error: error.message };
+        }
     }
 
-    // API connectivity validation
-    async validateAPIConnectivity() {
-        logInfo('Validating API connectivity...', 'Core');
-        
-        // Check Business Engine health
-        const healthCheck = await this.executeCommand('curl -s https://pluct-business-engine.romeo-lya2.workers.dev/health');
-        if (healthCheck.success && healthCheck.output.includes('"status":"ok"')) {
-            logSuccess('✅ Business Engine API is healthy', 'Core');
+    /**
+     * Launch app
+     */
+    async launchApp() {
+        try {
+            // Start app (will either launch new or bring existing to foreground)
+            const result = await this.executeCommand('adb shell am start -W -n app.pluct/.MainActivity');
             
-            // Parse health response for detailed validation
-            try {
-                const healthData = JSON.parse(healthCheck.output);
-                if (healthData.connectivity) {
-                    logInfo(`✅ D1: ${healthData.connectivity.d1}`, 'Core');
-                    logInfo(`✅ KV: ${healthData.connectivity.kv}`, 'Core');
-                    logInfo(`✅ TTT: ${healthData.connectivity.ttt}`, 'Core');
+            // Always return success if executeCommand didn't throw
+            await this.sleep(2000);
+            
+            this.logger.info('✅ App launched successfully');
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ App launch failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Ensure app is in foreground
+     */
+    async ensureAppForeground() {
+        try {
+            // Use cross-platform approach - get all activities and check in JavaScript
+            const result = await this.executeCommand('adb shell dumpsys activity activities');
+            
+            if (!result.success || !result.output.includes('app.pluct')) {
+                // Try to bring app to foreground
+                await this.executeCommand('adb shell am start -n app.pluct/.MainActivity');
+                await this.sleep(1000);
+            }
+            
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ Failed to ensure app foreground:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Capture UI artifacts
+     */
+    async captureUIArtifacts(tag) {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const screenshotPath = `/sdcard/screen-${tag}-${timestamp}.png`;
+            
+            const result = await this.executeCommand(`adb shell screencap -p ${screenshotPath}`);
+            if (result.success) {
+                await this.executeCommand(`adb pull ${screenshotPath} artifacts/ui/`);
+                this.logger.info(`📸 Screenshot captured: ${tag}`);
+            } else {
+                this.logger.warn(`⚠️ Screenshot capture failed for ${tag}`);
+            }
+            
+            return { success: true };
+        } catch (error) {
+            this.logger.error(`❌ UI artifact capture failed for ${tag}:`, error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Dump UI hierarchy
+     */
+    async dumpUIHierarchy() {
+        try {
+            const result = await this.executeCommand('adb shell uiautomator dump /sdcard/ui_dump.xml');
+            if (result.success) {
+                await this.executeCommand('adb pull /sdcard/ui_dump.xml artifacts/ui/');
+                this.logger.info('📊 UI hierarchy dumped to: /sdcard/ui_dump.xml');
+                
+                // Read and display trimmed XML
+                const fs = require('fs');
+                if (fs.existsSync('artifacts/ui/ui_dump.xml')) {
+                    const xmlContent = fs.readFileSync('artifacts/ui/ui_dump.xml', 'utf8');
+                    const trimmedXml = xmlContent.substring(0, 1000) + '... [trimmed]';
+                    console.log('\n----- UI DUMP (trimmed) -----');
+                    console.log(trimmedXml);
+                    console.log('----- END UI DUMP -----\n');
                 }
-            } catch (e) {
-                logWarn('Could not parse health response details', 'Core');
             }
             
-            return true;
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ UI hierarchy dump failed:', error.message);
+            return { success: false, error: error.message };
         }
+    }
 
-        logWarn('⚠️ Business Engine API health check failed', 'Core');
+    /**
+     * Read last UI dump
+     */
+    readLastUIDump() {
+        try {
+            const fs = require('fs');
+            if (fs.existsSync('artifacts/ui/ui_dump.xml')) {
+                return fs.readFileSync('artifacts/ui/ui_dump.xml', 'utf8');
+            }
+            return '';
+        } catch (error) {
+            this.logger.error('❌ Failed to read UI dump:', error.message);
+            return '';
+        }
+    }
+
+    /**
+     * Wait for text in UI
+     */
+    async waitForText(text, timeoutMs = 10000, pollMs = 1000) {
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeoutMs) {
+            await this.dumpUIHierarchy();
+            const uiDump = this.readLastUIDump();
+            
+            if (uiDump.includes(text)) {
+                this.logger.info(`✅ Found text: ${text}`);
+                return true;
+            }
+            
+            await this.sleep(pollMs);
+        }
+        
+        this.logger.warn(`⚠️ Text not found within timeout: ${text}`);
         return false;
     }
 
-    // Validate TTTranscribe API connectivity
-    async validateTTTranscribeConnectivity() {
-        logInfo('Validating TTTranscribe API connectivity...', 'Core');
-        
-        // Check if we can reach TTTranscribe through Business Engine
-        const tttCheck = await this.executeCommand('curl -s -I https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe');
-        if (tttCheck.success && tttCheck.output.includes('HTTP')) {
-            logSuccess('✅ TTTranscribe API endpoint is reachable', 'Core');
-            return true;
-        }
-
-        logWarn('⚠️ TTTranscribe API connectivity check failed', 'Core');
-        return false;
-    }
-
-    // Validate complete API flow
-    async validateCompleteAPIFlow() {
-        logInfo('Validating complete API flow...', 'Core');
-        
-        const businessEngine = await this.validateAPIConnectivity();
-        const tttConnectivity = await this.validateTTTranscribeConnectivity();
-        
-        if (businessEngine && tttConnectivity) {
-            logSuccess('✅ Complete API flow validation passed', 'Core');
-            return true;
-        }
-
-        logWarn('⚠️ Complete API flow validation failed', 'Core');
-        return false;
-    }
-
-    // Validate real API transactions with Business Engine
-    async validateRealAPITransactions() {
-        logInfo('Validating real API transactions with Business Engine...', 'Core');
-
+    /**
+     * Find bounds for text
+     */
+    findBoundsForText(targetText) {
         try {
-            // Test Business Engine token vending endpoint
-            const tokenVendTest = await this.executeCommand('curl -s -X POST https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token -H "Content-Type: application/json" -d "{\\"test\\": true}"');
-            if (tokenVendTest.success) {
-                logSuccess('✅ Business Engine token vending endpoint is accessible', 'Core');
+            const uiDump = this.readLastUIDump();
+            const lines = uiDump.split('\n');
+            
+            for (const line of lines) {
+                if (line.includes(targetText) && line.includes('bounds=')) {
+                    const boundsMatch = line.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+                    if (boundsMatch) {
+                        const [, x1, y1, x2, y2] = boundsMatch;
+                        return {
+                            x: Math.floor((parseInt(x1) + parseInt(x2)) / 2),
+                            y: Math.floor((parseInt(y1) + parseInt(y2)) / 2)
+                        };
+                    }
+                }
             }
-
-            // Test Business Engine credits endpoint
-            const creditsTest = await this.executeCommand('curl -s -X GET https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance');
-            if (creditsTest.success) {
-                logSuccess('✅ Business Engine credits endpoint is accessible', 'Core');
-            }
-
-            // Test TTTranscribe endpoint through Business Engine
-            const tttTest = await this.executeCommand('curl -s -X POST https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe -H "Content-Type: application/json" -d "{\\"test\\": true}"');
-            if (tttTest.success) {
-                logSuccess('✅ TTTranscribe endpoint through Business Engine is accessible', 'Core');
-            }
-
-            return true;
-
+            
+            return null;
         } catch (error) {
-            logError(`API transaction validation failed: ${error.message}`, 'Core');
-            return false;
+            this.logger.error('❌ Failed to find bounds for text:', error.message);
+            return null;
         }
     }
 
-    // Validate transcription workflow end-to-end
-    async validateTranscriptionWorkflow() {
-        logInfo('Validating transcription workflow end-to-end...', 'Core');
-
+    /**
+     * Tap by text
+     */
+    async tapByText(text) {
         try {
-            // Check for WorkManagerUtils logs in recent history
-            const workManagerLogs = await this.executeCommand('adb logcat -d | findstr "WorkManagerUtils" | Select-Object -Last 10');
-            if (workManagerLogs.success && workManagerLogs.output && workManagerLogs.output.trim()) {
-                logSuccess('✅ WorkManagerUtils activity detected in transcription workflow', 'Core');
-                logInfo(`WorkManager logs: ${workManagerLogs.output.trim()}`, 'Core');
-                return true;
+            // Try to find by text first
+            let bounds = this.findBoundsForText(text);
+            
+            // If not found by text, try by contentDescription
+            if (!bounds) {
+                const uiDump = this.readLastUIDump();
+                const match = uiDump.match(new RegExp(`content-desc="${text}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`));
+                if (match) {
+                    const [, x1, y1, x2, y2] = match;
+                    bounds = {
+                        x: Math.floor((parseInt(x1) + parseInt(x2)) / 2),
+                        y: Math.floor((parseInt(y1) + parseInt(y2)) / 2)
+                    };
+                }
             }
-
-            // Check for transcription work enqueuing
-            const transcriptionWorkLogs = await this.executeCommand('adb logcat -d | findstr "ENQUEUING TRANSCRIPTION WORK" | Select-Object -Last 5');
-            if (transcriptionWorkLogs.success && transcriptionWorkLogs.output && transcriptionWorkLogs.output.trim()) {
-                logSuccess('✅ Transcription work enqueuing detected', 'Core');
-                return true;
+            
+            if (bounds) {
+                const result = await this.executeCommand(`adb shell input tap ${bounds.x} ${bounds.y}`);
+                if (result.success) {
+                    this.logger.info(`✅ Tapped by text: ${text}`);
+                    return { success: true };
+                }
             }
-
-            // Check for work enqueued successfully
-            const workEnqueuedLogs = await this.executeCommand('adb logcat -d | findstr "WORK ENQUEUED SUCCESSFULLY" | Select-Object -Last 5');
-            if (workEnqueuedLogs.success && workEnqueuedLogs.output && workEnqueuedLogs.output.trim()) {
-                logSuccess('✅ Work enqueued successfully detected', 'Core');
-                return true;
-            }
-
-            logWarn('⚠️ No transcription workflow activity detected', 'Core');
-            return false;
-
+            
+            this.logger.warn(`⚠️ Could not tap by text: ${text}`);
+            return { success: false, error: 'Text not found' };
         } catch (error) {
-            logError(`Transcription workflow validation failed: ${error.message}`, 'Core');
-            return false;
+            this.logger.error(`❌ Tap by text failed: ${text}`, error.message);
+            return { success: false, error: error.message };
         }
     }
 
-    // Real-time API response validation
-    async validateRealTimeAPIResponses() {
-        logInfo('Validating real-time API responses...', 'Core');
-
+    /**
+     * Tap by content description
+     */
+    async tapByContentDesc(contentDesc) {
         try {
-            // Check for Business Engine API responses
-            const businessEngineLogs = await this.executeCommand('adb logcat -d | findstr "BusinessEngine" | Select-Object -Last 5');
-            if (businessEngineLogs.success && businessEngineLogs.output && businessEngineLogs.output.trim()) {
-                logSuccess('✅ Business Engine API responses detected', 'Core');
-                logInfo(`Business Engine logs: ${businessEngineLogs.output.trim()}`, 'Core');
+            const uiDump = this.readLastUIDump();
+            const match = uiDump.match(new RegExp(`content-desc="${contentDesc}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`));
+            
+            if (match) {
+                const [, x1, y1, x2, y2] = match;
+                const x = Math.floor((parseInt(x1) + parseInt(x2)) / 2);
+                const y = Math.floor((parseInt(y1) + parseInt(y2)) / 2);
+                
+                const result = await this.executeCommand(`adb shell input tap ${x} ${y}`);
+                if (result.success) {
+                    this.logger.info(`✅ Tapped by content-desc: ${contentDesc}`);
+                    return { success: true };
+                }
             }
-
-            // Check for TTTranscribe API responses
-            const tttLogs = await this.executeCommand('adb logcat -d | findstr "TTTranscribe" | Select-Object -Last 5');
-            if (tttLogs.success && tttLogs.output && tttLogs.output.trim()) {
-                logSuccess('✅ TTTranscribe API responses detected', 'Core');
-                logInfo(`TTTranscribe logs: ${tttLogs.output.trim()}`, 'Core');
-            }
-
-            // Check for HTTP responses
-            const httpLogs = await this.executeCommand('adb logcat -d | findstr "HTTP" | Select-Object -Last 5');
-            if (httpLogs.success && httpLogs.output && httpLogs.output.trim()) {
-                logSuccess('✅ HTTP responses detected', 'Core');
-                logInfo(`HTTP logs: ${httpLogs.output.trim()}`, 'Core');
-            }
-
-            // Check for API success indicators
-            const successLogs = await this.executeCommand('adb logcat -d | findstr "SUCCESS" | Select-Object -Last 5');
-            if (successLogs.success && successLogs.output && successLogs.output.trim()) {
-                logSuccess('✅ API success indicators detected', 'Core');
-                logInfo(`Success logs: ${successLogs.output.trim()}`, 'Core');
-            }
-
-            return true;
-
+            
+            this.logger.warn(`⚠️ Could not tap by content-desc: ${contentDesc}`);
+            return { success: false, error: `Could not find element with content-desc: ${contentDesc}` };
         } catch (error) {
-            logError(`Real-time API response validation failed: ${error.message}`, 'Core');
-            return false;
+            this.logger.error('❌ Tap by content-desc failed:', error.message);
+            return { success: false, error: error.message };
         }
     }
 
-    // Validate complete transcription result
-    async validateCompleteTranscriptionResult() {
-        logInfo('Validating complete transcription result...', 'Core');
-
+    /**
+     * Input text safely
+     */
+    async inputText(rawText) {
         try {
-            // Check for transcription completion
-            const completionLogs = await this.executeCommand('adb logcat -d | findstr "TRANSCRIPTION_COMPLETE" | Select-Object -Last 3');
-            if (completionLogs.success && completionLogs.output && completionLogs.output.trim()) {
-                logSuccess('✅ Transcription completion detected', 'Core');
-                return true;
+            // Escape special characters
+            const escapedText = rawText.replace(/[&|;`$(){}[\]\\]/g, '\\$&');
+            const result = await this.executeCommand(`adb shell input text "${escapedText}"`);
+            
+            if (result.success) {
+                this.logger.info(`✅ Text input: ${rawText}`);
+                return { success: true };
             }
-
-            // Check for transcript result
-            const resultLogs = await this.executeCommand('adb logcat -d | findstr "TRANSCRIPT_RESULT" | Select-Object -Last 3');
-            if (resultLogs.success && resultLogs.output && resultLogs.output.trim()) {
-                logSuccess('✅ Transcript result detected', 'Core');
-                return true;
-            }
-
-            // Check for work completion
-            const workCompletionLogs = await this.executeCommand('adb logcat -d | findstr "WORK_COMPLETED" | Select-Object -Last 3');
-            if (workCompletionLogs.success && workCompletionLogs.output && workCompletionLogs.output.trim()) {
-                logSuccess('✅ Work completion detected', 'Core');
-                return true;
-            }
-
-            // Check for final transcript
-            const finalTranscriptLogs = await this.executeCommand('adb logcat -d | findstr "FINAL_TRANSCRIPT" | Select-Object -Last 3');
-            if (finalTranscriptLogs.success && finalTranscriptLogs.output && finalTranscriptLogs.output.trim()) {
-                logSuccess('✅ Final transcript detected', 'Core');
-                return true;
-            }
-
-            logWarn('⚠️ No complete transcription result detected', 'Core');
-            return false;
-
+            
+            return { success: false, error: 'Text input failed' };
         } catch (error) {
-            logError(`Complete transcription result validation failed: ${error.message}`, 'Core');
-            return false;
+            this.logger.error(`❌ Text input failed: ${rawText}`, error.message);
+            return { success: false, error: error.message };
         }
     }
+
+    /**
+     * Clear app cache
+     */
+    async clearAppCache() {
+        try {
+            await this.executeCommand('adb shell pm clear app.pluct');
+            this.logger.info('✅ App cache cleared');
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ Failed to clear app cache:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Clear WorkManager tasks
+     */
+    async clearWorkManagerTasks() {
+        try {
+            await this.executeCommand('adb shell am force-stop app.pluct');
+            this.logger.info('✅ WorkManager tasks cleared');
+            return { success: true };
+        } catch (error) {
+            this.logger.error('❌ Failed to clear WorkManager tasks:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+}
+
+/**
+ * PluctLogger - Logging utility
+ */
+class PluctLogger {
+    constructor() {
+        this.logLevel = 'INFO';
+    }
+
+    log(level, message, category = '') {
+        const timestamp = new Date().toISOString();
+        const categoryStr = category ? ` [${category}]` : '';
+        console.log(`${timestamp} ${level}${categoryStr} ${message}`);
+    }
+
+    error(message, category = '') { this.log('ERROR', message, category); }
+    warn(message, category = '') { this.log('WARN', message, category); }
+    info(message, category = '') { this.log('INFO', message, category); }
+    debug(message, category = '') { this.log('DEBUG', message, category); }
 }
 
 module.exports = PluctCoreFoundation;

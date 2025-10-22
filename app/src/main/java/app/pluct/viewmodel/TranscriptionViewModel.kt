@@ -2,7 +2,7 @@ package app.pluct.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.pluct.data.BusinessEngineClient
+import app.pluct.data.PluctBusinessEngineUnifiedClientNew
 import app.pluct.data.EngineError
 // import app.pluct.data.Status // Removed - Status class doesn't exist
 import app.pluct.data.manager.UserManager
@@ -19,7 +19,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class TranscriptionViewModel @Inject constructor(
-    private val businessEngineClient: BusinessEngineClient,
+    private val businessEngineClient: PluctBusinessEngineUnifiedClientNew,
     private val userManager: UserManager
 ) : ViewModel() {
     

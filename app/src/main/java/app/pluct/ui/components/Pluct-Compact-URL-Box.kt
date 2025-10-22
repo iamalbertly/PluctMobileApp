@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
@@ -31,7 +33,8 @@ fun PluctCompactUrlBox(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
-                .testTag("url_input"),
+                .testTag("url_input")
+                .semantics { contentDescription = "url_input" },
             singleLine = true,
             minLines = 1,
             maxLines = 1,

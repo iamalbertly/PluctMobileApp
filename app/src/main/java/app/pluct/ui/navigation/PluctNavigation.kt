@@ -10,8 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import app.pluct.MainActivity
-import app.pluct.ui.screens.HomeScreen
+import app.pluct.PluctUIMain01Activity
+import app.pluct.ui.screens.PluctHomeScreen
 import app.pluct.ui.screens.IngestScreen
 import app.pluct.ui.screens.OnboardingScreen
 import app.pluct.ui.screens.SettingsScreen
@@ -28,7 +28,7 @@ fun PluctNavigation(navController: NavHostController) {
     val context = LocalContext.current
     
     LaunchedEffect(navController) {
-        if (context is MainActivity) {
+        if (context is PluctUIMain01Activity) {
             context.setNavController(navController)
         }
     }
@@ -37,7 +37,7 @@ fun PluctNavigation(navController: NavHostController) {
         startDestination = Screen.Home.route // Default route to Home screen
     ) {
         composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+                   PluctHomeScreen(navController = navController)
         }
         
         composable(route = Screen.Settings.route) {

@@ -17,6 +17,7 @@ import app.pluct.status.PluctStatusTrackingManager
 import app.pluct.api.PluctCoreApiService
 import app.pluct.api.PluctTTTranscribeService
 import app.pluct.data.dao.UserCoinsDao
+import app.pluct.core.retry.PluctRetryEngine
 import androidx.work.WorkManager
 import dagger.Module
 import dagger.Provides
@@ -146,5 +147,11 @@ object PluctDIServicesModule {
         @ApplicationContext context: Context
     ): WorkManager {
         return WorkManager.getInstance(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun providePluctRetryEngine(): PluctRetryEngine {
+        return PluctRetryEngine()
     }
 }

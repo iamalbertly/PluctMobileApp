@@ -5,10 +5,14 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import app.pluct.data.BusinessEngineClient
+import app.pluct.data.PluctBusinessEngineUnifiedClientNew
 import app.pluct.data.EngineError
+import app.pluct.data.repository.PluctRepository
+import app.pluct.data.entity.ProcessingStatus
+import app.pluct.utils.JWTGenerator
 import kotlinx.coroutines.flow.first
 import java.util.UUID
+import javax.inject.Inject
 
 class TTTranscribeWork(
     ctx: Context,
@@ -16,9 +20,14 @@ class TTTranscribeWork(
 ) : CoroutineWorker(ctx, params) {
     
     // Create BusinessEngineClient instance manually since WorkManager can't inject dependencies
-    private val businessEngineClient: BusinessEngineClient by lazy {
-        BusinessEngineClient("https://business-engine.pluct.app")
+    private val businessEngineClient: PluctBusinessEngineUnifiedClientNew by lazy {
+        PluctBusinessEngineUnifiedClientNew(
+            System.getenv("BE_BASE_URL") ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
+        )
     }
+    
+    // Note: Repository updates will be handled by the HomeViewModel's status monitoring
+    // The worker focuses on the actual transcription work
 
     private suspend fun stage(s: String, url: String, reqId: String? = null, msg: String? = null, pct: Int? = null) {
         setProgress(workDataOf("stage" to s, "percent" to (pct ?: -1)))
@@ -28,12 +37,18 @@ class TTTranscribeWork(
     override suspend fun doWork(): Result {
         val videoUrl = inputData.getString("url") ?: return Result.failure()
         val processingTier = inputData.getString("processingTier") ?: "QUICK_SCAN"
+        val videoId = inputData.getString("videoId") // FIXED ISSUE 5: Get videoId for status updates
         
         return try {
-            Log.i("TTT", "stage=WORKER_START url=$videoUrl tier=$processingTier msg=starting")
+            Log.i("TTT", "stage=WORKER_START url=$videoUrl tier=$processingTier videoId=$videoId msg=starting")
             Log.i("TTT", "WORKER_START tier=$processingTier")
             
-            when (processingTier) {
+            // FIXED ISSUE 5: Log video status update (repository updates handled by HomeViewModel)
+            if (videoId != null) {
+                Log.i("TTT", "🎯 VIDEO STATUS: TRANSCRIBING for videoId: $videoId")
+            }
+            
+            val result = when (processingTier) {
                 "QUICK_SCAN" -> {
                     Log.i("TTT", "stage=QUICK_SCAN_MODE url=$videoUrl msg=using_webview_scraping")
                     // For Quick Scan, use WebView scraping instead of Business Engine API
@@ -50,8 +65,31 @@ class TTTranscribeWork(
                 }
             }
             
+            // FIXED ISSUE 5: Log video status based on result (repository updates handled by HomeViewModel)
+            if (videoId != null) {
+                when {
+                    result is Result.Success -> {
+                        Log.i("TTT", "🎯 VIDEO STATUS: COMPLETED for videoId: $videoId")
+                    }
+                    result is Result.Failure -> {
+                        Log.i("TTT", "🎯 VIDEO STATUS: FAILED for videoId: $videoId")
+                    }
+                    result is Result.Retry -> {
+                        Log.i("TTT", "🎯 VIDEO STATUS: PENDING (RETRY) for videoId: $videoId")
+                    }
+                }
+            }
+            
+            result
+            
         } catch (e: Exception) {
             Log.e("TTT", "Worker error: ${e.message}", e)
+            
+            // FIXED ISSUE 5: Log video status to FAILED on exception (repository updates handled by HomeViewModel)
+            if (videoId != null) {
+                Log.i("TTT", "🎯 VIDEO STATUS: FAILED (EXCEPTION) for videoId: $videoId")
+            }
+            
             Result.retry()
         }
     }
@@ -75,14 +113,14 @@ class TTTranscribeWork(
             // Step 2: Check balance
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=checking")
             Log.i("BUSINESS_ENGINE", "🎯 CHECKING USER BALANCE")
-            val userJwt = inputData.getString("userJwt") ?: ""
+            val userJwt = inputData.getString("userJwt") ?: JWTGenerator.generateUserJWT()
             if (userJwt.isEmpty()) {
                 Log.e("TTT", "No user JWT provided for balance check")
                 Log.e("BUSINESS_ENGINE", "🎯 NO USER JWT PROVIDED")
                 return Result.failure()
             }
             Log.i("BUSINESS_ENGINE", "🎯 USER JWT: ${userJwt.take(20)}...")
-            val balance = businessEngineClient.balance(userJwt)
+            val balance = businessEngineClient.getCreditBalance(userJwt)
             Log.i("BUSINESS_ENGINE", "🎯 USER BALANCE: ${balance.balance}")
             if (balance.balance <= 0) {
                 Log.e("TTT", "Insufficient credits: ${balance.balance}")
@@ -96,7 +134,7 @@ class TTTranscribeWork(
             Log.i("TTT", "stage=VENDING_TOKEN url=$videoUrl reqId=- msg=requesting")
             Log.i("BUSINESS_ENGINE", "🎯 VENDING TOKEN FOR QUICK SCAN")
             val clientRequestId = UUID.randomUUID().toString()
-            val vendResult = businessEngineClient.vendShortToken(userJwt, clientRequestId)
+            val vendResult = businessEngineClient.vendToken(userJwt, clientRequestId)
             Log.i("BUSINESS_ENGINE", "🎯 TOKEN VENDED: ${vendResult.token}")
             Log.i("TTT", "stage=VENDING_TOKEN url=$videoUrl reqId=- msg=success")
             Log.i("BUSINESS_ENGINE", "🎯 TOKEN VENDED SUCCESSFULLY")
@@ -124,8 +162,7 @@ class TTTranscribeWork(
             Log.i("TTT", "stage=TTTRANSCRIBE_CALL url=$videoUrl reqId=$requestId msg=success")
             Log.i("BUSINESS_ENGINE", "🎯 TRANSCRIPTION COMPLETED")
             Log.i("TTTRANSCRIBE", "🎯 TTTRANSCRIBE API CALL SUCCESSFUL")
-            Log.i("TTTRANSCRIBE", "🎯 TRANSCRIPT LENGTH: ${requestId.length} characters")
-            Log.i("TTTRANSCRIBE", "🎯 TRANSCRIPT PREVIEW: ${requestId.take(100)}...")
+            Log.i("TTTRANSCRIBE", "🎯 JOB ID: $requestId")
             
             // Step 5: Complete Quick Scan
             Log.i("TTT", "stage=QUICK_SCAN_COMPLETE url=$videoUrl msg=transcript_generated")
@@ -158,14 +195,14 @@ class TTTranscribeWork(
             // Step 2: Check balance
             Log.i("TTT", "stage=CREDIT_CHECK url=$videoUrl reqId=- msg=checking")
             Log.i("BUSINESS_ENGINE", "🎯 CHECKING USER BALANCE")
-            val userJwt = inputData.getString("userJwt") ?: ""
+            val userJwt = inputData.getString("userJwt") ?: JWTGenerator.generateUserJWT()
             if (userJwt.isEmpty()) {
                 Log.e("TTT", "No user JWT provided for balance check")
                 Log.e("BUSINESS_ENGINE", "🎯 NO USER JWT PROVIDED")
                 return Result.failure()
             }
             Log.i("BUSINESS_ENGINE", "🎯 USER JWT: ${userJwt.take(20)}...")
-            val balance = businessEngineClient.balance(userJwt)
+            val balance = businessEngineClient.getCreditBalance(userJwt)
             Log.i("BUSINESS_ENGINE", "🎯 USER BALANCE: ${balance.balance}")
             if (balance.balance <= 0) {
                 Log.e("TTT", "Insufficient credits: ${balance.balance}")
@@ -190,7 +227,7 @@ class TTTranscribeWork(
                 val reqId = java.util.UUID.randomUUID().toString()
                 Log.d("TTT", "Requesting token with clientRequestId: $reqId")
                 Log.i("BUSINESS_ENGINE", "🎯 TOKEN REQUEST ID: $reqId")
-                val result = businessEngineClient.vendShortToken(tokenUserJwt, reqId)
+                val result = businessEngineClient.vendToken(tokenUserJwt, reqId)
                 Log.d("TTT", "Token vended successfully: ${result.token.take(20)}..., balanceAfter: ${result.balanceAfter}")
                 Log.i("BUSINESS_ENGINE", "🎯 TOKEN VENDED: ${result.token.take(20)}...")
                 Log.i("BUSINESS_ENGINE", "🎯 TOKEN SCOPE: ${result.scope}")
@@ -245,33 +282,32 @@ class TTTranscribeWork(
             Log.i("TTTRANSCRIBE", "🎯 TRANSCRIPT LENGTH: ${requestId.length} characters")
             Log.i("TTTRANSCRIBE", "🎯 TRANSCRIPT PREVIEW: ${requestId.take(100)}...")
             
-            // Step 5: Poll status - TODO: Implement when pollStatus is available
+            // Step 5: Poll status with 160s ceiling
             Log.i("TTT", "stage=STATUS_POLLING url=$videoUrl reqId=$requestId msg=requesting")
-            // val finalStatus = businessEngineClient.pollStatus(requestId).first { status ->
-            //     status.phase == "COMPLETED" || status.phase == "FAILED"
-            // }
-            
-            // TODO: Implement when pollStatus is available
-            // if (finalStatus.phase == "COMPLETED") {
-            //     Log.i("TTT", "stage=COMPLETED url=$videoUrl reqId=$requestId msg=success")
-            //     // Update credit balance after successful completion
-            //     try {
-            //         val balanceUserJwt = inputData.getString("userJwt") ?: ""
-            //         if (balanceUserJwt.isNotEmpty()) {
-            //             val updatedBalance = businessEngineClient.balance(balanceUserJwt)
-            //             Log.d("TTT", "Updated credit balance after completion: ${updatedBalance.balance}")
-            //         }
-            //     } catch (e: Exception) {
-            //         Log.w("TTT", "Failed to update credit balance: ${e.message}")
-            //     }
-            //     Result.success()
-            // } else {
-            //     Log.e("TTT", "Transcription failed: ${finalStatus.note}")
-            //     Result.retry()
-            // }
-            
-            // For now, just return success
-            Log.i("TTT", "stage=COMPLETED url=$videoUrl reqId=$requestId msg=success")
+            val start = System.currentTimeMillis()
+            var finalOk = false
+            var transcriptPreview = ""
+            while (System.currentTimeMillis() - start < 160000) {
+                try {
+                    val status = businessEngineClient.checkTranscriptionStatus(requestId, vendResult.token)
+                    Log.i("TTT", "Status check: ${status.status}, progress: ${status.progress}")
+                    if (status.status.equals("completed", true)) {
+                        finalOk = true
+                        transcriptPreview = status.transcript.take(100)
+                        break
+                    } else if (status.status.equals("failed", true)) {
+                        break
+                    }
+                } catch (e: Exception) {
+                    Log.w("TTT", "Status poll error: ${e.message}")
+                }
+                kotlinx.coroutines.delay(1500)
+            }
+            if (!finalOk) {
+                Log.e("TTT", "stage=TIMEOUT url=$videoUrl reqId=$requestId msg=160s_timeout")
+                return Result.retry()
+            }
+            Log.i("TTT", "stage=COMPLETED url=$videoUrl reqId=$requestId msg=success preview=${transcriptPreview}")
             Result.success()
         } catch (e: Exception) {
             Log.e("TTT", "AI Analysis failed: ${e.message}", e)

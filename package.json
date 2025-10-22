@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "license": "UNLICENSED",
   "scripts": {
-    "test:all": "node scripts/nodejs/Pluct-Main-03Orchestrator.js -scope All",
-    "test:core": "node scripts/nodejs/Pluct-Main-03Orchestrator.js -scope Core",
-    "test:ui": "node scripts/nodejs/Pluct-Main-03Orchestrator.js -scope UI",
-    "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-03Orchestrator.js -scope All"
+    "test:all": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope All",
+    "test:core": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope Core",
+    "test:ui": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope UI",
+    "test:transcription": "node scripts/nodejs/test-all-transcription.js",
+    "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope All"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

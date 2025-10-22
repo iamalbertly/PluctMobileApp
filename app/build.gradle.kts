@@ -103,6 +103,9 @@ dependencies {
     // Hilt for dependency injection (migrated to KSP)
     implementation("com.google.dagger:hilt-android:2.48.1")
     ksp("com.google.dagger:hilt-android-compiler:2.48.1")
+    
+    // Jsoup for HTML parsing
+    implementation("org.jsoup:jsoup:1.17.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     
     // Room for local database (migrated to KSP)

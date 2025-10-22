@@ -1,0 +1,348 @@
+---
+alwaysApply: true
+---
+# **📱 PLUCT MOBILE APP - COMPLETE API COMMUNICATION GUIDE TO BUSINESS ENGINE**
+
+## **🌐 Base URL**
+```
+https://pluct-business-engine.romeo-lya2.workers.dev
+```
+
+---
+
+## **🔄 COMPLETE USER JOURNEY**
+
+### **Stage 1: Health Check & System Status**
+**Purpose**: Verify the system is operational before attempting any operations.
+
+**Endpoint**: `GET /health`
+```http
+GET https://pluct-business-engine.romeo-lya2.workers.dev/health
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "status": "ok",
+  "uptimeSeconds": 12345,
+  "version": "1.0.0",
+  "build": {
+    "ref": "c16de6c3-26f1-4f22-9873-d2c835209098",
+    "deployedAt": "2025-10-15T04:28:10Z"
+  },
+  "configuration": {
+    "ENGINE_JWT_SECRET": true,
+    "ENGINE_ADMIN_KEY": true,
+    "TTT_SHARED_SECRET": true,
+    "TTT_BASE": true,
+    "KV_USERS": true
+  },
+  "connectivity": {
+    "d1": "connected",
+    "kv": "connected", 
+    "ttt": "healthy",
+    "circuitBreaker": "closed"
+  },
+  "routes": {
+    "health": [...],
+    "authentication": [...],
+    "transcription": [...],
+    "metadata": [...],
+    "admin": [...]
+  }
+}
+```
+
+**Error Handling**:
+- **500**: System configuration issues
+- **Degraded Status**: Some services down but core functionality available
+
+---
+
+### **Stage 2: User Authentication & Balance Check**
+**Purpose**: Verify user identity and check available credits.
+
+#### **Option A: Modern Balance Check (Recommended)**
+**Endpoint**: `GET /v1/credits/balance`
+```http
+GET https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+```
+
+**JWT Token Requirements**:
+```json
+{
+  "sub": "mobile",           // User ID
+  "scope": "ttt:transcribe", // Required scope
+  "iat": 1760819118,         // Issued at timestamp
+  "exp": 1760820018          // Expiration timestamp (15 min max)
+}
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "userId": "mobile",
+  "balance": 10,
+  "updatedAt": "2025-10-18T20:25:20.325Z"
+}
+```
+
+#### **Option B: Legacy Android Endpoint (Backward Compatibility)**
+**Endpoint**: `POST /v1/user/balance`
+```http
+POST https://pluct-business-engine.romeo-lya2.workers.dev/v1/user/balance
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+
+{
+  "userId": "mobile"
+}
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "userId": "mobile", 
+  "balance": 10,
+  "updatedAt": "2025-10-18T20:25:20.325Z"
+}
+```
+
+**Error Handling**:
+- **401**: Missing or invalid JWT token
+- **500**: Balance check failed (server error)
+
+---
+
+### **Stage 3: Token Vending (Credit Deduction)**
+**Purpose**: Exchange user credits for a short-lived transcription token.
+
+**Endpoint**: `POST /v1/vend-token`
+```http
+POST https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token
+Authorization: Bearer {jwt_token}
+Content-Type: application/json
+X-Client-Request-Id: {optional_idempotency_key}
+
+{
+  "clientRequestId": "req_12345"  // Optional for idempotency
+}
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",  // Short-lived token (15 min)
+  "scope": "ttt:transcribe",
+  "expiresAt": "2025-10-18T20:40:20.325Z",
+  "balanceAfter": 9,  // Credits remaining after deduction
+  "requestId": "req_12345"
+}
+```
+
+**Error Handling**:
+- **401**: Missing or invalid JWT token
+- **402**: Insufficient credits
+- **403**: Missing required scope
+- **429**: Rate limit exceeded
+- **500**: Server error
+
+---
+
+### **Stage 4: Metadata Resolution (Optional)**
+**Purpose**: Get TikTok video metadata before transcription.
+
+**Endpoint**: `GET /meta`
+```http
+GET https://pluct-business-engine.romeo-lya2.workers.dev/meta?url=https://vm.tiktok.com/ZMA730880/
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "url": "https://vm.tiktok.com/ZMA730880/",
+  "title": "Video Title",
+  "description": "Video Description",
+  "author": "Creator Name",
+  "duration": 30,
+  "thumbnail": "https://...",
+  "cached": false,
+  "timestamp": "2025-10-18T20:25:20.325Z"
+}
+```
+
+**Error Handling**:
+- **400**: Invalid URL format
+- **500**: Metadata fetch failed
+
+---
+
+### **Stage 5: Transcription Request**
+**Purpose**: Start transcription job using short-lived token.
+
+**Endpoint**: `POST /ttt/transcribe`
+```http
+POST https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe
+Authorization: Bearer {short_lived_token}
+Content-Type: application/json
+
+{
+  "url": "https://vm.tiktok.com/ZMA730880/"
+}
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "jobId": "job_abc123",
+  "status": "processing",
+  "estimatedTime": 30,
+  "url": "https://vm.tiktok.com/ZMA730880/"
+}
+```
+
+**Error Handling**:
+- **401**: Invalid or expired short-lived token
+- **500**: Transcription service error
+
+---
+
+### **Stage 6: Status Check**
+**Purpose**: Check transcription job progress.
+
+**Endpoint**: `GET /ttt/status/{jobId}`
+```http
+GET https://pluct-business-engine.romeo-lya2.workers.dev/ttt/status/job_abc123
+Authorization: Bearer {short_lived_token}
+```
+
+**Expected Response** (200 OK):
+```json
+{
+  "jobId": "job_abc123",
+  "status": "completed",
+  "progress": 100,
+  "transcript": "Full transcription text here...",
+  "confidence": 0.95,
+  "language": "en",
+  "duration": 30
+}
+```
+
+**Status Values**:
+- `"queued"`: Job waiting to start
+- `"processing"`: Transcription in progress  
+- `"completed"`: Success with transcript
+- `"failed"`: Error occurred
+
+**Error Handling**:
+- **401**: Invalid or expired token
+- **404**: Job not found
+- **500**: Status check failed
+
+---
+
+## **🔐 AUTHENTICATION REQUIREMENTS**
+
+### **JWT Token Generation (Android App)**
+```kotlin
+// Android app must generate JWT tokens with these exact requirements:
+fun generateUserJWT(userId: String): String {
+    val now = System.currentTimeMillis() / 1000
+    val payload = mapOf(
+        "sub" to userId,                    // User ID
+        "scope" to "ttt:transcribe",        // Required scope
+        "iat" to now,                        // Issued at
+        "exp" to (now + 900)                // 15 minutes max
+    )
+    
+    // Use the same secret as the server
+    val secret = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
+    return JWT.create()
+        .withPayload(payload)
+        .withExpiresAt(Date(now + 900 * 1000))
+        .sign(Algorithm.HMAC256(secret))
+}
+```
+
+### **Short-Lived Token Usage**
+- **Duration**: 15 minutes maximum
+- **Scope**: `ttt:transcribe` (required for transcription endpoints)
+- **Usage**: Only for `/ttt/*` endpoints
+
+---
+
+## **⚠️ ERROR HANDLING STRATEGIES**
+
+### **HTTP Status Codes**
+- **200**: Success
+- **400**: Bad request (invalid parameters)
+- **401**: Authentication required/failed
+- **402**: Payment required (insufficient credits)
+- **403**: Forbidden (missing scope)
+- **404**: Not found
+- **405**: Method not allowed
+- **429**: Rate limit exceeded
+- **500**: Server error
+
+### **Error Response Format**
+```json
+{
+  "ok": false,
+  "code": "ERROR_CODE",
+  "message": "Human readable error message",
+  "details": {
+    "additional": "error information"
+  }
+}
+```
+
+### **Retry Logic**
+1. **Network Errors**: Retry with exponential backoff (1s, 2s, 4s, 8s)
+2. **Rate Limits (429)**: Wait for rate limit reset, then retry
+3. **Server Errors (500)**: Retry up to 3 times with backoff
+4. **Authentication (401)**: Refresh JWT token and retry
+5. **Insufficient Credits (402)**: Stop and request user to add credits
+
+---
+
+## **🚀 IMPLEMENTATION CHECKLIST**
+
+### **Android App Requirements**
+- [ ] Generate valid JWT tokens with correct secret
+- [ ] Handle all HTTP status codes appropriately  
+- [ ] Implement retry logic for transient failures
+- [ ] Cache short-lived tokens and refresh before expiry
+- [ ] Handle insufficient credits gracefully
+- [ ] Implement proper error logging
+
+### **Business Engine Status**
+- [x] All endpoints operational
+- [x] JWT authentication working
+- [x] Credit balance system working
+- [x] D1 database with atomic transactions
+- [x] Rate limiting implemented
+- [x] Circuit breaker protection
+- [x] Comprehensive error handling
+- [x] CORS configured for mobile apps
+
+---
+
+## **📊 MONITORING & DEBUGGING**
+
+### **Health Endpoints**
+- `GET /health` - System status
+- `GET /health/services` - Service health details
+- `GET /debug/config` - Configuration diagnostics
+
+### **Logging**
+All requests are logged with:
+- User ID
+- Request duration
+- IP address
+- User agent
+- Error details
+
+The system is now fully operational and ready for Android app integration! 

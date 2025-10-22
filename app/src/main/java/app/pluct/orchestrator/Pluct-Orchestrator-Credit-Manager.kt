@@ -1,6 +1,6 @@
 package app.pluct.orchestrator
 
-import app.pluct.data.BusinessEngineClient
+import app.pluct.data.PluctBusinessEngineUnifiedClientNew
 import app.pluct.data.manager.UserManager
 import app.pluct.orchestrator.OrchestratorResult
 import javax.inject.Inject
@@ -12,7 +12,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PluctOrchestratorCreditManager @Inject constructor(
-    private val businessEngineClient: BusinessEngineClient,
+    private val businessEngineClient: PluctBusinessEngineUnifiedClientNew,
     private val userManager: UserManager
 ) {
     

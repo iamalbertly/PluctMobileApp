@@ -61,7 +61,7 @@ fun PluctCaptureTierSelection(
             isRecommended = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = cdProcess }
+                .semantics { contentDescription = "ai_analysis" }
                 .testTag("btn_process_ai")
         )
     }
