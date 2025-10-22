@@ -3,8 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     // Migrate from KAPT to KSP for better JDK compatibility
     id("com.google.devtools.ksp")
-    id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("dagger.hilt.android.plugin")
 }
 
 android {

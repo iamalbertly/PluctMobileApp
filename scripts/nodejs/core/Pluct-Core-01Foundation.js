@@ -8,6 +8,7 @@ class PluctCoreFoundation {
     constructor() {
         this.config = {
             url: 'https://vm.tiktok.com/ZMADQVF4e/',
+            businessEngineUrl: 'https://pluct-business-engine.romeo-lya2.workers.dev',
             timeouts: { default: 5000, short: 2000, long: 10000 },
             retry: { maxAttempts: 3, delay: 1000 }
         };
@@ -344,6 +345,29 @@ class PluctCoreFoundation {
             this.logger.error('❌ Failed to clear WorkManager tasks:', error.message);
             return { success: false, error: error.message };
         }
+    }
+
+    /**
+     * Generate test JWT token
+     */
+    generateTestJWT() {
+        // Simple JWT generation for testing
+        const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+        const payload = Buffer.from(JSON.stringify({
+            sub: 'mobile',
+            scope: 'ttt:transcribe',
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 900 // 15 minutes
+        })).toString('base64url');
+        
+        // Use a simple secret for testing
+        const secret = 'prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e';
+        const signature = require('crypto')
+            .createHmac('sha256', secret)
+            .update(`${header}.${payload}`)
+            .digest('base64url');
+        
+        return `${header}.${payload}.${signature}`;
     }
 }
 

@@ -190,6 +190,11 @@ class PluctCoreUnified {
     async comprehensiveOptimization() {
         return await this.performance.comprehensiveOptimization();
     }
+
+    // Foundation methods
+    generateTestJWT() {
+        return this.foundation.generateTestJWT();
+    }
 }
 
 module.exports = PluctCoreUnified;

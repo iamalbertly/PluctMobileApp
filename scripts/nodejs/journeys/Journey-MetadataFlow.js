@@ -29,8 +29,14 @@ class MetadataFlowJourney {
             await this.core.openCaptureSheet();
             await this.core.sleep(1000);
             
-            // Step 4: Input test URL
+            // Step 4: Focus text field and input test URL
             const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMADQVF4e/';
+            
+            // First, tap on the text field to focus it
+            await this.core.tapByCoordinates(360, 992); // Center of the text field
+            await this.core.sleep(500);
+            
+            // Then input the text
             await this.core.inputText(testUrl);
             await this.core.sleep(500);
             
@@ -50,8 +56,8 @@ class MetadataFlowJourney {
                 this.core.writeJsonArtifact('metadata.json', metadataResult);
             }
             
-            // Step 7: Start Quick Scan
-            await this.core.tapByText('quick_scan');
+            // Step 7: Submit URL
+            await this.core.tapByText('Process Video');
             await this.core.sleep(2000);
             
             // Step 8: Wait for video to appear in home

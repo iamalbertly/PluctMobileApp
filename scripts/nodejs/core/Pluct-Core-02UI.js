@@ -204,14 +204,14 @@ class PluctCoreUI {
             
             if (isValid) {
                 this.logger.info(`✅ Valid TikTok URL: ${url}`);
-                return { valid: true, normalized: url };
+                return { success: true, valid: true, normalized: url };
             } else {
                 this.logger.warn(`⚠️ Invalid TikTok URL: ${url}`);
-                return { valid: false, error: 'Invalid TikTok URL format' };
+                return { success: false, valid: false, error: 'Invalid TikTok URL format' };
             }
         } catch (error) {
             this.logger.error('❌ URL validation failed:', error.message);
-            return { valid: false, error: error.message };
+            return { success: false, valid: false, error: error.message };
         }
     }
 

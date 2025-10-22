@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import app.pluct.PluctUIMain01Activity
+import app.pluct.MainActivity
 import app.pluct.R
 
 object PluctNotificationHelper {
@@ -35,7 +35,7 @@ object PluctNotificationHelper {
         videoTitle: String,
         processingTier: String
     ) {
-        val intent = Intent(context, PluctUIMain01Activity::class.java).apply {
+        val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
@@ -63,7 +63,7 @@ object PluctNotificationHelper {
         context: Context,
         videoTitle: String
     ) {
-        val intent = Intent(context, PluctUIMain01Activity::class.java).apply {
+        val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
