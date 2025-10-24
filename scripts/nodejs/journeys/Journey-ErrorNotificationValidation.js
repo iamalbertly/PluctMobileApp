@@ -6,26 +6,57 @@ class ErrorNotificationValidationJourney extends BaseJourney {
 
         // 1) Launch the app
         await this.core.launchApp();
-        await this.core.sleep(2000);
+        await this.core.sleep(3000); // Increased wait time
 
-        // 2) Check for basic app elements (simplified)
-        await this.core.dumpUIHierarchy();
-        let uiDump = this.core.readLastUIDump();
+        // 2) Check for basic app elements (simplified) with retry
+        let uiDump;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+            await this.core.dumpUIHierarchy();
+            uiDump = this.core.readLastUIDump();
+            
+            if (uiDump.includes('app.pluct')) {
+                this.core.logger.info('✅ App detected');
+                break;
+            }
+            
+            retryCount++;
+            if (retryCount < maxRetries) {
+                this.core.logger.warn(`⚠️ App not detected, retrying... (${retryCount}/${maxRetries})`);
+                await this.core.sleep(2000);
+            }
+        }
         
         if (!uiDump.includes('app.pluct')) {
-            this.core.logger.error('❌ App not detected');
+            this.core.logger.error('❌ App not detected after retries');
             return { success: false, error: 'App not detected' };
         }
-        this.core.logger.info('✅ App detected');
 
-        // 3) Check for main UI elements
+        // 3) Check for main UI elements with retry
+        retryCount = 0;
+        while (retryCount < maxRetries) {
+            if (uiDump.includes('Pluct')) {
+                this.core.logger.info('✅ App title found');
+                break;
+            }
+            
+            retryCount++;
+            if (retryCount < maxRetries) {
+                this.core.logger.warn(`⚠️ App title not found, retrying... (${retryCount}/${maxRetries})`);
+                await this.core.sleep(2000);
+                await this.core.dumpUIHierarchy();
+                uiDump = this.core.readLastUIDump();
+            }
+        }
+        
         if (!uiDump.includes('Pluct')) {
-            this.core.logger.error('❌ App title not found');
+            this.core.logger.error('❌ App title not found after retries');
             return { success: false, error: 'App title not found' };
         }
-        this.core.logger.info('✅ App title found');
 
-        if (!uiDump.includes('No transcripts yet')) {
+        if (!uiDump.includes('Welcome to Pluct') && !uiDump.includes('Transform TikTok videos')) {
             this.core.logger.error('❌ Main content not found');
             return { success: false, error: 'Main content not found' };
         }

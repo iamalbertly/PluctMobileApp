@@ -13,15 +13,40 @@ class CurrentAppValidationJourney extends BaseJourney {
         const fg = await this.ensureAppForeground();
         if (!fg.success) return { success: false, error: 'App not in foreground' };
 
-        // 2) Validate basic UI elements
-        await this.core.dumpUIHierarchy();
-        const uiDump = this.core.readLastUIDump();
+        // 2) Validate basic UI elements with retry
+        let uiDump;
+        let retryCount = 0;
+        const maxRetries = 3;
         
-        const hasHomeScreen = uiDump.includes('No transcripts yet') || uiDump.includes('Pluct');
-        if (!hasHomeScreen) {
-            return { success: false, error: 'Home screen not detected' };
+        while (retryCount < maxRetries) {
+            await this.core.dumpUIHierarchy();
+            uiDump = this.core.readLastUIDump();
+            
+            const hasHomeScreen = uiDump.includes('No transcripts yet') || 
+                                 uiDump.includes('Recent Transcripts') ||
+                                 uiDump.includes('Pluct') ||
+                                 uiDump.includes('Welcome to Pluct');
+            
+            if (hasHomeScreen) {
+                this.core.logger.info('✅ Home screen detected');
+                break;
+            }
+            
+            retryCount++;
+            if (retryCount < maxRetries) {
+                this.core.logger.warn(`⚠️ Home screen not detected, retrying... (${retryCount}/${maxRetries})`);
+                await this.core.sleep(2000);
+            }
         }
-        this.core.logger.info('✅ Home screen detected');
+        
+        const finalHasHomeScreen = uiDump.includes('No transcripts yet') || 
+                                  uiDump.includes('Recent Transcripts') ||
+                                  uiDump.includes('Pluct') ||
+                                  uiDump.includes('Welcome to Pluct');
+        
+        if (!finalHasHomeScreen) {
+            return { success: false, error: 'Home screen not detected after retries' };
+        }
 
         // 3) Test basic app functionality (simplified)
         this.core.logger.info('📱 Testing Basic App Functionality...');

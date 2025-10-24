@@ -8,7 +8,7 @@ class ShareIntentJourney extends BaseJourney {
         if (!fg.success) return { success: false, error: 'App not in foreground' };
 
         // Validate URL and send share intent
-        const normalized = this.core.normalizeTikTokUrl(this.core.config.url);
+        const normalized = await this.core.normalizeTikTokUrl(this.core.config.url);
         if (!normalized.valid) return { success: false, error: 'Invalid TikTok URL' };
         const res = await this.core.executeCommand(`adb shell am start -W -a android.intent.action.SEND -t text/plain -d "${normalized.normalized}" app.pluct/.MainActivity`);
         if (!res.success) return { success: false, error: 'Share intent failed' };

@@ -1,6 +1,6 @@
-const { execOut } = require('../core/Pluct-Node-Tests-Core-Utils');
-const UI = require('../modules/Pluct-Node-Tests-UI-01Validator');
-const Logcat = require('../modules/Pluct-Node-Tests-Logcat-01Validator');
+const { execOut } = require('../core/Pluct-Test-Core-Exec');
+const UI = require('../modules/UIValidator');
+const Logcat = require('../core/Logcat');
 const fs = require('fs');
 
 /**

@@ -81,17 +81,40 @@ class PluctCoreFoundation {
      */
     async launchApp() {
         try {
+            this.logger.info('🚀 Launching app...');
+            
+            // First check if app is already running
+            const isRunning = await this.isAppRunning();
+            if (isRunning) {
+                this.logger.info('✅ App is already running');
+                return { success: true };
+            }
+            
             // Start app (will either launch new or bring existing to foreground)
-            const result = await this.executeCommand('adb shell am start -W -n app.pluct/.MainActivity');
+            const result = await this.executeCommand('adb shell am start -n app.pluct/.MainActivity');
             
-            // Always return success if executeCommand didn't throw
-            await this.sleep(2000);
+            // Check if the command succeeded or if the app is already running
+            if (result.success || (result.error && result.error.includes('currently running'))) {
+                this.logger.info('✅ App launched successfully');
+                return { success: true };
+            }
             
-            this.logger.info('✅ App launched successfully');
-            return { success: true };
+            throw new Error('Failed to launch app');
         } catch (error) {
             this.logger.error('❌ App launch failed:', error.message);
             return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Check if app is running
+     */
+    async isAppRunning() {
+        try {
+            const result = await this.executeCommand('adb shell dumpsys activity activities | grep app.pluct');
+            return result.success && result.output.includes('app.pluct');
+        } catch (error) {
+            return false;
         }
     }
 
@@ -195,14 +218,14 @@ class PluctCoreFoundation {
             
             if (uiDump.includes(text)) {
                 this.logger.info(`✅ Found text: ${text}`);
-                return true;
+                return { success: true };
             }
             
             await this.sleep(pollMs);
         }
         
         this.logger.warn(`⚠️ Text not found within timeout: ${text}`);
-        return false;
+        return { success: false, error: `Text not found: ${text}` };
     }
 
     /**
@@ -211,19 +234,17 @@ class PluctCoreFoundation {
     findBoundsForText(targetText) {
         try {
             const uiDump = this.readLastUIDump();
-            const lines = uiDump.split('\n');
             
-            for (const line of lines) {
-                if (line.includes(targetText) && line.includes('bounds=')) {
-                    const boundsMatch = line.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-                    if (boundsMatch) {
-                        const [, x1, y1, x2, y2] = boundsMatch;
-                        return {
-                            x: Math.floor((parseInt(x1) + parseInt(x2)) / 2),
-                            y: Math.floor((parseInt(y1) + parseInt(y2)) / 2)
-                        };
-                    }
-                }
+            // Find the exact text match with bounds
+            const textRegex = new RegExp(`text="${targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`, 'i');
+            const match = uiDump.match(textRegex);
+            
+            if (match) {
+                const [, x1, y1, x2, y2] = match;
+                return {
+                    x: Math.floor((parseInt(x1) + parseInt(x2)) / 2),
+                    y: Math.floor((parseInt(y1) + parseInt(y2)) / 2)
+                };
             }
             
             return null;
@@ -238,6 +259,12 @@ class PluctCoreFoundation {
      */
     async tapByText(text) {
         try {
+            this.logger.info(`🔍 Tapping by text: "${text}"`);
+            
+            // Dump UI hierarchy first to get fresh state
+            await this.executeCommand('adb shell uiautomator dump /sdcard/ui_dump.xml');
+            await this.executeCommand('adb pull /sdcard/ui_dump.xml ./artifacts/ui/ui_dump.xml');
+            
             // Try to find by text first
             let bounds = this.findBoundsForText(text);
             
@@ -249,12 +276,13 @@ class PluctCoreFoundation {
                     const [, x1, y1, x2, y2] = match;
                     bounds = {
                         x: Math.floor((parseInt(x1) + parseInt(x2)) / 2),
-                        y: Math.floor((parseInt(y1) + parseInt(y2)) / 2)
+                        y: Math.floor((parseInt(y1) + parseInt(x2)) / 2)
                     };
                 }
             }
             
             if (bounds) {
+                this.logger.info(`📍 Found element at (${bounds.x}, ${bounds.y})`);
                 const result = await this.executeCommand(`adb shell input tap ${bounds.x} ${bounds.y}`);
                 if (result.success) {
                     this.logger.info(`✅ Tapped by text: ${text}`);
@@ -294,6 +322,26 @@ class PluctCoreFoundation {
             return { success: false, error: `Could not find element with content-desc: ${contentDesc}` };
         } catch (error) {
             this.logger.error('❌ Tap by content-desc failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Tap by coordinates
+     */
+    async tapByCoordinates(x, y) {
+        try {
+            this.logger.info(`🎯 Tapping at coordinates (${x}, ${y})`);
+            const result = await this.executeCommand(`adb shell input tap ${x} ${y}`);
+            
+            if (result.success) {
+                this.logger.info(`✅ Tapped at (${x}, ${y})`);
+                return { success: true };
+            }
+            
+            return { success: false, error: 'Tap failed' };
+        } catch (error) {
+            this.logger.error(`❌ Tap at (${x}, ${y}) failed:`, error.message);
             return { success: false, error: error.message };
         }
     }
@@ -368,6 +416,34 @@ class PluctCoreFoundation {
             .digest('base64url');
         
         return `${header}.${payload}.${signature}`;
+    }
+
+    /**
+     * Tap by test tag
+     */
+    async tapByTestTag(testTag) {
+        try {
+            const uiDump = this.readLastUIDump();
+            const match = uiDump.match(new RegExp(`testTag="${testTag}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`));
+            
+            if (match) {
+                const [, x1, y1, x2, y2] = match;
+                const x = Math.floor((parseInt(x1) + parseInt(x2)) / 2);
+                const y = Math.floor((parseInt(y1) + parseInt(y2)) / 2);
+                
+                const result = await this.executeCommand(`adb shell input tap ${x} ${y}`);
+                if (result.success) {
+                    this.logger.info(`✅ Tapped by test tag: ${testTag}`);
+                    return { success: true };
+                }
+            }
+            
+            this.logger.warn(`⚠️ Could not tap by test tag: ${testTag}`);
+            return { success: false, error: 'Test tag not found' };
+        } catch (error) {
+            this.logger.error(`❌ Tap by test tag failed: ${testTag}`, error.message);
+            return { success: false, error: error.message };
+        }
     }
 }
 

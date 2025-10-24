@@ -13,6 +13,21 @@ class PluctJourneyOrchestrator {
         this.core = new PluctCoreUnified();
         this.journeys = new Map();
         this.results = [];
+        this.journeyExecutionOrder = [
+            'Journey-AppLaunch.js',
+            'Journey-ErrorNotificationValidation.js',
+            'Pluct-UI-Header-01CreditBalance-Validation.js',
+            'Pluct-UI-Header-02SettingsNavigation-Validation.js',
+            'Pluct-UI-Header-03EndToEndIntegration-Validation.js',
+            'Journey-QuickScan.js',
+            'Journey-TikTok-Intent-01Transcription.js',
+            'Journey-TikTok-Manual-URL-01Transcription.js',
+            'Journey-Transcript-Storage-01Display.js',
+            'Pluct-Transcript-01BackgroundWorker-Validation.js',
+            'Pluct-Transcript-02PerformanceTiming-Validation.js',
+            'Pluct-Transcript-03EndToEndWorkflow-Validation.js'
+            // Add other journeys here in the desired order
+        ];
     }
 
     /**
@@ -59,62 +74,129 @@ class PluctJourneyOrchestrator {
     async runAllJourneys() {
         this.core.logger.info('🎯 Starting comprehensive journey testing...');
 
-        // Auto-discover journey files named Journey-*.js in this directory
-        try {
-            const journeysDir = __dirname;
-            const files = fs.readdirSync(journeysDir)
-                .filter(f => f.startsWith('Journey-') && f.endsWith('.js') && f !== 'Pluct-Journey-01Orchestrator.js');
-            
-            for (const file of files) {
-                try {
-                    const mod = require(path.join(journeysDir, file));
-                    if (mod && typeof mod.register === 'function') {
-                        mod.register(this);
-                    } else if (mod && mod.name) {
-                        // Direct journey class
-                        const journey = new mod(this.core);
-                        this.journeys.set(journey.name, journey);
-                    } else if (mod && typeof mod === 'function') {
-                        // Constructor function
-                        const journey = new mod(this.core);
-                        this.journeys.set(journey.name, journey);
-                    }
-                } catch (e) {
-                    this.core.logger.warn(`Failed to load journey ${file}: ${e.message}`);
-                }
+        const journeysDir = __dirname;
+
+        // Load all discovered journeys first
+        const discoveredJourneys = {};
+        const files = fs.readdirSync(journeysDir)
+            .filter(f => f.endsWith('.js') && f !== 'Pluct-Journey-01Orchestrator.js');
+        
+        for (const file of files) {
+            try {
+                const mod = require(path.join(journeysDir, file));
+                discoveredJourneys[file] = mod;
+            } catch (e) {
+                this.core.logger.warn(`Failed to load journey ${file}: ${e.message}`);
             }
-        } catch (e) {
-            this.core.logger.warn(`Journey auto-discovery failed: ${e.message}`);
+        }
+
+        // Add remaining discovered journeys to the execution order if they are not already present
+        for (const file in discoveredJourneys) {
+            if (!this.journeyExecutionOrder.includes(file)) {
+                this.journeyExecutionOrder.push(file);
+            }
+        }
+        
+        // Register and run journeys in the specified order
+        for (const file of this.journeyExecutionOrder) {
+            const mod = discoveredJourneys[file];
+            if (!mod) {
+                this.core.logger.warn(`Journey file ${file} not found in discovered journeys.`);
+                continue;
+            }
+
+            let journeyName = path.basename(file, '.js');
+            try {
+                if (mod && typeof mod.register === 'function') {
+                    mod.register(this);
+                } else if (mod && typeof mod === 'function') {
+                    const journey = new mod(this.core);
+                    journeyName = journey.name || journeyName;
+                    this.registerJourney(journeyName, journey);
+                }
+            } catch (e) {
+                this.core.logger.warn(`Failed to register journey ${file}: ${e.message}`);
+            }
         }
 
         for (const [name, journey] of this.journeys) {
+            this.core.logger.info(`🎯 Running journey: ${name}`);
             const result = await this.runJourney(name);
             
-            // Stop on first failure in debug mode
+            // Enhanced error handling with detailed diagnostics
             if (!result.success) {
                 this.core.logger.error(`❌ JOURNEY FAILED: ${name}`);
                 this.core.logger.error(`❌ Error: ${result.error}`);
                 this.core.logger.error(`❌ Stopping test execution due to failure`);
                 
-                // Dump current UI state for debugging
-                await this.core.dumpUIHierarchy();
-                const uiDump = this.core.readLastUIDump();
-                this.core.logger.info('📱 Current UI State:');
-                this.core.logger.info(uiDump.substring(0, 1000) + '...');
+                // Comprehensive debugging information
+                await this.generateDetailedFailureReport(name, result);
                 
-            // Get recent logcat for debugging
-            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"');
-            if (logcatResult.success) {
-                this.core.logger.info('📱 Recent Logcat:');
-                const lines = logcatResult.output.split('\n').slice(-10).join('\n');
-                this.core.logger.info(lines);
-            }
-                
-                throw new Error(`Journey ${name} failed: ${result.error}`);
+                // Terminate immediately with detailed error
+                const errorMessage = `Journey ${name} failed: ${result.error}`;
+                this.core.logger.error(`❌ TERMINATING TEST EXECUTION: ${errorMessage}`);
+                throw new Error(errorMessage);
             }
         }
 
         return this.results;
+    }
+
+    /**
+     * Generate detailed failure report
+     */
+    async generateDetailedFailureReport(failedJourney, result) {
+        try {
+            this.core.logger.info('🔍 Generating detailed failure report...');
+            
+            // 1. Current UI State
+            await this.core.dumpUIHierarchy();
+            const uiDump = this.core.readLastUIDump();
+            this.core.logger.info('📱 Current UI State:');
+            this.core.logger.info(uiDump.substring(0, 2000) + (uiDump.length > 2000 ? '...' : ''));
+            
+            // 2. Recent Logcat
+            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"');
+            if (logcatResult.success) {
+                this.core.logger.info('📱 Recent Logcat Errors:');
+                const lines = logcatResult.output.split('\n').slice(-20).join('\n');
+                this.core.logger.info(lines);
+            }
+            
+            // 3. App Status
+            const appStatusResult = await this.core.executeCommand('adb shell dumpsys activity activities | findstr -i pluct');
+            if (appStatusResult.success) {
+                this.core.logger.info('📱 App Status:');
+                this.core.logger.info(appStatusResult.output);
+            }
+            
+            // 4. Device Info
+            const deviceInfoResult = await this.core.executeCommand('adb shell getprop ro.build.version.release');
+            if (deviceInfoResult.success) {
+                this.core.logger.info(`📱 Android Version: ${deviceInfoResult.output.trim()}`);
+            }
+            
+            // 5. Network Status
+            const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i "active network"');
+            if (networkResult.success) {
+                this.core.logger.info('📱 Network Status:');
+                this.core.logger.info(networkResult.output);
+            }
+            
+            // 6. Memory Status
+            const memoryResult = await this.core.executeCommand('adb shell dumpsys meminfo app.pluct');
+            if (memoryResult.success) {
+                this.core.logger.info('📱 Memory Status:');
+                this.core.logger.info(memoryResult.output.substring(0, 500) + '...');
+            }
+            
+            this.core.logger.error(`❌ FAILURE ANALYSIS COMPLETE FOR: ${failedJourney}`);
+            this.core.logger.error(`❌ FAILURE REASON: ${result.error}`);
+            this.core.logger.error(`❌ FAILURE TIME: ${new Date().toISOString()}`);
+            
+        } catch (error) {
+            this.core.logger.error('❌ Failed to generate detailed failure report:', error.message);
+        }
     }
 
     /**

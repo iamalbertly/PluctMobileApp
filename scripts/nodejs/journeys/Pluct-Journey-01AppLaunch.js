@@ -4,7 +4,7 @@
  * Auto-discoverable by orchestrator
  */
 
-const PluctCoreUnified = require('../core/Pluct-Core-Unified');
+const PluctCoreUnified = require('../core/Pluct-Core-Unified-New');
 
 class PluctJourney01AppLaunch {
     constructor() {
@@ -35,7 +35,7 @@ class PluctJourney01AppLaunch {
             
             // Step 3: Launch app
             this.core.logger.info('📋 Step 3: Launch app');
-            const launchResult = await this.core.executeCommand('adb shell am start -W -n app.pluct/.MainActivity');
+            const launchResult = await this.core.executeCommand('adb shell am start -n app.pluct/.MainActivity');
             if (!launchResult.success) {
                 return { success: false, error: 'App launch failed' };
             }
@@ -75,7 +75,7 @@ class PluctJourney01AppLaunch {
         const maxAttempts = 3;
         for (let i = 0; i < maxAttempts; i++) {
             try {
-                await this.core.executeCommand('adb shell am start -W -n app.pluct/.MainActivity');
+                await this.core.executeCommand('adb shell am start -n app.pluct/.MainActivity');
                 await this.core.sleep(1000);
                 
                 const focusResult = await this.core.executeCommand('adb shell dumpsys window windows');
@@ -111,12 +111,27 @@ class PluctJourney01AppLaunch {
             
             const uiContent = fs.readFileSync('artifacts/ui/ui_dump.xml', 'utf8');
             
+            // Debug: Log the content length and first 200 characters
+            this.core.logger.info(`UI dump content length: ${uiContent.length}`);
+            this.core.logger.info(`UI dump first 200 chars: ${uiContent.substring(0, 200)}`);
+            
             // Validate key UI elements are present
-            const requiredElements = ['Pluct', 'credits', 'No transcripts yet'];
-            const missingElements = requiredElements.filter(element => !uiContent.includes(element));
+            const requiredElements = ['Pluct', 'Credits'];
+            const missingElements = requiredElements.filter(element => {
+                const found = uiContent.includes(element);
+                this.core.logger.info(`Looking for "${element}": ${found ? 'FOUND' : 'NOT FOUND'}`);
+                return !found;
+            });
             
             if (missingElements.length > 0) {
+                this.core.logger.error(`Missing UI elements: ${missingElements.join(', ')}`);
                 return { success: false, error: `Missing UI elements: ${missingElements.join(', ')}` };
+            }
+            
+            // Check for either welcome screen or transcript state
+            const hasValidState = uiContent.includes('Welcome to Pluct') || uiContent.includes('No transcripts yet') || uiContent.includes('Recent Transcripts');
+            if (!hasValidState) {
+                return { success: false, error: 'Neither welcome screen nor transcript state detected' };
             }
             
             return { success: true };

@@ -42,15 +42,23 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
         this.core.logger.info('🔍 Triggering transcription process...');
         
         // Look for submit/process button
-        const submitResult = await this.core.tapByText('Process');
+        const submitResult = await this.core.tapByText('Process Video');
         if (!submitResult.success) {
             // Try alternative button text
-            const altSubmitResult = await this.core.tapByText('Transcribe');
+            const altSubmitResult = await this.core.tapByText('Process');
             if (!altSubmitResult.success) {
-                // Try quick scan button
-                const quickScanResult = await this.core.tapByText('Quick Scan');
-                if (!quickScanResult.success) {
-                    return { success: false, error: 'Could not find process/transcribe button' };
+                // Try transcribe button
+                const transcribeResult = await this.core.tapByText('Transcribe');
+                if (!transcribeResult.success) {
+                    // Try quick scan button
+                    const quickScanResult = await this.core.tapByText('Quick Scan');
+                    if (!quickScanResult.success) {
+                        // Try test tag approach
+                        const testTagResult = await this.core.tapByTestTag('submit_button');
+                        if (!testTagResult.success) {
+                            return { success: false, error: 'Could not find process/transcribe button' };
+                        }
+                    }
                 }
             }
         }
@@ -59,7 +67,8 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
         await this.core.sleep(3000);
 
         // 7) Check for processing indicators
-        const uiDump = await this.core.dumpUIHierarchy();
+        await this.core.dumpUIHierarchy();
+        const uiDump = this.core.readLastUIDump();
         const hasProcessing = uiDump.includes('Processing') || 
                             uiDump.includes('Transcribing') || 
                             uiDump.includes('Status') ||
@@ -75,7 +84,8 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
         
         while (attempts < maxAttempts) {
             await this.core.sleep(2000);
-            const currentDump = await this.core.dumpUIHierarchy();
+            await this.core.dumpUIHierarchy();
+            const currentDump = this.core.readLastUIDump();
             
             if (currentDump.includes('Completed') || currentDump.includes('Success')) {
                 this.core.logger.info('✅ Transcription completed successfully');

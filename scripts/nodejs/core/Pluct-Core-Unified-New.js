@@ -68,6 +68,14 @@ class PluctCoreUnified {
         return await this.foundation.tapByContentDesc(contentDesc);
     }
 
+    async tapByTestTag(testTag) {
+        return await this.foundation.tapByTestTag(testTag);
+    }
+
+    async tapByCoordinates(x, y) {
+        return await this.foundation.tapByCoordinates(x, y);
+    }
+
     async inputText(rawText) {
         return await this.foundation.inputText(rawText);
     }

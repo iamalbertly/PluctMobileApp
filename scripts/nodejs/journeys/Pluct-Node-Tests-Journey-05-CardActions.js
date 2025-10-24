@@ -6,7 +6,7 @@
 
 const { execOk } = require('../core/Pluct-Test-Core-Exec');
 const { logInfo, logWarn, logSuccess, logError } = require('../core/Logger');
-const UI = require('../modules/Pluct-Node-Tests-UI-01Validator');
+const UI = require('../modules/UIValidator');
 
 function sleep(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
 

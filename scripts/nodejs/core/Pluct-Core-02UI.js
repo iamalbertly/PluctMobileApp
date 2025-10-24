@@ -20,22 +20,55 @@ class PluctCoreUI {
             const dumpResult = await this.foundation.executeCommand('adb shell cat /sdcard/ui_dump.xml');
             
             if (dumpResult.success) {
+                // Check if any other sheet is open (e.g., QuickScan sheet) and close it
+                if (dumpResult.output.includes('Choose Processing Tier') || dumpResult.output.includes('Quick Scan') || dumpResult.output.includes('Standard')) {
+                    this.logger.info('📱 Closing other sheets first...');
+                    await this.foundation.executeCommand('adb shell input keyevent 4'); // Back button
+                    await this.foundation.sleep(1000);
+                    // Refresh UI dump after closing sheet
+                    await this.foundation.executeCommand('adb shell uiautomator dump /sdcard/ui_dump.xml');
+                    const newDumpResult = await this.foundation.executeCommand('adb shell cat /sdcard/ui_dump.xml');
+                    if (newDumpResult.success) {
+                        dumpResult.output = newDumpResult.output;
+                    }
+                }
+                
                 // Try multiple approaches to find the FAB
                 let match = dumpResult.output.match(/content-desc="capture_fab"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
                 
-                // If not found by contentDescription, try by text
+                // If not found by contentDescription, try by "Capture Insight"
+                if (!match) {
+                    // Look for the "Capture Insight" content description and find its parent clickable element
+                    const captureInsightMatch = dumpResult.output.match(/content-desc="Capture Insight"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+                    if (captureInsightMatch) {
+                        const [, ix1, iy1, ix2, iy2] = captureInsightMatch;
+                        const iconX1 = parseInt(ix1);
+                        const iconY1 = parseInt(iy1);
+                        const iconX2 = parseInt(ix2);
+                        const iconY2 = parseInt(iy2);
+                        
+                        // Find all clickable elements and check if they contain the icon
+                        const clickableRegex = /clickable="true"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g;
+                        let clickableMatch;
+                        while ((clickableMatch = clickableRegex.exec(dumpResult.output)) !== null) {
+                            const [, x1, y1, x2, y2] = clickableMatch;
+                            const elemX1 = parseInt(x1);
+                            const elemY1 = parseInt(y1);
+                            const elemX2 = parseInt(x2);
+                            const elemY2 = parseInt(y2);
+                            
+                            // Check if this clickable element contains the icon
+                            if (elemX1 <= iconX1 && elemY1 <= iconY1 && elemX2 >= iconX2 && elemY2 >= iconY2) {
+                                match = [null, x1, y1, x2, y2];
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // If still not found, try by text
                 if (!match) {
                     match = dumpResult.output.match(/text="Capture This Insight"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-                }
-                
-                // If still not found, try to find any clickable element with "capture" in it
-                if (!match) {
-                    match = dumpResult.output.match(/content-desc="[^"]*capture[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-                }
-                
-                // Last resort: try to find any clickable element in the bottom right area (typical FAB position)
-                if (!match) {
-                    match = dumpResult.output.match(/clickable="true"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]".*?content-desc="[^"]*"/);
                 }
                 
                 if (match) {

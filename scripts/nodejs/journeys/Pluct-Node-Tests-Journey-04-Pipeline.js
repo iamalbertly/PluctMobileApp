@@ -6,7 +6,7 @@
 
 const { execOut } = require('../core/Pluct-Test-Core-Exec');
 const { logInfo, logWarn, logSuccess, logError } = require('../core/Logger');
-const UI = require('../modules/Pluct-Node-Tests-UI-01Validator');
+const UI = require('../modules/UIValidator');
 const fs = require('fs');
 const path = require('path');
 

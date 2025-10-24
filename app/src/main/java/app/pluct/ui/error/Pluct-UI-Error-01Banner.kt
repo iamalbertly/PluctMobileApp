@@ -31,41 +31,69 @@ fun PluctErrorBanner(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = MaterialTheme.shapes.large
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(20.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
+                // Header with error icon and code
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Error: ${error.code}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.testTag("error_code")
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = error.message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.testTag("error_message")
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Error",
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Error: ${error.code}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.testTag("error_code")
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.testTag("error_dismiss")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss error",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
                 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.testTag("error_dismiss")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss error",
-                        tint = MaterialTheme.colorScheme.onErrorContainer
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Error message
+                Text(
+                    text = error.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.testTag("error_message")
+                )
+                
+                // Error details if available
+                if (error.details.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Details: ${error.details.entries.joinToString(", ") { "${it.key}=${it.value}" }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                        modifier = Modifier.testTag("error_details")
                     )
                 }
             }
