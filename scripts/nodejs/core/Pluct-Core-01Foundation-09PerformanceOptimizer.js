@@ -4,9 +4,11 @@
  * Adheres to 300-line limit with smart separation of concerns
  */
 
+const PluctLogger = require('./Logger');
+
 class PluctCoreFoundationPerformanceOptimizer {
     constructor() {
-        this.logger = new PluctLogger();
+        this.logger = PluctLogger;
         this.performanceMetrics = {
             testStartTime: null,
             testEndTime: null,

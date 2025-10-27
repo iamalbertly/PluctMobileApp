@@ -5,8 +5,8 @@
  */
 
 const PluctCoreFoundation = require('./Pluct-Core-01Foundation');
-const PluctCoreUI = require('./Pluct-Core-02UI');
-const PluctCorePerformance = require('./Pluct-Core-03Performance');
+const PluctCoreUI = require('./Pluct-Core-01Foundation-04UI');
+const PluctCorePerformance = require('./Pluct-Core-01Foundation-09PerformanceOptimizer');
 
 class PluctCoreUnified {
     constructor() {
@@ -93,12 +93,20 @@ class PluctCoreUnified {
         return await this.ui.openCaptureSheet();
     }
 
+    async waitForTranscriptResult(timeoutMs = 30000, pollMs = 1000) {
+        return await this.ui.waitForTranscriptResult(timeoutMs, pollMs);
+    }
+
     async tapFirstEditText() {
         return await this.ui.tapFirstEditText();
     }
 
     async clearEditText() {
         return await this.ui.clearEditText();
+    }
+
+    async resetAppState() {
+        return await this.ui.resetAppState();
     }
 
     async waitForTranscriptResult(timeoutMs, pollMs) {
@@ -137,6 +145,10 @@ class PluctCoreUnified {
 
     async normalizeTikTokUrl(url) {
         return await this.ui.validateTikTokUrl(url);
+    }
+
+    async pressBackButton() {
+        return await this.ui.pressBackButton();
     }
 
     async readLogcatSince(timestamp, tag) {

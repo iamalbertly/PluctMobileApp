@@ -87,3 +87,4 @@ Config: `scripts/nodejs/config/Pluct-Test-Config-Defaults.json`
 
 ## Logs
 - 2025-10-13..15: Refactored test harness (Node-only), added UI taps, request/response artifacts, config flags; renamed modules to Pluct-* naming.
+- 2025-01-21: UI Cleanup - Removed Capture Video section and FAB button from main home screen for cleaner, more intuitive interface. Updated PluctHomeScreen.kt and MainActivity.kt, cleaned up unused imports and parameters.

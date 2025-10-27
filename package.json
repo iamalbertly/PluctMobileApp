@@ -4,11 +4,16 @@
   "version": "1.0.0",
   "license": "UNLICENSED",
   "scripts": {
-    "test:all": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope All",
+    "test:all": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:all:full": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:core": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope Core",
     "test:ui": "node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope UI",
     "test:transcription": "node scripts/nodejs/test-all-transcription.js",
-    "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js -scope All"
+    "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
+    "test:failed": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:clear-history": "node scripts/nodejs/Pluct-Test-History-Manager.js clear",
+    "test:history-stats": "node scripts/nodejs/Pluct-Test-History-Manager.js stats",
+    "test:history-failed": "node scripts/nodejs/Pluct-Test-History-Manager.js failed"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

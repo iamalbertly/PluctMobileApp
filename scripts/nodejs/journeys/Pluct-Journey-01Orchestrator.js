@@ -19,15 +19,39 @@ class PluctJourneyOrchestrator {
             'Pluct-UI-Header-01CreditBalance-Validation.js',
             'Pluct-UI-Header-02SettingsNavigation-Validation.js',
             'Pluct-UI-Header-03EndToEndIntegration-Validation.js',
-            'Journey-QuickScan.js',
+            'Journey-QuickScan.js', // Updated to work with new Extract Script button
             'Journey-TikTok-Intent-01Transcription.js',
+            'Journey-TikTok-Intent-Route-01Transcription.js',
             'Journey-TikTok-Manual-URL-01Transcription.js',
             'Journey-Transcript-Storage-01Display.js',
             'Pluct-Transcript-01BackgroundWorker-Validation.js',
             'Pluct-Transcript-02PerformanceTiming-Validation.js',
-            'Pluct-Transcript-03EndToEndWorkflow-Validation.js'
+            'Pluct-Transcript-03EndToEndWorkflow-Validation.js',
+            'Journey-FreeTier-E2E-01Validation.js', // New Smart Free Tier test
+            'Journey-PremiumTier-E2E-01Validation.js' // New Smart Premium Tier test
             // Add other journeys here in the desired order
         ];
+        
+        // Map file names to registered journey names
+        this.journeyNameMapping = {
+            'Journey-AppLaunch.js': 'AppLaunch',
+            'Journey-ErrorNotificationValidation.js': 'ErrorNotificationValidation',
+            'Journey-QuickScan.js': 'QuickScan', // Updated to work with new Start Transcription button
+            'Journey-TikTok-Intent-01Transcription.js': 'TikTokIntentTranscription',
+            'Journey-TikTok-Intent-Route-01Transcription.js': 'TikTok-Intent-Route-01Transcription',
+            'Journey-TikTok-Manual-URL-01Transcription.js': 'TikTokManualURLTranscription',
+            'Journey-Transcript-Storage-01Display.js': 'TranscriptStorageDisplay',
+            'Pluct-Journey-01AppLaunch.js': 'Pluct-Journey-01AppLaunch',
+            'Pluct-Node-Tests-Journey-01-AppLaunch.js': 'Pluct-Node-Tests-Journey-01-AppLaunch',
+            'Pluct-UI-Header-01CreditBalance-Validation.js': 'Pluct-UI-Header-01CreditBalance-Validation',
+            'Pluct-UI-Header-02SettingsNavigation-Validation.js': 'Pluct-UI-Header-02SettingsNavigation-Validation',
+            'Pluct-UI-Header-03EndToEndIntegration-Validation.js': 'Pluct-UI-Header-03EndToEndIntegration-Validation',
+            'Pluct-Transcript-01BackgroundWorker-Validation.js': 'Pluct-Transcript-01BackgroundWorker-Validation',
+            'Pluct-Transcript-02PerformanceTiming-Validation.js': 'Pluct-Transcript-02PerformanceTiming-Validation',
+            'Pluct-Transcript-03EndToEndWorkflow-Validation.js': 'Pluct-Transcript-03EndToEndWorkflow-Validation',
+            'Journey-FreeTier-E2E-01Validation.js': 'FreeTier-E2E-01Validation',
+            'Journey-PremiumTier-E2E-01Validation.js': 'PremiumTier-E2E-01Validation'
+        };
     }
 
     /**
@@ -62,17 +86,16 @@ class PluctJourneyOrchestrator {
             return result;
         } catch (error) {
             this.core.logger.error(`❌ Journey ${name} failed with exception:`, error.message);
-            const result = { success: false, error: error.message };
-            this.results.push({ name, result, success: false });
-            return result;
+            this.core.logger.error(`❌ TERMINATING TEST EXECUTION DUE TO JOURNEY EXCEPTION`);
+            throw error; // Re-throw to terminate execution
         }
     }
 
     /**
-     * Run all registered journeys
+     * Load and register all journeys
      */
-    async runAllJourneys() {
-        this.core.logger.info('🎯 Starting comprehensive journey testing...');
+    async loadAllJourneys() {
+        this.core.logger.info('🎯 Loading all journeys...');
 
         const journeysDir = __dirname;
 
@@ -97,7 +120,7 @@ class PluctJourneyOrchestrator {
             }
         }
         
-        // Register and run journeys in the specified order
+        // Register journeys in the specified order
         for (const file of this.journeyExecutionOrder) {
             const mod = discoveredJourneys[file];
             if (!mod) {
@@ -118,6 +141,19 @@ class PluctJourneyOrchestrator {
                 this.core.logger.warn(`Failed to register journey ${file}: ${e.message}`);
             }
         }
+
+        this.core.logger.info(`🎯 Loaded ${this.journeys.size} journeys`);
+        return this.journeys;
+    }
+
+    /**
+     * Run all registered journeys
+     */
+    async runAllJourneys() {
+        this.core.logger.info('🎯 Starting comprehensive journey testing...');
+
+        // Load all journeys first
+        await this.loadAllJourneys();
 
         for (const [name, journey] of this.journeys) {
             this.core.logger.info(`🎯 Running journey: ${name}`);
@@ -239,6 +275,7 @@ class PluctJourneyOrchestrator {
 class BaseJourney {
     constructor(core) {
         this.core = core;
+        this.logger = core.logger; // Add logger reference for convenience
     }
 
     async execute() {

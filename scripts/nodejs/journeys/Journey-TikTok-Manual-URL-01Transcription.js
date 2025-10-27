@@ -17,6 +17,14 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
         const startTime = Date.now();
         
         try {
+            // Step 0: Reset App State for Clean Test Run
+            this.core.logger.info('🔄 Step 0: Resetting App State for Clean Test Run');
+            const resetResult = await this.core.resetAppState();
+            if (!resetResult.success) {
+                this.core.logger.warn('⚠️ App state reset failed, continuing anyway');
+            }
+            await this.core.sleep(2000);
+            
             // Step 1: App Launch and Initial State
             this.core.logger.info('📱 Step 1: App Launch and Initial State');
             const launchResult = await this.core.launchApp();
@@ -25,16 +33,16 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
             }
             await this.core.sleep(2000);
             
-            // Step 2: Open Capture Sheet
-            this.core.logger.info('📱 Step 2: Opening Capture Sheet');
-            const captureResult = await this.core.openCaptureSheet();
+            // Step 2: Verify Always-Visible Capture Component
+            this.core.logger.info('📱 Step 2: Verifying Always-Visible Capture Component');
+            const captureResult = await this.verifyCaptureComponent();
             if (!captureResult.success) {
-                return { success: false, error: 'Failed to open capture sheet' };
+                return { success: false, error: 'Capture component not found' };
             }
             
-            // Step 3: Enter URL
-            this.core.logger.info('📱 Step 3: Entering TikTok URL');
-            const urlResult = await this.enterTikTokUrl();
+            // Step 3: Enter URL in Always-Visible Component
+            this.core.logger.info('📱 Step 3: Entering TikTok URL in Always-Visible Component');
+            const urlResult = await this.enterTikTokUrlInAlwaysVisibleComponent();
             if (!urlResult.success) {
                 return { success: false, error: 'Failed to enter URL' };
             }
@@ -76,13 +84,52 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
     }
     
     /**
-     * Enter TikTok URL in the capture sheet
+     * Verify the always-visible capture component is present
      */
-    async enterTikTokUrl() {
+    async verifyCaptureComponent() {
         try {
-            this.core.logger.info('📝 Entering TikTok URL: ' + this.core.config.url);
+            this.core.logger.info('🔍 Verifying always-visible capture component...');
             
-            // Wait for capture sheet to be fully loaded
+            await this.core.dumpUIHierarchy();
+            const uiDump = this.core.readLastUIDump();
+            
+            // Check for the always-visible capture component
+            const hasCaptureComponent = uiDump.includes('Always visible capture card') ||
+                                      uiDump.includes('Capture Video') ||
+                                      uiDump.includes('TikTok URL input field');
+            
+            if (hasCaptureComponent) {
+                this.core.logger.info('✅ Always-visible capture component found');
+                return { success: true };
+            } else {
+                this.core.logger.error('❌ Always-visible capture component not found');
+                this.core.logger.error('❌ Available UI elements:');
+                const textMatches = uiDump.match(/text="([^"]+)"/g);
+                if (textMatches) {
+                    const uniqueTexts = [...new Set(textMatches.map(match => match.replace('text="', '').replace('"', '')))];
+                    uniqueTexts.forEach(text => {
+                        if (text.trim()) {
+                            this.core.logger.error(`❌   - "${text}"`);
+                        }
+                    });
+                }
+                return { success: false, error: 'Always-visible capture component not found' };
+            }
+            
+        } catch (error) {
+            this.core.logger.error('❌ Failed to verify capture component:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    /**
+     * Enter TikTok URL in the always-visible capture component
+     */
+    async enterTikTokUrlInAlwaysVisibleComponent() {
+        try {
+            this.core.logger.info('📝 Entering TikTok URL in always-visible component: ' + this.core.config.url);
+            
+            // Wait for UI to be fully loaded
             await this.core.sleep(2000);
             
             // Check if URL is already pre-populated
@@ -90,36 +137,36 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
             const uiDump = this.core.readLastUIDump();
             
             if (uiDump.includes(this.core.config.url)) {
-                this.core.logger.info('✅ URL is already pre-populated');
+                this.core.logger.info('✅ URL is already pre-populated in always-visible component');
                 return { success: true };
             }
             
-            // Find and tap the URL input field
-            const urlTap = await this.core.tapByText('TikTok URL');
+            // Find and tap the URL input field using content description
+            const urlTap = await this.core.tapByTestTag('video_url_input');
             if (!urlTap.success) {
-                // Try alternative approach
-                const altTap = await this.core.tapFirstEditText();
+                // Try alternative approach - tap by text
+                const altTap = await this.core.tapByText('TikTok URL');
                 if (!altTap.success) {
-                    this.core.logger.warn('⚠️ URL input field not found, but URL might be pre-populated');
-                    return { success: true }; // Continue anyway since URL might be pre-populated
+                    // Try tapping the first EditText
+                    const editTextTap = await this.core.tapFirstEditText();
+                    if (!editTextTap.success) {
+                        this.core.logger.warn('⚠️ URL input field not found, but URL might be pre-populated');
+                        return { success: true }; // Continue anyway since URL might be pre-populated
+                    }
                 }
             }
             
-            // Clear any existing text
-            await this.core.clearEditText();
-            await this.core.sleep(500);
-            
-            // Enter the URL
+            // Enter the URL (inputText now automatically clears the field)
             const inputResult = await this.core.inputText(this.core.config.url);
             if (!inputResult.success) {
                 return { success: false, error: 'Failed to input URL text' };
             }
             
-            this.core.logger.info('✅ URL entered successfully');
+            this.core.logger.info('✅ URL entered successfully in always-visible component');
             return { success: true };
             
         } catch (error) {
-            this.core.logger.error('❌ Failed to enter TikTok URL:', error.message);
+            this.core.logger.error('❌ Failed to enter TikTok URL in always-visible component:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -134,39 +181,73 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
             // Wait a moment for the input to be processed
             await this.core.sleep(1000);
             
-            // Tap the Process Video button
-            const submitTap = await this.core.tapByText('Process Video');
+            // Tap the Extract Script button (free tier) using test tag first
+            const submitTap = await this.core.tapByTestTag('extract_script_button');
             if (!submitTap.success) {
-                return { success: false, error: 'Process Video button not found' };
+                // Try tapping by actual button text
+                const submitTextTap = await this.core.tapByText('Extract Script');
+                if (!submitTextTap.success) {
+                    return { success: false, error: 'Extract Script button not found' };
+                }
             }
             
-            this.core.logger.info('✅ Process Video button tapped');
+            this.core.logger.info('✅ Submit button tapped in always-visible component');
             
-            // Wait for tier selection sheet to appear
+            // Wait for processing to start
             await this.core.sleep(2000);
             
-            // Check if tier selection sheet appeared
+            // Check if processing started - FAIL if no UI changes occur
             await this.core.dumpUIHierarchy();
             const uiDump = this.core.readLastUIDump();
             
-            if (uiDump.includes('Choose Processing Tier')) {
-                this.core.logger.info('📱 Tier selection sheet appeared');
-                
-                // Select Standard tier - this will automatically start processing
-                const tierTap = await this.core.tapByText('Standard');
-                if (tierTap.success) {
-                    this.core.logger.info('✅ Standard tier selected - processing started');
-                    await this.core.sleep(2000); // Wait for tier selection sheet to close and processing to start
-                } else {
-                    // If we can't find Standard, try tapping "Start Processing" button
-                    const processTap = await this.core.tapByText('Start Processing');
-                    if (!processTap.success) {
-                        return { success: false, error: 'Could not select tier or start processing' };
-                    }
-                    this.core.logger.info('✅ Processing started via button');
-                }
-            } else {
-                this.core.logger.info('✅ Processing started directly (no tier selection)');
+            // First, verify that the URL was actually entered and button is enabled
+            if (!uiDump.includes(this.core.config.url)) {
+                this.core.logger.error('❌ CRITICAL: URL was not properly entered in the input field');
+                this.core.logger.error(`❌ Expected URL: ${this.core.config.url}`);
+                this.core.logger.error('❌ UI dump does not contain the URL');
+                return { 
+                    success: false, 
+                    error: 'URL input failed - URL not found in UI after input attempt' 
+                };
+            }
+            
+            // Check if button is enabled (should not contain "enabled=\"false\"")
+            if (uiDump.includes('enabled="false"') && uiDump.includes('Submit button')) {
+                this.core.logger.error('❌ CRITICAL: Submit button is disabled after URL entry');
+                this.core.logger.error('❌ Button should be enabled when URL is present');
+                return { 
+                    success: false, 
+                    error: 'Submit button is disabled despite URL being entered - button enablement logic may be broken' 
+                };
+            }
+            
+            // Check for specific processing indicators
+            const hasProcessingIndicator = uiDump.includes('Processing') || 
+                                         uiDump.includes('Processing Video') ||
+                                         uiDump.includes('Processing indicator') ||
+                                         uiDump.includes('Processing status') ||
+                                         uiDump.includes('CircularProgressIndicator');
+            
+            // Check for button state change (button should be disabled or show different text)
+            const buttonStateChanged = !uiDump.includes('Extract Script') || 
+                                     uiDump.includes('Processing') ||
+                                     uiDump.includes('disabled');
+            
+            if (!hasProcessingIndicator && !buttonStateChanged) {
+                this.core.logger.error('❌ CRITICAL: Extract Script button click produced NO UI changes');
+                this.core.logger.error('❌ No processing indicators found in UI dump');
+                this.core.logger.error('❌ Button state did not change after click');
+                this.core.logger.error('❌ URL was entered and button was enabled, but click had no effect');
+                return { 
+                    success: false, 
+                    error: 'Extract Script button click failed - no UI changes detected. Button may not be properly connected to processing logic.' 
+                };
+            }
+            
+            if (hasProcessingIndicator) {
+                this.core.logger.info('✅ Processing started - UI shows processing indicators');
+            } else if (buttonStateChanged) {
+                this.core.logger.info('✅ Button state changed - processing may have started');
             }
             
             return { success: true };

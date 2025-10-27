@@ -6,11 +6,13 @@
 
 const PluctCoreUnified = require('./core/Pluct-Core-Unified-New');
 const { PluctJourneyOrchestrator } = require('./journeys/Pluct-Journey-01Orchestrator');
+const PluctSmartTestRunner = require('./core/Pluct-Smart-Test-Runner');
 
 class PluctMainOrchestrator {
     constructor() {
         this.core = new PluctCoreUnified();
         this.journeyOrchestrator = new PluctJourneyOrchestrator();
+        this.smartTestRunner = new PluctSmartTestRunner(this.core);
         this.setupJourneys();
     }
 
@@ -25,11 +27,14 @@ class PluctMainOrchestrator {
     /**
      * Main orchestration method
      */
-    async run() {
+    async run(options = {}) {
         this.core.logger.info('🎯 Starting Pluct Main Orchestrator...');
         this.core.logger.info(`🎯 Scope: All, URL: ${this.core.config.url}`);
         
         try {
+            // Initialize smart test runner
+            await this.smartTestRunner.initialize(options);
+            
             // Validate environment
             this.core.logger.info('🎯 Validating environment...');
             const envResult = await this.core.validateEnvironment();
@@ -41,15 +46,27 @@ class PluctMainOrchestrator {
             // Run performance optimizations
             await this.optimizePerformance();
 
-            // Run all journeys
-            const journeyResults = await this.journeyOrchestrator.runAllJourneys();
+            // Load all journeys first
+            await this.journeyOrchestrator.loadAllJourneys();
+            
+            // Get all available journeys
+            const allJourneys = this.journeyOrchestrator.journeyExecutionOrder;
+            
+            // Execute tests with smart prioritization
+            const testResults = await this.smartTestRunner.executeTests(this.journeyOrchestrator, allJourneys);
+            
+            if (!testResults.success) {
+                this.core.logger.error('❌ Test execution failed');
+                this.core.logger.error(`❌ Error: ${testResults.error}`);
+                return { success: false, error: testResults.error, testResults };
+            }
 
-            // Generate report
-            const report = this.journeyOrchestrator.generateReport();
+            // Generate enhanced report
+            const report = this.generateEnhancedReport(testResults);
             this.core.logger.info('📊 Enhanced test report generated');
 
             this.core.logger.info('✅ All journeys completed successfully');
-            return { success: true, report, journeyResults };
+            return { success: true, report, testResults };
         } catch (error) {
             this.core.logger.error('❌ Main orchestration failed:', error.message);
             return { success: false, error: error.message };
@@ -76,6 +93,48 @@ class PluctMainOrchestrator {
     }
 
     /**
+     * Generate enhanced report with smart test results
+     */
+    generateEnhancedReport(testResults) {
+        const summary = this.smartTestRunner.getExecutionSummary();
+        const successful = testResults.results.filter(r => r.success).length;
+        const total = testResults.results.length;
+        const successRate = total > 0 ? (successful / total) * 100 : 0;
+
+        this.core.logger.info('📊 === ENHANCED TEST REPORT ===');
+        this.core.logger.info(`📊 Execution Strategy: ${summary.strategy.strategy.toUpperCase()}`);
+        this.core.logger.info(`📊 Strategy Reason: ${summary.strategy.reason}`);
+        this.core.logger.info(`📊 Total Tests: ${total}`);
+        this.core.logger.info(`📊 Successful: ${successful}`);
+        this.core.logger.info(`📊 Failed: ${total - successful}`);
+        this.core.logger.info(`📊 Success Rate: ${successRate.toFixed(1)}%`);
+        this.core.logger.info(`📊 Duration: ${summary.duration}ms`);
+        this.core.logger.info(`📊 Run ID: ${summary.runId}`);
+
+        // Log individual results
+        testResults.results.forEach(result => {
+            const status = result.success ? '✅' : '❌';
+            this.core.logger.info(`📊 ${status} ${result.testName}: ${result.success ? 'PASSED' : 'FAILED'} (${result.duration}ms)`);
+            if (!result.success && result.error) {
+                this.core.logger.info(`📊   Error: ${result.error}`);
+            }
+        });
+
+        return {
+            execution: summary,
+            results: testResults.results,
+            statistics: {
+                total,
+                successful,
+                failed: total - successful,
+                successRate,
+                duration: summary.duration
+            },
+            strategy: summary.strategy
+        };
+    }
+
+    /**
      * Cleanup resources
      */
     async cleanup() {
@@ -92,7 +151,18 @@ class PluctMainOrchestrator {
 // Main execution
 if (require.main === module) {
     const orchestrator = new PluctMainOrchestrator();
-    orchestrator.run()
+    
+    // Parse command line arguments
+    const args = process.argv.slice(2);
+    const options = {
+        forceFull: args.includes('--force-full') || args.includes('-f')
+    };
+    
+    if (options.forceFull) {
+        console.log('🔄 Force full test run requested - ignoring previous results');
+    }
+    
+    orchestrator.run(options)
         .then(result => {
             if (result.success) {
                 console.log('🎉 All tests completed successfully');

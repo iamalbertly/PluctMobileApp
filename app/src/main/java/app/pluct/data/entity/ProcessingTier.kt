@@ -6,5 +6,7 @@ enum class ProcessingTier {
     PREMIUM,
     AI_ANALYSIS,
     DEEP_ANALYSIS,
-    PREMIUM_INSIGHTS
+    PREMIUM_INSIGHTS,
+    EXTRACT_SCRIPT,
+    GENERATE_INSIGHTS
 }

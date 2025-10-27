@@ -62,9 +62,18 @@ async function testAppLaunch({ deviceId, artifacts, log }) {
     return true;
 }
 
+function register(orchestrator) {
+    orchestrator.registerJourney('Pluct-Node-Tests-Journey-01-AppLaunch', {
+        execute: testAppLaunch,
+        name: 'App Launch',
+        description: 'Tests enhanced app launch with UI verification'
+    });
+}
+
 module.exports = {
     testAppLaunch,
     name: 'App Launch',
     description: 'Tests enhanced app launch with UI verification',
-    order: 1
+    order: 1,
+    register
 };

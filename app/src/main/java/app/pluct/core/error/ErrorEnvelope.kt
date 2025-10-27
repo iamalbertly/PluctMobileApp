@@ -1,10 +1,30 @@
 package app.pluct.core.error
 
 /**
- * Error envelope for structured error handling
+ * Pluct-Core-Error-ErrorEnvelope - Simple error envelope for basic error handling
+ * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation of Concern][CoreResponsibility]
  */
 data class ErrorEnvelope(
-    val code: String,
+    val type: ErrorType,
+    val title: String,
     val message: String,
-    val details: Map<String, Any> = emptyMap()
+    val technicalDetails: String? = null,
+    val userAction: String? = null,
+    val error: Throwable? = null,
+    val recoveryAttempted: Boolean = false
 )
+
+enum class ErrorType {
+    NETWORK,
+    AUTHENTICATION,
+    VALIDATION,
+    API,
+    UNKNOWN
+}
+
+enum class ErrorSeverity {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
+}

@@ -55,7 +55,10 @@ android {
         jvmTarget = "17"
         freeCompilerArgs += listOf(
             "-Xjvm-default=all",
-            "-opt-in=kotlin.RequiresOptIn"
+            "-opt-in=kotlin.RequiresOptIn",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi"
         )
     }
     buildFeatures {

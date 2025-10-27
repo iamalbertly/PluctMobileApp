@@ -172,13 +172,12 @@ class PluctCoreFoundation {
                 await this.executeCommand('adb pull /sdcard/ui_dump.xml artifacts/ui/');
                 this.logger.info('📊 UI hierarchy dumped to: /sdcard/ui_dump.xml');
                 
-                // Read and display trimmed XML
+                // Read and display full XML
                 const fs = require('fs');
                 if (fs.existsSync('artifacts/ui/ui_dump.xml')) {
                     const xmlContent = fs.readFileSync('artifacts/ui/ui_dump.xml', 'utf8');
-                    const trimmedXml = xmlContent.substring(0, 1000) + '... [trimmed]';
-                    console.log('\n----- UI DUMP (trimmed) -----');
-                    console.log(trimmedXml);
+                    console.log('\n----- UI DUMP (full) -----');
+                    console.log(xmlContent);
                     console.log('----- END UI DUMP -----\n');
                 }
             }
@@ -290,8 +289,8 @@ class PluctCoreFoundation {
                 }
             }
             
-            this.logger.warn(`⚠️ Could not tap by text: ${text}`);
-            return { success: false, error: 'Text not found' };
+            this.logger.error(`❌ CRITICAL: Could not tap by text: ${text}`);
+            throw new Error(`CRITICAL: Could not tap by text: ${text}`);
         } catch (error) {
             this.logger.error(`❌ Tap by text failed: ${text}`, error.message);
             return { success: false, error: error.message };
@@ -318,8 +317,8 @@ class PluctCoreFoundation {
                 }
             }
             
-            this.logger.warn(`⚠️ Could not tap by content-desc: ${contentDesc}`);
-            return { success: false, error: `Could not find element with content-desc: ${contentDesc}` };
+            this.logger.error(`❌ CRITICAL: Could not tap by content-desc: ${contentDesc}`);
+            throw new Error(`CRITICAL: Could not tap by content-desc: ${contentDesc}`);
         } catch (error) {
             this.logger.error('❌ Tap by content-desc failed:', error.message);
             return { success: false, error: error.message };
@@ -438,8 +437,8 @@ class PluctCoreFoundation {
                 }
             }
             
-            this.logger.warn(`⚠️ Could not tap by test tag: ${testTag}`);
-            return { success: false, error: 'Test tag not found' };
+            this.logger.error(`❌ CRITICAL: Could not tap by test tag: ${testTag}`);
+            throw new Error(`CRITICAL: Could not tap by test tag: ${testTag}`);
         } catch (error) {
             this.logger.error(`❌ Tap by test tag failed: ${testTag}`, error.message);
             return { success: false, error: error.message };

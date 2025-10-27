@@ -9,8 +9,8 @@ class ShareIntentJourney extends BaseJourney {
 
         // Validate URL and send share intent
         const normalized = await this.core.normalizeTikTokUrl(this.core.config.url);
-        if (!normalized.valid) return { success: false, error: 'Invalid TikTok URL' };
-        const res = await this.core.executeCommand(`adb shell am start -W -a android.intent.action.SEND -t text/plain -d "${normalized.normalized}" app.pluct/.MainActivity`);
+        if (!normalized.success) return { success: false, error: 'Invalid TikTok URL' };
+        const res = await this.core.executeCommand(`adb shell am start -W -a android.intent.action.SEND -t text/plain -d "${normalized.normalizedUrl}" app.pluct/.MainActivity`);
         if (!res.success) return { success: false, error: 'Share intent failed' };
 
         // Validate sheet opened and URL present
@@ -21,7 +21,7 @@ class ShareIntentJourney extends BaseJourney {
         if (!urlPresent.success) this.core.logger.warn('URL field not found after share intent');
 
         // Quick metadata fetch and log
-        const meta = await this.core.fetchHtmlMetadata(normalized.normalized);
+        const meta = await this.core.fetchHtmlMetadata(normalized.normalizedUrl);
         this.core.writeJsonArtifact('share_intent_meta.json', meta);
 
         return { success: true };

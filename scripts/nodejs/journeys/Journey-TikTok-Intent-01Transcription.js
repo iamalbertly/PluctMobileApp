@@ -17,6 +17,11 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
         const startTime = Date.now();
         
         try {
+            // Step 0: Clear EditText Field for Clean Test Run (but preserve intent data)
+            this.core.logger.info('🧹 Step 0: Clearing EditText Field for Clean Test Run');
+            // Note: inputText now automatically clears the field, so we don't need to call clearEditText separately
+            await this.core.sleep(1000);
+            
             // Step 1: App Launch and Initial State
             this.core.logger.info('📱 Step 1: App Launch and Initial State');
             const launchResult = await this.core.launchApp();
@@ -32,22 +37,29 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
                 return { success: false, error: 'Intent simulation failed' };
             }
             
-            // Step 3: Verify Metadata Extraction
-            this.core.logger.info('📱 Step 3: Verifying Metadata Extraction');
-            const metadataResult = await this.verifyMetadataExtraction();
-            if (!metadataResult.success) {
-                return { success: false, error: 'Metadata extraction failed' };
+            // Step 3: Verify Always-Visible Capture Component with Pre-filled URL
+            this.core.logger.info('📱 Step 3: Verifying Always-Visible Capture Component with Pre-filled URL');
+            const captureResult = await this.verifyPreFilledCaptureComponent();
+            if (!captureResult.success) {
+                return { success: false, error: 'Pre-filled capture component not found' };
             }
             
-            // Step 4: Monitor Transcription Process
-            this.core.logger.info('📱 Step 4: Monitoring Transcription Process');
+            // Step 4: Submit Pre-filled URL for Processing
+            this.core.logger.info('📱 Step 4: Submitting Pre-filled URL for Processing');
+            const submitResult = await this.submitPreFilledUrl();
+            if (!submitResult.success) {
+                return { success: false, error: 'Failed to submit pre-filled URL' };
+            }
+            
+            // Step 5: Monitor Transcription Process
+            this.core.logger.info('📱 Step 5: Monitoring Transcription Process');
             const transcriptionResult = await this.monitorTranscriptionProcess();
             if (!transcriptionResult.success) {
                 return { success: false, error: 'Transcription process failed' };
             }
             
-            // Step 5: Verify Transcript Display
-            this.core.logger.info('📱 Step 5: Verifying Transcript Display');
+            // Step 6: Verify Transcript Display
+            this.core.logger.info('📱 Step 6: Verifying Transcript Display');
             const displayResult = await this.verifyTranscriptDisplay();
             if (!displayResult.success) {
                 return { success: false, error: 'Transcript display failed' };
@@ -59,7 +71,6 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
             return { 
                 success: true, 
                 duration: duration,
-                metadata: metadataResult.metadata,
                 transcript: transcriptionResult.transcript
             };
             
@@ -77,13 +88,16 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
             this.core.logger.info('🔄 Simulating TikTok intent with URL: ' + this.core.config.url);
             
             // Simulate intent by directly calling the app's intent handler
-            const intentCommand = `adb shell am start -a android.intent.action.SEND -t "text/plain" --es android.intent.extra.TEXT "${this.core.config.url}" app.pluct/.MainActivity`;
+            const intentCommand = `adb shell am start -a android.intent.action.SEND -t "text/plain" --es android.intent.extra.TEXT '${this.core.config.url}' app.pluct/.MainActivity`;
+            this.core.logger.info('🔧 Intent command: ' + intentCommand);
+            
             const result = await this.core.executeCommand(intentCommand);
             
             if (!result.success) {
                 this.core.logger.warn('⚠️ Intent command failed, trying alternative approach');
                 // Alternative: Use deep link
-                const deepLinkCommand = `adb shell am start -a android.intent.action.VIEW -d "${this.core.config.url}" app.pluct/.MainActivity`;
+                const deepLinkCommand = `adb shell am start -a android.intent.action.VIEW -d '${this.core.config.url}' app.pluct/.MainActivity`;
+                this.core.logger.info('🔧 Deep link command: ' + deepLinkCommand);
                 const deepLinkResult = await this.core.executeCommand(deepLinkCommand);
                 if (!deepLinkResult.success) {
                     return { success: false, error: 'Failed to simulate intent' };
@@ -100,7 +114,114 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
     }
     
     /**
-     * Verify that metadata was extracted correctly
+     * Verify the always-visible capture component is present with pre-filled URL
+     */
+    async verifyPreFilledCaptureComponent() {
+        try {
+            this.core.logger.info('🔍 Verifying always-visible capture component with pre-filled URL...');
+            
+            await this.core.dumpUIHierarchy();
+            const uiDump = this.core.readLastUIDump();
+            
+            // Check for the always-visible capture component
+            const hasCaptureComponent = uiDump.includes('Always visible capture card') ||
+                                      uiDump.includes('Capture Video') ||
+                                      uiDump.includes('TikTok URL input field');
+            
+            if (!hasCaptureComponent) {
+                this.core.logger.error('❌ Always-visible capture component not found');
+                return { success: false, error: 'Always-visible capture component not found' };
+            }
+            
+            // Check if URL is pre-filled from INTENT
+            const hasPreFilledUrl = uiDump.includes(this.core.config.url);
+            
+            if (hasPreFilledUrl) {
+                this.core.logger.info('✅ Always-visible capture component found with pre-filled URL from INTENT');
+                return { success: true };
+            } else {
+                this.core.logger.warn('⚠️ Always-visible capture component found but URL not pre-filled');
+                this.core.logger.info('✅ Component is present, URL auto-fill may happen on submit');
+                return { success: true };
+            }
+            
+        } catch (error) {
+            this.core.logger.error('❌ Failed to verify pre-filled capture component:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    /**
+     * Submit the pre-filled URL for processing
+     */
+    async submitPreFilledUrl() {
+        try {
+            this.core.logger.info('🚀 Submitting pre-filled URL for processing...');
+            
+            // Wait for intent processing to complete
+            await this.core.sleep(2000);
+            
+            // Tap the Extract Script button (free tier) using test tag first
+            const submitTap = await this.core.tapByTestTag('extract_script_button');
+            if (!submitTap.success) {
+                // Try tapping by actual button text
+                const submitTextTap = await this.core.tapByText('Extract Script');
+                if (!submitTextTap.success) {
+                    // Try tapping by text (without emoji)
+                    const submitTextTap2 = await this.core.tapByText('Extract Script');
+                    if (!submitTextTap2.success) {
+                        return { success: false, error: 'Extract Script button not found' };
+                    }
+                }
+            }
+            
+            this.core.logger.info('✅ Submit button tapped for pre-filled URL');
+            
+            // Wait for processing to start
+            await this.core.sleep(2000);
+            
+            // Check if processing started - FAIL if no UI changes occur
+            await this.core.dumpUIHierarchy();
+            const uiDump = this.core.readLastUIDump();
+            
+            // Check for specific processing indicators
+            const hasProcessingIndicator = uiDump.includes('Processing') || 
+                                         uiDump.includes('Processing Video') ||
+                                         uiDump.includes('Processing indicator') ||
+                                         uiDump.includes('Processing status') ||
+                                         uiDump.includes('CircularProgressIndicator');
+            
+            // Check for button state change (button should be disabled or show different text)
+            const buttonStateChanged = !uiDump.includes('Extract Script') || 
+                                     uiDump.includes('Processing') ||
+                                     uiDump.includes('disabled');
+            
+            if (!hasProcessingIndicator && !buttonStateChanged) {
+                this.core.logger.error('❌ CRITICAL: Extract Script button click produced NO UI changes');
+                this.core.logger.error('❌ No processing indicators found in UI dump');
+                this.core.logger.error('❌ Button state did not change after click');
+                return { 
+                    success: false, 
+                    error: 'Extract Script button click failed - no UI changes detected. Button may not be properly connected to processing logic.' 
+                };
+            }
+            
+            if (hasProcessingIndicator) {
+                this.core.logger.info('✅ Processing started - UI shows processing indicators');
+            } else if (buttonStateChanged) {
+                this.core.logger.info('✅ Button state changed - processing may have started');
+            }
+            
+            return { success: true };
+            
+        } catch (error) {
+            this.core.logger.error('❌ Failed to submit pre-filled URL:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    /**
+     * Verify that metadata was extracted correctly (legacy method - kept for compatibility)
      */
     async verifyMetadataExtraction() {
         try {

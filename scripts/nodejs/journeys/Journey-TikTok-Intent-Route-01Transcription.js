@@ -254,4 +254,8 @@ class JourneyTikTokIntentRoute01Transcription extends BaseJourney {
     }
 }
 
-module.exports = JourneyTikTokIntentRoute01Transcription;
+function register(orchestrator) {
+    orchestrator.registerJourney('TikTok-Intent-Route-01Transcription', new JourneyTikTokIntentRoute01Transcription(orchestrator.core));
+}
+
+module.exports = { register };

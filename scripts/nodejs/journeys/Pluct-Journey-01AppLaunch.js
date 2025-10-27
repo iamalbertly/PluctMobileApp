@@ -166,4 +166,8 @@ class PluctJourney01AppLaunch {
     }
 }
 
-module.exports = PluctJourney01AppLaunch;
+function register(orchestrator) {
+    orchestrator.registerJourney('Pluct-Journey-01AppLaunch', new PluctJourney01AppLaunch());
+}
+
+module.exports = { register };
