@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.entity.ProcessingTier
+import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
 
@@ -31,7 +32,9 @@ fun PluctHomeScreen(
     errorMessage: String?,
     onTierSubmit: (String, ProcessingTier) -> Unit,
     onRetryVideo: (VideoItem) -> Unit,
-    onDeleteVideo: (VideoItem) -> Unit
+    onDeleteVideo: (VideoItem) -> Unit,
+    prefilledUrl: String? = null,
+    apiService: PluctCoreAPIUnifiedService? = null
 ) {
     Scaffold(
         topBar = {
@@ -56,7 +59,9 @@ fun PluctHomeScreen(
                 PluctUIComponent03CaptureCard(
                     freeUsesRemaining = freeUsesRemaining,
                     creditBalance = creditBalance,
-                    onTierSubmit = onTierSubmit
+                    onTierSubmit = onTierSubmit,
+                    preFilledUrl = prefilledUrl,
+                    apiService = apiService
                 )
             }
             

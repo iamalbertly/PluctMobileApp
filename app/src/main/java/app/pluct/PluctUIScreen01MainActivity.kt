@@ -1,5 +1,7 @@
 package app.pluct
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -37,6 +39,9 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Handle TikTok intent
+        handleTikTokIntent(intent)
+        
         setContent {
             PluctTheme {
                 Surface(
@@ -44,6 +49,45 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     PluctMainContent(apiService, userIdentification)
+                }
+            }
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { handleTikTokIntent(it) }
+    }
+    
+    private fun handleTikTokIntent(intent: Intent) {
+        Log.d("MainActivity", "Handling intent: ${intent.action}")
+        
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                Log.d("MainActivity", "Received shared text: $sharedText")
+                
+                if (!sharedText.isNullOrEmpty() && sharedText.contains("tiktok.com")) {
+                    Log.d("MainActivity", "TikTok URL detected: $sharedText")
+                    // Store the URL for the UI to pick up
+                    PluctUserPreferences.setPrefilledUrl(this, sharedText)
+                }
+            }
+            Intent.ACTION_VIEW -> {
+                val uri = intent.data
+                Log.d("MainActivity", "Received URI: $uri")
+                
+                if (uri?.scheme == "pluct") {
+                    when (uri.host) {
+                        "ingest" -> {
+                            val url = uri.getQueryParameter("url")
+                            Log.d("MainActivity", "Deep link URL: $url")
+                            url?.let { PluctUserPreferences.setPrefilledUrl(this, it) }
+                        }
+                        "debug" -> {
+                            Log.d("MainActivity", "Debug deep link received")
+                        }
+                    }
                 }
             }
         }
@@ -67,12 +111,20 @@ fun PluctMainContent(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var prefilledUrl by remember { mutableStateOf<String?>(null) }
     
     // User preferences
     val userPreferences = remember { PluctUserPreferences(context) }
     
-    // Load initial data
+    // Load initial data and check for prefilled URL
     LaunchedEffect(Unit) {
+        // Check for prefilled URL from intent
+        val url = PluctUserPreferences.getAndClearPrefilledUrl(context)
+        if (url != null) {
+            Log.d("MainActivity", "Found prefilled URL: $url")
+            prefilledUrl = url
+        }
+        
         loadInitialData(apiService, userIdentification) { balance, freeUses ->
             creditBalance = balance
             freeUsesRemaining = freeUses
@@ -116,7 +168,9 @@ fun PluctMainContent(
         errorMessage = errorMessage,
         onTierSubmit = onTierSubmit,
         onRetryVideo = { /* TODO: Implement retry logic */ },
-        onDeleteVideo = { /* TODO: Implement delete logic */ }
+        onDeleteVideo = { /* TODO: Implement delete logic */ },
+        prefilledUrl = prefilledUrl,
+        apiService = apiService
     )
 }
 
@@ -132,7 +186,7 @@ private suspend fun loadInitialData(
         Log.d("MainActivity", "Loading initial data...")
         
         // Get credit balance
-        val balanceResult = apiService.getCreditBalance()
+        val balanceResult = apiService.checkUserBalance()
         balanceResult.fold(
             onSuccess = { balance ->
                 Log.d("MainActivity", "REAL credit balance loaded: ${balance.balance} for user: ${userIdentification.userId}")
@@ -177,7 +231,7 @@ private suspend fun processVideo(
         }
         
         // Start transcription
-        val transcriptionResult = apiService.startTranscription(url)
+        val transcriptionResult = apiService.submitTranscriptionJob(url, "dummy-token") // TODO: Get proper token
         transcriptionResult.fold(
             onSuccess = { transcription ->
                 Log.d("MainActivity", "Transcription started: ${transcription.jobId}")

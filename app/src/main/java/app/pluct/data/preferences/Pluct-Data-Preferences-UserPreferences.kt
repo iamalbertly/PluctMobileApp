@@ -20,7 +20,28 @@ class PluctUserPreferences(context: Context) {
     
     companion object {
         private const val KEY_FREE_USES_REMAINING = "free_uses_remaining"
+        private const val KEY_PREFILLED_URL = "prefilled_url"
         private const val DEFAULT_FREE_USES = 3
+        
+        /**
+         * Set prefilled URL from intent
+         */
+        fun setPrefilledUrl(context: Context, url: String) {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_PREFILLED_URL, url).apply()
+        }
+        
+        /**
+         * Get and clear prefilled URL
+         */
+        fun getAndClearPrefilledUrl(context: Context): String? {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            val url = prefs.getString(KEY_PREFILLED_URL, null)
+            if (url != null) {
+                prefs.edit().remove(KEY_PREFILLED_URL).apply()
+            }
+            return url
+        }
     }
     
     /**

@@ -4,13 +4,13 @@
  * Adheres to 300-line limit with smart separation of concerns
  */
 
-const PluctCoreUnified = require('../core/Pluct-Core-Unified-New');
+const PluctCoreFoundation = require('../core/Pluct-Core-01Foundation');
 const fs = require('fs');
 const path = require('path');
 
 class PluctJourneyOrchestrator {
     constructor() {
-        this.core = new PluctCoreUnified();
+        this.core = new PluctCoreFoundation();
         this.journeys = new Map();
         this.results = [];
         this.journeyExecutionOrder = [

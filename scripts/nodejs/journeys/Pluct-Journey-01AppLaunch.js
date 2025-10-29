@@ -4,11 +4,11 @@
  * Auto-discoverable by orchestrator
  */
 
-const PluctCoreUnified = require('../core/Pluct-Core-Unified-New');
+const PluctCoreFoundation = require('../core/Pluct-Core-01Foundation');
 
 class PluctJourney01AppLaunch {
     constructor() {
-        this.core = new PluctCoreUnified();
+        this.core = new PluctCoreFoundation();
         this.name = 'AppLaunch';
         this.steps = [
             'Pre-launch validation',
