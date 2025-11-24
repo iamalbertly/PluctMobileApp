@@ -30,6 +30,9 @@ class PluctMainOrchestrator {
     async run(options = {}) {
         this.core.logger.info('🎯 Starting Pluct Main Orchestrator...');
         this.core.logger.info(`🎯 Scope: All, URL: ${this.core.config.url}`);
+        if (options && Array.isArray(options.tests) && options.tests.length > 0) {
+            this.core.logger.info(`🎯 Test filter active: ${options.tests.join(', ')}`);
+        }
         
         try {
             // Initialize smart test runner
@@ -48,12 +51,17 @@ class PluctMainOrchestrator {
 
             // Load all journeys first
             await this.journeyOrchestrator.loadAllJourneys();
-            
-            // Get all available journeys
+
+            // Build test list with filter support
             const allJourneys = this.journeyOrchestrator.journeyExecutionOrder;
+            const requested = Array.isArray(options.tests) && options.tests.length > 0
+                ? options.tests
+                : [];
+
+            const testsToRun = requested.length > 0 ? requested : allJourneys;
             
             // Execute tests with smart prioritization
-            const testResults = await this.smartTestRunner.executeTests(this.journeyOrchestrator, allJourneys);
+            const testResults = await this.smartTestRunner.executeTests(this.journeyOrchestrator, testsToRun);
             
             if (!testResults.success) {
                 this.core.logger.error('❌ Test execution failed');
@@ -155,11 +163,35 @@ if (require.main === module) {
     // Parse command line arguments
     const args = process.argv.slice(2);
     const options = {
-        forceFull: args.includes('--force-full') || args.includes('-f')
+        forceFull: args.includes('--force-full') || args.includes('-f'),
+        tests: []
     };
     
+    // Support --test=Name and --test Name (multiple allowed)
+    args.forEach((arg, idx) => {
+        if (arg.startsWith('--test=')) {
+            const name = arg.split('=')[1];
+            if (name) options.tests.push(name.endsWith('.js') ? name : `${name}.js`);
+        }
+        if (arg === '--test' && args[idx + 1] && !args[idx + 1].startsWith('--')) {
+            const name = args[idx + 1];
+            options.tests.push(name.endsWith('.js') ? name : `${name}.js`);
+        }
+    });
+
+    // Also support NPM env passthrough: npm_config_test, TEST_FILTER, TESTS
+    const envFilter = process.env.npm_config_test || process.env.TEST_FILTER || process.env.TESTS || '';
+    if (envFilter) {
+        envFilter.split(',').map(s => s.trim()).filter(Boolean).forEach(name => {
+            options.tests.push(name.endsWith('.js') ? name : `${name}.js`);
+        });
+    }
+
     if (options.forceFull) {
         console.log('🔄 Force full test run requested - ignoring previous results');
+    }
+    if (options.tests.length > 0) {
+        console.log(`🎯 Filtered test run: ${options.tests.join(', ')}`);
     }
     
     orchestrator.run(options)

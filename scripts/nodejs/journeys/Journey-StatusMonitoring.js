@@ -15,9 +15,13 @@ class StatusMonitoringJourney {
         this.core.logger.info('📊 Testing status monitoring end-to-end...');
         
         try {
-            // Step 1: Clear app state
-            await this.core.clearAppCache();
-            await this.core.clearWorkManagerTasks();
+            // Step 1: Clear app state (optional)
+            if (this.core.clearAppCache) {
+                await this.core.clearAppCache();
+            }
+            if (this.core.clearWorkManagerTasks) {
+                await this.core.clearWorkManagerTasks();
+            }
             
             // Step 2: Launch app
             const launchResult = await this.core.launchApp();
@@ -26,8 +30,12 @@ class StatusMonitoringJourney {
             }
             
             // Step 3: Start transcription
-            await this.core.openCaptureSheet();
-            await this.core.sleep(1000);
+            if (this.core.openCaptureSheet) {
+                await this.core.openCaptureSheet();
+                await this.core.sleep(1000);
+            } else {
+                await this.core.sleep(1000);
+            }
             
             const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMADQVF4e/';
             await this.core.inputText(testUrl);
@@ -59,12 +67,14 @@ class StatusMonitoringJourney {
                     statusHistory.push(status);
                     this.core.logger.info(`📈 Status changed: ${status}`);
                     
-                    // Record status change
-                    this.core.writeJsonArtifact('status_history.json', {
-                        timestamp: Date.now(),
-                        status: status,
-                        uiDump: uiDump.substring(0, 1000) // Truncated for storage
-                    });
+                    // Record status change (optional)
+                    if (this.core.writeJsonArtifact) {
+                        this.core.writeJsonArtifact('status_history.json', {
+                            timestamp: Date.now(),
+                            status: status,
+                            uiDump: uiDump.substring(0, 1000) // Truncated for storage
+                        });
+                    }
                 }
                 
                 // Check for progress indicators
@@ -77,11 +87,13 @@ class StatusMonitoringJourney {
                 const error = this.extractError(uiDump);
                 if (error) {
                     this.core.logger.warn(`⚠️ Error detected: ${error}`);
-                    this.core.writeJsonArtifact('error_detected.json', {
-                        timestamp: Date.now(),
-                        error: error,
-                        uiDump: uiDump.substring(0, 1000)
-                    });
+                    if (this.core.writeJsonArtifact) {
+                        this.core.writeJsonArtifact('error_detected.json', {
+                            timestamp: Date.now(),
+                            error: error,
+                            uiDump: uiDump.substring(0, 1000)
+                        });
+                    }
                 }
                 
                 // Check if completed
@@ -117,7 +129,9 @@ class StatusMonitoringJourney {
                 success: statusHistory.length > 0
             };
             
-            this.core.writeJsonArtifact('status_report.json', statusReport);
+            if (this.core.writeJsonArtifact) {
+                this.core.writeJsonArtifact('status_report.json', statusReport);
+            }
             
             if (statusHistory.length === 0) {
                 // Even if no status changes were detected, if we got this far

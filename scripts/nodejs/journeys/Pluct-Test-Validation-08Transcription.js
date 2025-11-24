@@ -19,9 +19,9 @@ class PluctTestValidationTranscription extends BaseJourney {
             // Generate test JWT token
             const jwtToken = this.core.generateTestJWT('mobile');
             
-            // Vend a service token
+            // Vend a service token (use SSOT base URL)
             const vendResponse = await this.core.httpPost(
-                'https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token',
+                `${this.core.config.businessEngineUrl}/v1/vend-token`,
                 { userId: 'mobile' },
                 { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' }
             );
@@ -33,10 +33,10 @@ class PluctTestValidationTranscription extends BaseJourney {
             const vendData = JSON.parse(vendResponse.body);
             const serviceToken = vendData.token;
             
-            // Start transcription job
-            const testUrl = 'https://vm.tiktok.com/ZMA730880/';
+            // Start transcription job (use SSOT config URL)
+            const testUrl = this.core.config.url;
             const transcribeResponse = await this.core.httpPost(
-                'https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe',
+                `${this.core.config.businessEngineUrl}/ttt/transcribe`,
                 { url: testUrl },
                 { 'Authorization': `Bearer ${serviceToken}`, 'Content-Type': 'application/json' }
             );
@@ -50,7 +50,7 @@ class PluctTestValidationTranscription extends BaseJourney {
             
             // Check job status (just verify it was created)
             const statusResponse = await this.core.httpGet(
-                `https://pluct-business-engine.romeo-lya2.workers.dev/ttt/status/${jobId}`,
+                `${this.core.config.businessEngineUrl}/ttt/status/${jobId}`,
                 { 'Authorization': `Bearer ${serviceToken}` }
             );
             

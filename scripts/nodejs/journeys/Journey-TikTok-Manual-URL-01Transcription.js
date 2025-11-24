@@ -17,13 +17,15 @@ class TikTokManualURLTranscriptionJourney extends BaseJourney {
         const startTime = Date.now();
         
         try {
-            // Step 0: Reset App State for Clean Test Run
-            this.core.logger.info('🔄 Step 0: Resetting App State for Clean Test Run');
-            const resetResult = await this.core.resetAppState();
-            if (!resetResult.success) {
-                this.core.logger.warn('⚠️ App state reset failed, continuing anyway');
+            // Step 0: Clear app data for clean test run
+            this.core.logger.info('🔄 Step 0: Clearing app data for clean test run');
+            try {
+                await this.core.executeCommand('adb shell pm clear app.pluct');
+                await this.core.sleep(1000);
+            } catch (error) {
+                this.core.logger.warn('⚠️ App data clear failed, continuing anyway');
             }
-            await this.core.sleep(2000);
+            await this.core.sleep(1000);
             
             // Step 1: App Launch and Initial State
             this.core.logger.info('📱 Step 1: App Launch and Initial State');

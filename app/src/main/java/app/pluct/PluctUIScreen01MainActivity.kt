@@ -35,6 +35,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     
     @Inject lateinit var apiService: PluctCoreAPIUnifiedService
     @Inject lateinit var userIdentification: PluctCoreUserIdentification
+    @Inject lateinit var videoRepository: app.pluct.data.repository.PluctVideoRepository
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +49,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PluctMainContent(apiService, userIdentification)
+                    PluctMainContent(apiService, userIdentification, videoRepository)
                 }
             }
         }
@@ -100,7 +101,8 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
 @Composable
 fun PluctMainContent(
     apiService: PluctCoreAPIUnifiedService,
-    userIdentification: PluctCoreUserIdentification
+    userIdentification: PluctCoreUserIdentification,
+    videoRepository: app.pluct.data.repository.PluctVideoRepository
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -110,11 +112,10 @@ fun PluctMainContent(
     var freeUsesRemaining by remember { mutableStateOf(3) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var prefilledUrl by remember { mutableStateOf<String?>(null) }
     
-    // User preferences
-    val userPreferences = remember { PluctUserPreferences(context) }
+    // Load videos from database using Flow
+    val videos by videoRepository.getAllVideos().collectAsState(initial = emptyList())
     
     // Load initial data and check for prefilled URL
     LaunchedEffect(Unit) {
@@ -131,31 +132,54 @@ fun PluctMainContent(
         }
     }
     
+    // Refresh credit balance function
+    val refreshCreditBalance: () -> Unit = {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                loadInitialData(apiService, userIdentification) { balance, freeUses ->
+                    creditBalance = balance
+                    freeUsesRemaining = freeUses
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to refresh balance: ${e.message}", e)
+                errorMessage = "Failed to refresh balance"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+    
     // Handle video processing
     val onTierSubmit: (String, ProcessingTier) -> Unit = { url: String, tier: ProcessingTier ->
         scope.launch {
-            processVideo(apiService, url, tier, creditBalance, freeUsesRemaining) { success, newBalance, newFreeUses ->
+            processVideo(apiService, url, tier, creditBalance, freeUsesRemaining, videoRepository) { success, newBalance, newFreeUses ->
                 if (success) {
                     creditBalance = newBalance
                     freeUsesRemaining = newFreeUses
-                    // Add video to list
-                    val newVideo = VideoItem(
-                        id = System.currentTimeMillis().toString(),
-                        url = url,
-                        title = "Processing...",
-                        thumbnailUrl = "",
-                        author = "",
-                        duration = 0L,
-                        status = ProcessingStatus.PROCESSING,
-                        progress = 0,
-                        transcript = "",
-                        timestamp = System.currentTimeMillis(),
-                        tier = tier,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    videos = videos + newVideo
                 }
             }
+        }
+    }
+    
+    // Handle video retry
+    val onRetryVideo: (VideoItem) -> Unit = { video ->
+        scope.launch {
+            processVideo(apiService, video.url, video.tier, creditBalance, freeUsesRemaining, videoRepository) { success, newBalance, newFreeUses ->
+                if (success) {
+                    creditBalance = newBalance
+                    freeUsesRemaining = newFreeUses
+                }
+            }
+        }
+    }
+    
+    // Handle video deletion
+    val onDeleteVideo: (VideoItem) -> Unit = { video ->
+        scope.launch {
+            videoRepository.deleteVideo(video)
+            Log.d("MainActivity", "Video deleted: ${video.id}")
         }
     }
     
@@ -167,10 +191,11 @@ fun PluctMainContent(
         isLoading = isLoading,
         errorMessage = errorMessage,
         onTierSubmit = onTierSubmit,
-        onRetryVideo = { /* TODO: Implement retry logic */ },
-        onDeleteVideo = { /* TODO: Implement delete logic */ },
+        onRetryVideo = onRetryVideo,
+        onDeleteVideo = onDeleteVideo,
         prefilledUrl = prefilledUrl,
-        apiService = apiService
+        apiService = apiService,
+        onRefreshCreditBalance = refreshCreditBalance
     )
 }
 
@@ -212,6 +237,7 @@ private suspend fun processVideo(
     tier: ProcessingTier,
     currentBalance: Int,
     currentFreeUses: Int,
+    videoRepository: app.pluct.data.repository.PluctVideoRepository,
     onResult: (Boolean, Int, Int) -> Unit
 ) {
     try {
@@ -230,11 +256,79 @@ private suspend fun processVideo(
             return
         }
         
-        // Start transcription
-        val transcriptionResult = apiService.submitTranscriptionJob(url, "dummy-token") // TODO: Get proper token
+        // Create video item and save to database before processing
+        val videoId = System.currentTimeMillis().toString()
+        val newVideo = VideoItem(
+            id = videoId,
+            url = url,
+            title = "Processing...",
+            thumbnailUrl = "",
+            author = "",
+            duration = 0L,
+            status = ProcessingStatus.PROCESSING,
+            progress = 0,
+            transcript = null,
+            timestamp = System.currentTimeMillis(),
+            tier = tier,
+            createdAt = System.currentTimeMillis()
+        )
+        videoRepository.insertVideo(newVideo)
+        Log.d("MainActivity", "Video saved to database with id: $videoId")
+        
+        // Vend service token first
+        val vendResult = apiService.vendToken()
+        if (vendResult.isFailure) {
+            val error = vendResult.exceptionOrNull()
+            val errorMsg = error?.message ?: "Unknown error"
+            Log.e("MainActivity", "Failed to vend token: $errorMsg")
+            // Create detailed error string for debugging
+            val errorDetails = """
+                Service: BusinessEngine
+                Operation: Vend Token
+                Error: $errorMsg
+                Timestamp: ${System.currentTimeMillis()}
+                Stack: ${error?.stackTraceToString()?.take(500) ?: "N/A"}
+            """.trimIndent()
+            // Update video with failure
+            videoRepository.updateVideo(newVideo.copy(
+                status = ProcessingStatus.FAILED,
+                failureReason = "Failed to vend token: $errorMsg",
+                errorDetails = errorDetails
+            ))
+            onResult(false, currentBalance, currentFreeUses)
+            return
+        }
+        val serviceToken = vendResult.getOrNull()?.token ?: run {
+            Log.e("MainActivity", "Vend token returned null token")
+            val errorDetails = """
+                Service: BusinessEngine
+                Operation: Vend Token
+                Error: Token vending succeeded but returned null token
+                Status Code: 200
+                Expected: VendTokenResponse with non-null token
+                Actual: VendTokenResponse with null token field
+                Timestamp: ${System.currentTimeMillis()}
+            """.trimIndent()
+            videoRepository.updateVideo(newVideo.copy(
+                status = ProcessingStatus.FAILED,
+                failureReason = "Vend token returned null",
+                errorDetails = errorDetails
+            ))
+            onResult(false, currentBalance, currentFreeUses)
+            return
+        }
+        
+        // Start transcription with proper token
+        val transcriptionResult = apiService.submitTranscriptionJob(url, serviceToken)
         transcriptionResult.fold(
             onSuccess = { transcription ->
                 Log.d("MainActivity", "Transcription started: ${transcription.jobId}")
+                
+                // Update video with job details
+                videoRepository.updateVideo(newVideo.copy(
+                    status = ProcessingStatus.PROCESSING,
+                    transcript = "Job ID: ${transcription.jobId}"
+                ))
                 
                 // Update credits based on tier
                 val newBalance = when (tier) {
@@ -247,7 +341,16 @@ private suspend fun processVideo(
                 onResult(true, newBalance, newFreeUses)
             },
             onFailure = { error ->
-                Log.e("MainActivity", "Failed to start transcription: ${error.message}")
+                val errorMsg = error.message ?: "Unknown error"
+                Log.e("MainActivity", "Failed to start transcription: $errorMsg")
+                // Create detailed error string
+                val errorDetails = "Service: TTTranscribe\nOperation: Submit Transcription Job\nError: $errorMsg\nTimestamp: ${System.currentTimeMillis()}\nStack: ${error.stackTraceToString().take(500)}"
+                // Update video with failure
+                videoRepository.updateVideo(newVideo.copy(
+                    status = ProcessingStatus.FAILED,
+                    failureReason = "Transcription failed: $errorMsg",
+                    errorDetails = errorDetails
+                ))
                 onResult(false, currentBalance, currentFreeUses)
             }
         )

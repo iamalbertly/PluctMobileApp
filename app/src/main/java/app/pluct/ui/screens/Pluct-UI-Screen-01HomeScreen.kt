@@ -34,7 +34,8 @@ fun PluctHomeScreen(
     onRetryVideo: (VideoItem) -> Unit,
     onDeleteVideo: (VideoItem) -> Unit,
     prefilledUrl: String? = null,
-    apiService: PluctCoreAPIUnifiedService? = null
+    apiService: PluctCoreAPIUnifiedService? = null,
+    onRefreshCreditBalance: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -42,7 +43,7 @@ fun PluctHomeScreen(
                 creditBalance = creditBalance,
                 isCreditBalanceLoading = isLoading,
                 creditBalanceError = errorMessage,
-                onRefreshCreditBalance = { /* TODO: Implement refresh */ },
+                onRefreshCreditBalance = onRefreshCreditBalance,
                 onSettingsClick = { /* TODO: Implement settings */ }
             )
         }

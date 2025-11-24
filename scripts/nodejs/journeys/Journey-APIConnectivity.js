@@ -6,7 +6,9 @@ class APIConnectivityJourney extends BaseJourney {
 
         const beBase = process.env.BE_BASE_URL || 'https://pluct-business-engine.romeo-lya2.workers.dev';
         const health = await this.core.httpGet(`${beBase}/health`);
-        this.core.writeJsonArtifact('be_health.json', health);
+        if (this.core.writeJsonArtifact) {
+            this.core.writeJsonArtifact('be_health.json', health);
+        }
         
         // More resilient health check - accept 200 or 0 status
         if (health.status !== 200 && health.status !== 0) {
@@ -30,8 +32,10 @@ class APIConnectivityJourney extends BaseJourney {
         }
 
         // Request TTTranscribe via Business Engine
-        const transcribe = await this.core.httpPostJson(`${beBase}/ttt/transcribe`, { url: this.core.config.url }, { Authorization: `Bearer ${token}` });
-        this.core.writeJsonArtifact('be_transcribe.json', transcribe);
+        const transcribe = await this.core.httpPost(`${beBase}/ttt/transcribe`, { url: this.core.config.url }, { Authorization: `Bearer ${token}` });
+        if (this.core.writeJsonArtifact) {
+            this.core.writeJsonArtifact('be_transcribe.json', transcribe);
+        }
         
         // More resilient transcription test
         if (transcribe.status !== 200) {
@@ -42,14 +46,22 @@ class APIConnectivityJourney extends BaseJourney {
         }
 
         // Optionally poll a status endpoint if present in response
-        let jobId; try { jobId = JSON.parse(transcribe.data).jobId; } catch (_) {}
+        let jobId;
+        try {
+            if (transcribe.body) {
+                jobId = JSON.parse(transcribe.body).jobId;
+            }
+        } catch (_) {}
         if (jobId) {
             const start = Date.now();
             let last;
             while (Date.now() - start < 160000) {
                 const st = await this.core.httpGet(`${beBase}/ttt/status/${jobId}`);
-                last = st; this.core.writeJsonArtifact('be_status.json', st);
-                if (st.status === 200 && /ready|completed/i.test(st.data)) break;
+                last = st;
+                if (this.core.writeJsonArtifact) {
+                    this.core.writeJsonArtifact('be_status.json', st);
+                }
+                if (st.status === 200 && st.body && /ready|completed/i.test(st.body)) break;
                 await this.core.sleep(2000);
             }
         }

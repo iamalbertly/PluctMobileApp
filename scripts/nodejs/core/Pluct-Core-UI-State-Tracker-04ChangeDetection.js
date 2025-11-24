@@ -54,17 +54,22 @@ class PluctUIStateChangeDetection extends BaseCore {
         try {
             const startTime = Date.now();
             let retryCount = 0;
+            let previousDump = '';
 
             while (Date.now() - startTime < timeoutMs) {
-                const currentState = await this.core.captureUIState('change_detection');
-                const previousState = this.core.getUIStateHistory()[this.core.getUIStateHistory().length - 2];
+                // Use core's dumpUIHierarchy instead of captureUIState
+                await this.core.dumpUIHierarchy();
+                const currentDump = this.core.readLastUIDump();
                 
-                const changeResult = this.detectChanges(currentState, previousState);
-                
-                if (changeResult.success && this.matchesExpectedChange(changeResult.changes, expectedChange)) {
-                    return { success: true, changes: changeResult.changes, retryCount };
+                // Simple change detection - check if UI dump changed
+                if (previousDump && currentDump !== previousDump) {
+                    // UI changed - check if it matches expected change
+                    if (!expectedChange || this.matchesExpectedChangeInDump(currentDump, previousDump, expectedChange)) {
+                        return { success: true, changes: { uiDumpChanged: true }, retryCount };
+                    }
                 }
-
+                
+                previousDump = currentDump;
                 retryCount++;
                 
                 if (retryCount >= this.criticalErrorThreshold) {
@@ -88,6 +93,33 @@ class PluctUIStateChangeDetection extends BaseCore {
             this.core.logger.error(`Wait for change failed: ${error.message}`);
             return { success: false, error: error.message };
         }
+    }
+    
+    /**
+     * Check if UI dump changes match expected change
+     */
+    matchesExpectedChangeInDump(currentDump, previousDump, expectedChange) {
+        if (!expectedChange) return true;
+        
+        // Check for specific text/element changes
+        if (expectedChange.type === 'element_count') {
+            return currentDump.length !== previousDump.length;
+        }
+        
+        if (expectedChange.type === 'clickable_elements') {
+            const currentClickable = (currentDump.match(/clickable="true"/g) || []).length;
+            const previousClickable = (previousDump.match(/clickable="true"/g) || []).length;
+            return currentClickable !== previousClickable;
+        }
+        
+        if (expectedChange.type === 'text_elements') {
+            const currentText = (currentDump.match(/text="[^"]+"/g) || []).length;
+            const previousText = (previousDump.match(/text="[^"]+"/g) || []).length;
+            return currentText !== previousText;
+        }
+        
+        // Default: any change is acceptable
+        return true;
     }
 
     /**

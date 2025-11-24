@@ -20,5 +20,7 @@ data class VideoItem(
     val sourceUrl: String = url,
     val tier: ProcessingTier = ProcessingTier.STANDARD,
     val createdAt: Long = timestamp,
-    val failureReason: String? = null
+    val failureReason: String? = null,
+    val errorDetails: String? = null  // JSON serialized DetailedAPIError
 )
+
