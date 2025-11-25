@@ -70,7 +70,13 @@ class PluctCoreFoundationValidation {
      */
     async checkDeviceStatus() {
         try {
-            const result = await this.commands.executeCommand('adb shell getprop ro.build.version.release');
+            // Get first available device
+            const devicesResult = await this.commands.executeCommand('adb devices');
+            const deviceMatch = devicesResult.output?.match(/^([^\s]+)\s+device$/m);
+            const deviceId = deviceMatch ? deviceMatch[1] : null;
+            const adbPrefix = deviceId ? `adb -s ${deviceId}` : 'adb';
+            
+            const result = await this.commands.executeCommand(`${adbPrefix} shell getprop ro.build.version.release`);
             if (result.success && result.output.trim()) {
                 return { success: true, androidVersion: result.output.trim() };
             }

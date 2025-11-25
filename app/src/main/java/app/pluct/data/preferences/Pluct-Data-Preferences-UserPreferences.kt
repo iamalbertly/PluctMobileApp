@@ -22,6 +22,8 @@ class PluctUserPreferences(context: Context) {
         private const val KEY_FREE_USES_REMAINING = "free_uses_remaining"
         private const val KEY_PREFILLED_URL = "prefilled_url"
         private const val DEFAULT_FREE_USES = 3
+        private const val KEY_INTENT_FEEDBACK_MESSAGE = "intent_feedback_message"
+        private const val KEY_INTENT_FEEDBACK_IS_ERROR = "intent_feedback_is_error"
         
         /**
          * Set prefilled URL from intent
@@ -41,6 +43,35 @@ class PluctUserPreferences(context: Context) {
                 prefs.edit().remove(KEY_PREFILLED_URL).apply()
             }
             return url
+        }
+
+        /**
+         * Persist intent feedback so UI can show it on next composition
+         */
+        fun setIntentFeedback(context: Context, message: String, isError: Boolean) {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString(KEY_INTENT_FEEDBACK_MESSAGE, message)
+                .putBoolean(KEY_INTENT_FEEDBACK_IS_ERROR, isError)
+                .apply()
+        }
+
+        /**
+         * Consume (get and clear) the stored intent feedback message
+         */
+        fun getAndClearIntentFeedback(context: Context): IntentFeedback? {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            val message = prefs.getString(KEY_INTENT_FEEDBACK_MESSAGE, null)
+            return if (message != null) {
+                val isError = prefs.getBoolean(KEY_INTENT_FEEDBACK_IS_ERROR, true)
+                prefs.edit()
+                    .remove(KEY_INTENT_FEEDBACK_MESSAGE)
+                    .remove(KEY_INTENT_FEEDBACK_IS_ERROR)
+                    .apply()
+                IntentFeedback(message, isError)
+            } else {
+                null
+            }
         }
     }
     
@@ -85,3 +116,11 @@ class PluctUserPreferences(context: Context) {
         return getFreeUsesRemaining() > 0
     }
 }
+
+/**
+ * Simple data class for communicating feedback from intents to the UI layer
+ */
+data class IntentFeedback(
+    val message: String,
+    val isError: Boolean
+)

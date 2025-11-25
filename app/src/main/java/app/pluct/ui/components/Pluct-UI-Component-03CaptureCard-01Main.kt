@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -255,16 +256,20 @@ private fun handleCompleteAPIFlow(
                     onSuccess("Transcription completed successfully!")
                 }
             } else {
-                val error = result.exceptionOrNull()?.message ?: "Unknown error"
-                Log.e("CaptureCard", "❌ Complete API flow failed: $error")
+                val error = result.exceptionOrNull()
+                val errorMessage = error?.message ?: "Unknown error"
+                Log.e("CaptureCard", "❌ Complete API flow failed: $errorMessage", error)
                 withContext(Dispatchers.Main) {
-                    onError("API Error: $error")
+                    // Pass full error message which includes service details from parseResponse
+                    onError(errorMessage)
                 }
             }
         } catch (e: Exception) {
             Log.e("CaptureCard", "❌ Exception during complete API flow: ${e.message}", e)
+            val errorMessage = e.message ?: "Unknown error occurred"
             withContext(Dispatchers.Main) {
-                onError("Error: ${e.message}")
+                // Pass full error message which includes service details
+                onError(errorMessage)
             }
         }
     }
@@ -309,13 +314,15 @@ private fun ProcessingIndicator(
 }
 
 /**
- * Error display component
+ * Error display component with detailed service information
  */
 @Composable
 private fun ErrorDisplay(
     message: String,
     onDismiss: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -324,29 +331,93 @@ private fun ErrorDisplay(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.semantics { contentDescription = "Dismiss error" }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Clear,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onErrorContainer
+                // Extract service name from error message if present
+                val serviceName = extractServiceName(message)
+                val shortMessage = if (serviceName != null) {
+                    "Error from $serviceName: ${extractShortError(message)}"
+                } else {
+                    message.take(100) + if (message.length > 100) "..." else ""
+                }
+                
+                Text(
+                    text = shortMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                // Expand/collapse button for detailed error
+                if (message.length > 100 || message.contains("Service:") || message.contains("Expected:")) {
+                    TextButton(
+                        onClick = { isExpanded = !isExpanded },
+                        modifier = Modifier.semantics { contentDescription = if (isExpanded) "Hide details" else "Show details" }
+                    ) {
+                        Text(
+                            text = if (isExpanded) "Hide" else "Details",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.semantics { contentDescription = "Dismiss error" }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Dismiss",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+            
+            // Expanded detailed error information
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
+}
+
+/**
+ * Extract service name from error message
+ */
+private fun extractServiceName(message: String): String? {
+    return when {
+        message.contains("Business Engine") -> "Business Engine (Cloudflare Workers)"
+        message.contains("TTTranscribe") -> "TTTranscribe Service (Hugging Face)"
+        message.contains("/ttt/") -> "TTTranscribe Service"
+        message.contains("/v1/") -> "Business Engine"
+        else -> null
+    }
+}
+
+/**
+ * Extract short error message
+ */
+private fun extractShortError(message: String): String {
+    // Try to extract the main error message
+    val lines = message.lines()
+    for (line in lines) {
+        if (line.contains("Parse Error:") || line.contains("Error:") || line.contains("failed")) {
+            return line.replace("Parse Error:", "").replace("Error:", "").trim()
+        }
+    }
+    return message.take(80) + if (message.length > 80) "..." else ""
 }

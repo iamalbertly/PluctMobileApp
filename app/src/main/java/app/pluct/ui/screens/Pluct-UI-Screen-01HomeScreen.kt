@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,9 +37,13 @@ fun PluctHomeScreen(
     onDeleteVideo: (VideoItem) -> Unit,
     prefilledUrl: String? = null,
     apiService: PluctCoreAPIUnifiedService? = null,
-    onRefreshCreditBalance: () -> Unit = {}
+    onRefreshCreditBalance: () -> Unit = {},
+    snackbarHostState: SnackbarHostState
 ) {
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         topBar = {
             PluctHeaderWithRefreshableBalance(
                 creditBalance = creditBalance,

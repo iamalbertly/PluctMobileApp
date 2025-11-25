@@ -21,7 +21,7 @@ class PluctCoreFoundation {
         
         // Initialize specialized modules
         this.commands = new PluctCoreFoundationCommands(this.config, this.logger);
-        this.ui = new PluctCoreFoundationUI(this.config, this.logger);
+        this.ui = new PluctCoreFoundationUI(this.config, this.logger, this.commands);
         this.validation = new PluctCoreFoundationValidation(this.config, this.logger, this.commands);
         this.utils = new PluctCoreFoundationUtils(this.config, this.logger);
     }

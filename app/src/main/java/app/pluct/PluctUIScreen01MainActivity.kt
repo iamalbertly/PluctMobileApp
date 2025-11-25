@@ -7,8 +7,11 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.AndroidEntryPoint
@@ -62,35 +65,111 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     
     private fun handleTikTokIntent(intent: Intent) {
         Log.d("MainActivity", "Handling intent: ${intent.action}")
-        
-        when (intent.action) {
-            Intent.ACTION_SEND -> {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                Log.d("MainActivity", "Received shared text: $sharedText")
-                
-                if (!sharedText.isNullOrEmpty() && sharedText.contains("tiktok.com")) {
-                    Log.d("MainActivity", "TikTok URL detected: $sharedText")
-                    // Store the URL for the UI to pick up
-                    PluctUserPreferences.setPrefilledUrl(this, sharedText)
+        try {
+            when (intent.action) {
+                Intent.ACTION_SEND -> {
+                    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    Log.d("MainActivity", "Received shared text: $sharedText")
+                    processSharedTikTokText(sharedText)
                 }
-            }
-            Intent.ACTION_VIEW -> {
-                val uri = intent.data
-                Log.d("MainActivity", "Received URI: $uri")
-                
-                if (uri?.scheme == "pluct") {
-                    when (uri.host) {
-                        "ingest" -> {
-                            val url = uri.getQueryParameter("url")
-                            Log.d("MainActivity", "Deep link URL: $url")
-                            url?.let { PluctUserPreferences.setPrefilledUrl(this, it) }
-                        }
-                        "debug" -> {
-                            Log.d("MainActivity", "Debug deep link received")
+                Intent.ACTION_VIEW -> {
+                    val uri = intent.data
+                    Log.d("MainActivity", "Received URI: $uri")
+                    
+                    if (uri?.scheme == "pluct") {
+                        when (uri.host) {
+                            "ingest" -> {
+                                val url = uri.getQueryParameter("url")
+                                Log.d("MainActivity", "Deep link URL: $url")
+                                if (validateTikTokUrl(url)) {
+                                    url?.let {
+                                        PluctUserPreferences.setPrefilledUrl(this, it)
+                                        PluctUserPreferences.setIntentFeedback(
+                                            this,
+                                            "TikTok video link received!",
+                                            false
+                                        )
+                                    }
+                                } else {
+                                    PluctUserPreferences.setIntentFeedback(
+                                        this,
+                                        "Shared link is missing or not a TikTok URL.",
+                                        true
+                                    )
+                                }
+                            }
+                            "debug" -> {
+                                Log.d("MainActivity", "Debug deep link received")
+                            }
                         }
                     }
                 }
             }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error handling intent: ${e.message}", e)
+            PluctUserPreferences.setIntentFeedback(
+                this,
+                "An error occurred while processing the shared content. Please try again.",
+                true
+            )
+        }
+    }
+
+    private fun processSharedTikTokText(sharedText: String?) {
+        if (sharedText.isNullOrBlank()) {
+            Log.w("MainActivity", "Shared text is null or blank")
+            PluctUserPreferences.setIntentFeedback(
+                this,
+                "No content was shared. Please share a valid TikTok video link.",
+                true
+            )
+            return
+        }
+
+        val extractedUrl = extractFirstUrl(sharedText)
+        if (extractedUrl == null) {
+            Log.w("MainActivity", "Unable to extract URL from shared text.")
+            PluctUserPreferences.setIntentFeedback(
+                this,
+                "Could not find a link in the shared content. Copy the TikTok link and try again.",
+                true
+            )
+            return
+        }
+
+        if (!validateTikTokUrl(extractedUrl)) {
+            Log.w("MainActivity", "Shared URL is not a TikTok link: $extractedUrl")
+            PluctUserPreferences.setIntentFeedback(
+                this,
+                "Only TikTok video links are supported. Please share a TikTok URL.",
+                true
+            )
+            return
+        }
+
+        Log.d("MainActivity", "TikTok URL detected: $extractedUrl")
+        PluctUserPreferences.setPrefilledUrl(this, extractedUrl)
+        PluctUserPreferences.setIntentFeedback(
+            this,
+            "TikTok video link received!",
+            false
+        )
+    }
+
+    private fun extractFirstUrl(text: String): String? {
+        val urlRegex = Regex("(https?://[^\\s]+)", RegexOption.IGNORE_CASE)
+        val match = urlRegex.find(text)
+        return match?.value?.trim()
+    }
+
+    private fun validateTikTokUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return try {
+            val uri = Uri.parse(url)
+            val host = uri.host ?: return false
+            host.contains("tiktok.com", ignoreCase = true)
+        } catch (e: Exception) {
+            false
         }
     }
 }
@@ -106,6 +185,7 @@ fun PluctMainContent(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     
     // State management
     var creditBalance by remember { mutableStateOf(0) }
@@ -129,6 +209,16 @@ fun PluctMainContent(
         loadInitialData(apiService, userIdentification) { balance, freeUses ->
             creditBalance = balance
             freeUsesRemaining = freeUses
+        }
+
+        // Show any stored intent feedback to the user
+        val feedback = PluctUserPreferences.getAndClearIntentFeedback(context)
+        feedback?.let {
+            snackbarHostState.showSnackbar(
+                message = it.message,
+                withDismissAction = true,
+                duration = if (it.isError) SnackbarDuration.Long else SnackbarDuration.Short
+            )
         }
     }
     
@@ -195,7 +285,8 @@ fun PluctMainContent(
         onDeleteVideo = onDeleteVideo,
         prefilledUrl = prefilledUrl,
         apiService = apiService,
-        onRefreshCreditBalance = refreshCreditBalance
+        onRefreshCreditBalance = refreshCreditBalance,
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -272,8 +363,12 @@ private suspend fun processVideo(
             tier = tier,
             createdAt = System.currentTimeMillis()
         )
-        videoRepository.insertVideo(newVideo)
-        Log.d("MainActivity", "Video saved to database with id: $videoId")
+        val insertResult = videoRepository.insertVideo(newVideo)
+        if (insertResult.isFailure) {
+            Log.e("MainActivity", "Failed to save video to database: ${insertResult.exceptionOrNull()?.message}")
+        } else {
+            Log.d("MainActivity", "Video saved to database with id: $videoId")
+        }
         
         // Vend service token first
         val vendResult = apiService.vendToken()

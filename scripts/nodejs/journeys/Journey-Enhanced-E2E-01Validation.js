@@ -59,6 +59,19 @@ class EnhancedE2EValidationJourney extends BaseJourney {
     async validateAppLaunch() {
         this.core.logger.info('📱 Validating App Launch...');
         
+        // Pre-stage UI dump
+        await this.core.dumpUIHierarchy();
+        const preUIDump = this.core.readLastUIDump();
+        this.core.logger.info('📱 PRE-STAGE UI DUMP (App Launch):');
+        this.core.logger.info(preUIDump.substring(0, Math.min(500, preUIDump.length)) + (preUIDump.length > 500 ? '...' : ''));
+        
+        // Pre-stage logcat
+        const preLogcat = await this.core.executeCommand('adb logcat -d -t 50 | findstr /i "PluctCoreAPI PluctCoreAPIUnified BusinessEngine app.pluct"');
+        if (preLogcat.success && preLogcat.output) {
+            this.core.logger.info('📱 PRE-STAGE LOGCAT (App Launch):');
+            this.core.logger.info(preLogcat.output.substring(0, Math.min(1000, preLogcat.output.length)) + (preLogcat.output.length > 1000 ? '...' : ''));
+        }
+        
         // Launch app
         const launchResult = await this.core.launchApp();
         if (!launchResult.success) {
@@ -67,11 +80,20 @@ class EnhancedE2EValidationJourney extends BaseJourney {
         
         await this.core.sleep(3000);
         
-        // Check app is running
+        // Post-stage UI dump
         await this.core.dumpUIHierarchy();
-        const uiDump = this.core.readLastUIDump();
+        const postUIDump = this.core.readLastUIDump();
+        this.core.logger.info('📱 POST-STAGE UI DUMP (App Launch):');
+        this.core.logger.info(postUIDump.substring(0, Math.min(500, postUIDump.length)) + (postUIDump.length > 500 ? '...' : ''));
         
-        if (!uiDump.includes('app.pluct')) {
+        // Post-stage logcat
+        const postLogcat = await this.core.executeCommand('adb logcat -d -t 50 | findstr /i "PluctCoreAPI PluctCoreAPIUnified BusinessEngine app.pluct"');
+        if (postLogcat.success && postLogcat.output) {
+            this.core.logger.info('📱 POST-STAGE LOGCAT (App Launch):');
+            this.core.logger.info(postLogcat.output.substring(0, Math.min(1000, postLogcat.output.length)) + (postLogcat.output.length > 1000 ? '...' : ''));
+        }
+        
+        if (!postUIDump.includes('app.pluct')) {
             throw new Error('App not detected in UI hierarchy');
         }
         
@@ -81,9 +103,35 @@ class EnhancedE2EValidationJourney extends BaseJourney {
     async validateBusinessEngineConnectivity() {
         this.core.logger.info('🔗 Validating Business Engine Connectivity...');
         
+        // Pre-stage UI dump
+        await this.core.dumpUIHierarchy();
+        const preUIDump = this.core.readLastUIDump();
+        this.core.logger.info('📱 PRE-STAGE UI DUMP (Business Engine Connectivity):');
+        this.core.logger.info(preUIDump.substring(0, Math.min(500, preUIDump.length)) + (preUIDump.length > 500 ? '...' : ''));
+        
+        // Pre-stage logcat
+        const preLogcat = await this.core.executeCommand('adb logcat -d -t 100 | findstr /i "PluctCoreAPI PluctCoreAPIUnified BusinessEngine HTTP SSL connection error"');
+        if (preLogcat.success && preLogcat.output) {
+            this.core.logger.info('📱 PRE-STAGE LOGCAT (Business Engine Connectivity):');
+            this.core.logger.info(preLogcat.output.substring(0, Math.min(1500, preLogcat.output.length)) + (preLogcat.output.length > 1500 ? '...' : ''));
+        }
+        
         // Test health endpoint using Node.js HTTP module
         const healthResult = await this.testBusinessEngineHealth();
         if (!healthResult.success) {
+            // Post-stage UI dump on failure
+            await this.core.dumpUIHierarchy();
+            const errorUIDump = this.core.readLastUIDump();
+            this.core.logger.error('📱 ERROR UI DUMP (Business Engine Connectivity):');
+            this.core.logger.error(errorUIDump.substring(0, Math.min(500, errorUIDump.length)) + (errorUIDump.length > 500 ? '...' : ''));
+            
+            // Post-stage logcat on failure
+            const errorLogcat = await this.core.executeCommand('adb logcat -d -t 100 | findstr /i "PluctCoreAPI PluctCoreAPIUnified BusinessEngine HTTP SSL connection error ECONNRESET"');
+            if (errorLogcat.success && errorLogcat.output) {
+                this.core.logger.error('📱 ERROR LOGCAT (Business Engine Connectivity):');
+                this.core.logger.error(errorLogcat.output.substring(0, Math.min(2000, errorLogcat.output.length)) + (errorLogcat.output.length > 2000 ? '...' : ''));
+            }
+            
             throw new Error(`Business Engine health check failed: ${healthResult.error}`);
         }
         
@@ -91,6 +139,19 @@ class EnhancedE2EValidationJourney extends BaseJourney {
         const balanceResult = await this.testCreditBalance();
         if (!balanceResult.success) {
             this.core.logger.warn('⚠️ Credit balance check failed (expected if no credits)');
+        }
+        
+        // Post-stage UI dump
+        await this.core.dumpUIHierarchy();
+        const postUIDump = this.core.readLastUIDump();
+        this.core.logger.info('📱 POST-STAGE UI DUMP (Business Engine Connectivity):');
+        this.core.logger.info(postUIDump.substring(0, Math.min(500, postUIDump.length)) + (postUIDump.length > 500 ? '...' : ''));
+        
+        // Post-stage logcat
+        const postLogcat = await this.core.executeCommand('adb logcat -d -t 100 | findstr /i "PluctCoreAPI PluctCoreAPIUnified BusinessEngine HTTP"');
+        if (postLogcat.success && postLogcat.output) {
+            this.core.logger.info('📱 POST-STAGE LOGCAT (Business Engine Connectivity):');
+            this.core.logger.info(postLogcat.output.substring(0, Math.min(1500, postLogcat.output.length)) + (postLogcat.output.length > 1500 ? '...' : ''));
         }
         
         this.core.logger.info('✅ Business Engine connectivity validation passed');

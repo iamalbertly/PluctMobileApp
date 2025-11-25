@@ -366,7 +366,7 @@ data class MetadataResponse(
 data class TranscriptionResponse(
     val jobId: String,
     val status: String,
-    val estimatedTime: Int,
+    val estimatedTime: Int? = null,  // Optional - not always returned by TTTranscribe service
     val url: String
 )
 

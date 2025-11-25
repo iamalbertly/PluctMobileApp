@@ -7,9 +7,14 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.net.ConnectException
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.io.IOException
+import javax.net.ssl.SSLException
 
 /**
  * Error information data class for structured error handling
@@ -131,32 +136,54 @@ class PluctCoreAPIHTTPClientImpl(
                 val responseBody = if (responseCode in 200..299) {
                     BufferedReader(InputStreamReader(connection.inputStream)).use { it.readText() }
                 } else {
-                    BufferedReader(InputStreamReader(connection.errorStream ?: connection.inputStream)).use { it.readText() }
-                }
-                
-                Log.d(TAG, "   Body: $responseBody")
-                Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                
-                if (responseCode !in 200..299) {
-                    // Parse error response for detailed information
-                    val errorInfo = parseErrorResponse(responseCode, responseMessage, responseBody, endpoint)
-                    Log.e(TAG, "❌ HTTP Error Details:")
-                    Log.e(TAG, "   Status: $responseCode $responseMessage")
-                    Log.e(TAG, "   Error Code: ${errorInfo.errorCode}")
-                    Log.e(TAG, "   Message: ${errorInfo.errorMessage}")
-                    Log.e(TAG, "   Upstream Status: ${errorInfo.upstreamStatus}")
-                    Log.e(TAG, "   Upstream Response: ${errorInfo.upstreamResponse}")
-                    Log.e(TAG, "   Full Body: $responseBody")
+                    // Read error response body
+                    val errorStream = connection.errorStream
+                    val errorBody = if (errorStream != null) {
+                        BufferedReader(InputStreamReader(errorStream)).use { it.readText() }
+                    } else {
+                        "No error body available"
+                    }
                     
-                    throw Exception(errorInfo.toDetailedMessage())
+                    Log.e(TAG, "❌ API ERROR [$requestId]")
+                    Log.e(TAG, "   Status: $responseCode $responseMessage")
+                    Log.e(TAG, "   Error Body: ${errorBody.take(500)}")
+                    
+                    val errorInfo = parseErrorResponse(responseCode, responseMessage, errorBody, endpoint)
+                    throw Exception("HTTP $responseCode: ${errorInfo.errorMessage}")
                 }
                 
-                val result = parseResponse(endpoint, responseBody)
-                Log.d(TAG, "✅ Request successful [$requestId]")
-                result
+                Log.d(TAG, "   Response Body: ${responseBody.take(200)}${if (responseBody.length > 200) "..." else ""}")
+                
+                val parsedResult = parseResponse(endpoint, responseBody)
+                if (parsedResult.isSuccess) {
+                    Log.d(TAG, "   ✅ Request succeeded [$requestId]")
+                } else {
+                    Log.e(TAG, "   ❌ Parse failed [$requestId]: ${parsedResult.exceptionOrNull()?.message}")
+                }
+                
+                parsedResult
+            } catch (e: java.net.SocketTimeoutException) {
+                Log.e(TAG, "❌ Request timeout [$requestId]: ${e.message}")
+                Result.failure(Exception("Request timeout: ${e.message}"))
+            } catch (e: java.net.UnknownHostException) {
+                Log.e(TAG, "❌ Host not found [$requestId]: ${e.message}")
+                Result.failure(Exception("Host not found: ${e.message}"))
+            } catch (e: java.net.ConnectException) {
+                Log.e(TAG, "❌ Connection failed [$requestId]: ${e.message}")
+                Result.failure(Exception("Connection failed: ${e.message}"))
+            } catch (e: javax.net.ssl.SSLException) {
+                Log.e(TAG, "❌ SSL error [$requestId]: ${e.message}")
+                Result.failure(Exception("SSL error: ${e.message}"))
+            } catch (e: java.io.IOException) {
+                Log.e(TAG, "❌ IO error [$requestId]: ${e.message}")
+                if (e.message?.contains("ECONNRESET") == true || e.message?.contains("Connection reset") == true) {
+                    Result.failure(Exception("Connection reset by peer: ${e.message}"))
+                } else {
+                    Result.failure(Exception("IO error: ${e.message}"))
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Request failed [$requestId]: ${e.message}", e)
-                throw e
+                Result.failure(e)
             } finally {
                 connection.disconnect()
             }
@@ -213,11 +240,76 @@ class PluctCoreAPIHTTPClientImpl(
     private fun parseResponse(endpoint: String, responseBody: String): Result<Any> {
         return try {
             val result = when {
-                endpoint.contains("/credits/balance") -> json.decodeFromString<CreditBalanceResponse>(responseBody)
-                endpoint.contains("/vend-token") -> json.decodeFromString<VendTokenResponse>(responseBody)
-                endpoint.contains("/meta") -> json.decodeFromString<MetadataResponse>(responseBody)
-                endpoint.contains("/ttt/transcribe") -> json.decodeFromString<TranscriptionResponse>(responseBody)
-                endpoint.contains("/ttt/status") -> json.decodeFromString<TranscriptionStatusResponse>(responseBody)
+                endpoint.contains("/credits/balance") -> {
+                    try {
+                        json.decodeFromString<CreditBalanceResponse>(responseBody)
+                    } catch (e: Exception) {
+                        throw createDetailedParseError(
+                            service = "Business Engine (Cloudflare Workers)",
+                            endpoint = endpoint,
+                            operation = "Credit Balance Check",
+                            expectedFormat = "CreditBalanceResponse { userId: String, balance: Int, updatedAt: String }",
+                            actualResponse = responseBody,
+                            error = e
+                        )
+                    }
+                }
+                endpoint.contains("/vend-token") -> {
+                    try {
+                        json.decodeFromString<VendTokenResponse>(responseBody)
+                    } catch (e: Exception) {
+                        throw createDetailedParseError(
+                            service = "Business Engine (Cloudflare Workers)",
+                            endpoint = endpoint,
+                            operation = "Token Vending",
+                            expectedFormat = "VendTokenResponse { token: String, expiresIn: Int, balanceAfter: Int, requestId: String }",
+                            actualResponse = responseBody,
+                            error = e
+                        )
+                    }
+                }
+                endpoint.contains("/meta") -> {
+                    try {
+                        json.decodeFromString<MetadataResponse>(responseBody)
+                    } catch (e: Exception) {
+                        throw createDetailedParseError(
+                            service = "Business Engine (Cloudflare Workers)",
+                            endpoint = endpoint,
+                            operation = "Metadata Extraction",
+                            expectedFormat = "MetadataResponse { url: String, title: String, description: String, author: String, duration: Int, ... }",
+                            actualResponse = responseBody,
+                            error = e
+                        )
+                    }
+                }
+                endpoint.contains("/ttt/transcribe") -> {
+                    try {
+                        json.decodeFromString<TranscriptionResponse>(responseBody)
+                    } catch (e: Exception) {
+                        throw createDetailedParseError(
+                            service = "TTTranscribe Service (via Business Engine)",
+                            endpoint = endpoint,
+                            operation = "Submit Transcription Job",
+                            expectedFormat = "TranscriptionResponse { jobId: String, status: String, estimatedTime: Int? (optional), url: String }",
+                            actualResponse = responseBody,
+                            error = e
+                        )
+                    }
+                }
+                endpoint.contains("/ttt/status") -> {
+                    try {
+                        json.decodeFromString<TranscriptionStatusResponse>(responseBody)
+                    } catch (e: Exception) {
+                        throw createDetailedParseError(
+                            service = "TTTranscribe Service (via Business Engine)",
+                            endpoint = endpoint,
+                            operation = "Check Transcription Status",
+                            expectedFormat = "TranscriptionStatusResponse { jobId: String, status: String, progress: Int, transcript: String?, ... }",
+                            actualResponse = responseBody,
+                            error = e
+                        )
+                    }
+                }
                 else -> responseBody
             }
             Result.success(result)
@@ -225,5 +317,39 @@ class PluctCoreAPIHTTPClientImpl(
             Log.e(TAG, "Failed to parse response: ${e.message}")
             Result.failure(e)
         }
+    }
+    
+    /**
+     * Create detailed parse error with service identification and expected vs actual
+     */
+    private fun createDetailedParseError(
+        service: String,
+        endpoint: String,
+        operation: String,
+        expectedFormat: String,
+        actualResponse: String,
+        error: Exception
+    ): Exception {
+        val errorMessage = buildString {
+            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            appendLine("❌ API RESPONSE PARSING ERROR")
+            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            appendLine("Service: $service")
+            appendLine("Endpoint: $endpoint")
+            appendLine("Operation: $operation")
+            appendLine("")
+            appendLine("Expected Response Format:")
+            appendLine("  $expectedFormat")
+            appendLine("")
+            appendLine("Actual Response Received:")
+            appendLine("  ${actualResponse.take(500)}${if (actualResponse.length > 500) "..." else ""}")
+            appendLine("")
+            appendLine("Parse Error:")
+            appendLine("  ${error.message}")
+            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
+        
+        Log.e(TAG, errorMessage)
+        return Exception(errorMessage)
     }
 }

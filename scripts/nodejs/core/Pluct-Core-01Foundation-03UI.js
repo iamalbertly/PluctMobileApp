@@ -4,9 +4,11 @@
  * Handles UI interactions, element detection, and user input
  */
 class PluctCoreFoundationUI {
-    constructor(config, logger) {
+
+    constructor(config, logger, commands) {
         this.config = config;
         this.logger = logger;
+        this.commands = commands;
         this.lastUIDump = '';
     }
 
@@ -17,16 +19,23 @@ class PluctCoreFoundationUI {
         try {
             this.logger.info('Launching Pluct app...');
             const result = await this.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
-            
+
             if (result.success) {
                 this.logger.info('App launched successfully');
                 await this.sleep(3000); // Wait for app to fully load
+                return result;
+            } else {
+                // Provide detailed error information
+                const errorMessage = `Failed to launch app.pluct/.PluctUIScreen01MainActivity. ` +
+                    `Error: ${result.error || 'Unknown'}.` +
+                    (result.output ? ` Output: ${result.output}` : '');
+                this.logger.error(errorMessage);
+                return { success: false, error: errorMessage };
             }
-            
-            return result;
         } catch (error) {
-            this.logger.error(`App launch failed: ${error.message}`);
-            return { success: false, error: error.message };
+            const errorMessage = `App launch exception: ${error.constructor.name}: ${error.message}`;
+            this.logger.error(errorMessage);
+            return { success: false, error: errorMessage };
         }
     }
 
@@ -35,8 +44,8 @@ class PluctCoreFoundationUI {
      */
     async isAppRunning() {
         try {
-            const result = await this.executeCommand('adb shell dumpsys activity activities | findstr -i pluct');
-            return { success: result.success && result.output.includes('pluct') };
+            const result = await this.executeCommand('adb shell dumpsys activity activities');
+            return { success: result.success && result.output && result.output.toLowerCase().includes('pluct') };
         } catch (error) {
             this.logger.error(`App running check failed: ${error.message}`);
             return { success: false, error: error.message };
@@ -52,7 +61,7 @@ class PluctCoreFoundationUI {
             if (!isRunning.success) {
                 return await this.launchApp();
             }
-            
+
             // Bring app to foreground
             const result = await this.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
             await this.sleep(1000);
@@ -70,20 +79,20 @@ class PluctCoreFoundationUI {
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const filename = `ui_${tag}_${timestamp}.xml`;
-            
+
             await this.dumpUIHierarchy();
-            
+
             // Save UI dump to file
             const fs = require('fs');
             const path = require('path');
             const artifactsDir = path.join(__dirname, '../../artifacts/ui');
-            
+
             if (!fs.existsSync(artifactsDir)) {
                 fs.mkdirSync(artifactsDir, { recursive: true });
             }
-            
+
             fs.writeFileSync(path.join(artifactsDir, filename), this.lastUIDump);
-            
+
             this.logger.info(`UI artifacts captured: ${filename}`);
             return { success: true, filename };
         } catch (error) {
@@ -98,7 +107,7 @@ class PluctCoreFoundationUI {
     async dumpUIHierarchy() {
         try {
             const result = await this.executeCommand('adb shell uiautomator dump /sdcard/ui_dump.xml');
-            
+
             if (result.success) {
                 const pullResult = await this.executeCommand('adb pull /sdcard/ui_dump.xml ui_dump.xml');
                 if (pullResult.success) {
@@ -107,7 +116,7 @@ class PluctCoreFoundationUI {
                     return { success: true, uiDump: this.lastUIDump };
                 }
             }
-            
+
             return { success: false, error: 'UI dump failed' };
         } catch (error) {
             this.logger.error(`UI dump failed: ${error.message}`);
@@ -121,17 +130,17 @@ class PluctCoreFoundationUI {
     async waitForText(text, timeoutMs = 10000, pollMs = 1000) {
         try {
             const startTime = Date.now();
-            
+
             while (Date.now() - startTime < timeoutMs) {
                 await this.dumpUIHierarchy();
-                
+
                 if (this.lastUIDump.includes(text)) {
                     return { success: true, found: true };
                 }
-                
+
                 await this.sleep(pollMs);
             }
-            
+
             return { success: false, error: 'Text not found within timeout', found: false };
         } catch (error) {
             this.logger.error(`Wait for text failed: ${error.message}`);
@@ -145,16 +154,16 @@ class PluctCoreFoundationUI {
     async tapByText(text) {
         try {
             await this.dumpUIHierarchy();
-            
+
             const textRegex = new RegExp(`text="${text}"[^>]*bounds="([^"]*)"`, 'g');
             const match = textRegex.exec(this.lastUIDump);
-            
+
             if (match) {
                 const bounds = match[1];
                 const coords = this.parseBounds(bounds);
                 return await this.tapByCoordinates(coords.x, coords.y);
             }
-            
+
             return { success: false, error: `Text "${text}" not found` };
         } catch (error) {
             this.logger.error(`Tap by text failed: ${error.message}`);
@@ -168,16 +177,16 @@ class PluctCoreFoundationUI {
     async tapByContentDesc(contentDesc) {
         try {
             await this.dumpUIHierarchy();
-            
+
             const descRegex = new RegExp(`content-desc="${contentDesc}"[^>]*bounds="([^"]*)"`, 'g');
             const match = descRegex.exec(this.lastUIDump);
-            
+
             if (match) {
                 const bounds = match[1];
                 const coords = this.parseBounds(bounds);
                 return await this.tapByCoordinates(coords.x, coords.y);
             }
-            
+
             return { success: false, error: `Content description "${contentDesc}" not found` };
         } catch (error) {
             this.logger.error(`Tap by content desc failed: ${error.message}`);
@@ -209,7 +218,7 @@ class PluctCoreFoundationUI {
             await this.sleep(100);
             await this.executeCommand('adb shell input keyevent KEYCODE_DEL');
             await this.sleep(100);
-            
+
             // Input new text
             const escapedText = rawText.replace(/"/g, '\\"');
             const result = await this.executeCommand(`adb shell input text "${escapedText}"`);
@@ -227,16 +236,16 @@ class PluctCoreFoundationUI {
     async tapByTestTag(testTag) {
         try {
             await this.dumpUIHierarchy();
-            
+
             const tagRegex = new RegExp(`test-tag="${testTag}"[^>]*bounds="([^"]*)"`, 'g');
             const match = tagRegex.exec(this.lastUIDump);
-            
+
             if (match) {
                 const bounds = match[1];
                 const coords = this.parseBounds(bounds);
                 return await this.tapByCoordinates(coords.x, coords.y);
             }
-            
+
             return { success: false, error: `Test tag "${testTag}" not found` };
         } catch (error) {
             this.logger.error(`Tap by test tag failed: ${error.message}`);
@@ -251,7 +260,7 @@ class PluctCoreFoundationUI {
         const coords = bounds.split('][');
         const topLeft = coords[0].replace('[', '').split(',');
         const bottomRight = coords[1].replace(']', '').split(',');
-        
+
         return {
             x: Math.floor((parseInt(topLeft[0]) + parseInt(bottomRight[0])) / 2),
             y: Math.floor((parseInt(topLeft[1]) + parseInt(bottomRight[1])) / 2)
@@ -266,13 +275,17 @@ class PluctCoreFoundationUI {
     }
 
     /**
-     * Execute command (delegated from foundation)
+     * Execute command (delegated from foundation/commands module)
      */
     async executeCommand(command, timeout) {
+        if (this.commands) {
+            return await this.commands.executeCommand(command, timeout);
+        }
+        // Fallback if commands module not provided
         const { exec } = require('child_process');
         const { promisify } = require('util');
         const execAsync = promisify(exec);
-        
+
         try {
             const { stdout, stderr } = await execAsync(command, { timeout });
             return { success: true, output: stdout, error: stderr };
