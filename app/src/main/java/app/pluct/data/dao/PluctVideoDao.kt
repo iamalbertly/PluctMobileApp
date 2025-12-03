@@ -50,6 +50,18 @@ interface PluctVideoDao {
     suspend fun getVideoById(id: String): VideoItem?
     
     /**
+     * Get video by URL (for duplicate prevention)
+     */
+    @Query("SELECT * FROM videos WHERE url = :url ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getVideoByUrl(url: String): VideoItem?
+    
+    /**
+     * Get processing videos by URL (to prevent duplicates)
+     */
+    @Query("SELECT * FROM videos WHERE url = :url AND status = 'PROCESSING' ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getProcessingVideoByUrl(url: String): VideoItem?
+    
+    /**
      * Get count of videos by status
      */
     @Query("SELECT COUNT(*) FROM videos WHERE status = :status")
@@ -66,4 +78,20 @@ interface PluctVideoDao {
      */
     @Query("SELECT * FROM videos WHERE status = 'FAILED' AND errorDetails IS NOT NULL ORDER BY timestamp DESC")
     fun getFailedVideosWithErrors(): Flow<List<VideoItem>>
+    
+    /**
+     * Get unique URLs with their latest status (for URL history)
+     * Returns the most recent video item for each unique URL
+     */
+    @Query("""
+        SELECT v1.* FROM videos v1
+        INNER JOIN (
+            SELECT url, MAX(timestamp) as max_timestamp
+            FROM videos
+            GROUP BY url
+        ) v2 ON v1.url = v2.url AND v1.timestamp = v2.max_timestamp
+        ORDER BY v1.timestamp DESC
+        LIMIT 20
+    """)
+    suspend fun getUniqueUrlsWithLatestStatus(): List<VideoItem>
 }

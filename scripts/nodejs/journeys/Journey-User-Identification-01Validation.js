@@ -6,8 +6,8 @@ const { BaseJourney } = require('./Pluct-Journey-01Orchestrator');
  * Validates that the app correctly identifies users and retrieves accurate credit balances
  */
 class JourneyUserIdentificationValidation extends BaseJourney {
-    constructor() {
-        super();
+    constructor(core) {
+        super(core);
         this.journeyName = 'UserIdentificationValidation';
         this.timeout = 60000; // 60 seconds
     }
@@ -143,4 +143,8 @@ class JourneyUserIdentificationValidation extends BaseJourney {
     }
 }
 
-module.exports = JourneyUserIdentificationValidation;
+function register(orchestrator) {
+    orchestrator.registerJourney('UserIdentificationValidation', new JourneyUserIdentificationValidation(orchestrator.core));
+}
+
+module.exports = { register, JourneyUserIdentificationValidation };

@@ -69,25 +69,67 @@ class PluctUIHeader03EndToEndIntegrationValidation extends BaseJourney {
                 }
             }
             
-            // Initiate a transcription request
+            // Initiate a transcription request using always-visible input field
             this.core.logger.info('🎬 Initiating transcription request...');
             
-            // Open capture sheet
-            const captureResult = await this.core.openCaptureSheet();
-            if (captureResult.success) {
-                this.core.logger.info('✅ Capture sheet opened');
-                await this.core.sleep(1000);
+            // Input test URL into always-visible input field
+            const testUrl = 'https://vm.tiktok.com/ZMAKpqkpN/';
+            this.core.logger.info(`📝 Inputting URL: ${testUrl}`);
+            
+            // Try multiple strategies to input URL
+            let inputSuccess = false;
+            
+            // Strategy 1: Use test tag
+            const inputByTag = await this.core.inputTextViaClipboard(testUrl, 'tiktok_url_input');
+            if (inputByTag.success) {
+                inputSuccess = true;
+                this.core.logger.info('✅ URL input via test tag');
+            } else {
+                // Strategy 2: Use content description
+                const inputByDesc = await this.core.inputTextViaClipboard(testUrl, 'TikTok URL input field');
+                if (inputByDesc.success) {
+                    inputSuccess = true;
+                    this.core.logger.info('✅ URL input via content description');
+                } else {
+                    // Strategy 3: Use coordinates (fallback)
+                    this.core.logger.warn('⚠️ Using coordinate-based input as fallback');
+                    await this.core.sleep(1000);
+                    await this.core.inputTextViaClipboard(testUrl);
+                    inputSuccess = true;
+                }
+            }
+            
+            if (inputSuccess) {
+                await this.core.sleep(2000);
                 
-                // Input test URL
-                const testUrl = 'https://vm.tiktok.com/ZMADQVF4e/';
-                await this.core.inputText(testUrl);
-                await this.core.sleep(1000);
+                // Click Extract Script button (FREE tier)
+                this.core.logger.info('🖱️ Clicking Extract Script button...');
+                let extractScriptSuccess = false;
                 
-                // Start transcription
-                const quickScanResult = await this.core.tapByText('quick_scan');
-                if (quickScanResult.success) {
-                    this.core.logger.info('✅ Quick scan initiated');
-                    await this.core.sleep(2000);
+                // Strategy 1: Use test tag
+                let extractResult = await this.core.tapByTestTag('extract_script_button');
+                if (extractResult.success) {
+                    extractScriptSuccess = true;
+                    this.core.logger.info('✅ Extract Script clicked via test tag');
+                } else {
+                    // Strategy 2: Use content description
+                    extractResult = await this.core.tapByContentDesc('Extract Script option');
+                    if (extractResult.success) {
+                        extractScriptSuccess = true;
+                        this.core.logger.info('✅ Extract Script clicked via content description');
+                    } else {
+                        // Strategy 3: Use text "FREE"
+                        extractResult = await this.core.tapByText('FREE');
+                        if (extractResult.success) {
+                            extractScriptSuccess = true;
+                            this.core.logger.info('✅ Extract Script clicked via FREE text');
+                        }
+                    }
+                }
+                
+                if (extractScriptSuccess) {
+                    this.core.logger.info('✅ Transcription initiated');
+                    await this.core.sleep(3000);
                     
                     // Check if balance updated
                     await this.dumpUI();
@@ -105,10 +147,16 @@ class PluctUIHeader03EndToEndIntegrationValidation extends BaseJourney {
                         }
                     }
                 } else {
-                    this.core.logger.warn('⚠️ Could not initiate quick scan');
+                    const errorMsg = 'Could not initiate quick scan - Extract Script button not found';
+                    this.core.logger.error(`❌ ${errorMsg}`);
+                    await this.failWithDiagnostics(errorMsg);
+                    throw new Error(errorMsg);
                 }
             } else {
-                this.core.logger.warn('⚠️ Could not open capture sheet');
+                const errorMsg = 'Could not input URL into input field';
+                this.core.logger.error(`❌ ${errorMsg}`);
+                await this.failWithDiagnostics(errorMsg);
+                throw new Error(errorMsg);
             }
 
             // 3. Error Scenarios and Recovery
@@ -156,8 +204,11 @@ class PluctUIHeader03EndToEndIntegrationValidation extends BaseJourney {
             // 4. Header Persistence and State Management
             this.core.logger.info('- Step 4: Header Persistence and State Management');
             
-            // Navigate to settings and back
-            const settingsResult = await this.core.tapByText('Settings');
+            // Navigate to settings and back - use test tag first
+            let settingsResult = await this.core.tapByTestTag('settings_button');
+            if (!settingsResult.success) {
+                settingsResult = await this.core.tapByText('Settings');
+            }
             if (settingsResult.success) {
                 this.core.logger.info('✅ Navigated to settings');
                 await this.core.sleep(2000);
@@ -205,7 +256,18 @@ class PluctUIHeader03EndToEndIntegrationValidation extends BaseJourney {
                     this.core.logger.warn('⚠️ Could not navigate back from settings');
                 }
             } else {
-                this.core.logger.warn('⚠️ Could not navigate to settings');
+                const errorMsg = 'Could not navigate to settings';
+                this.core.logger.error(`❌ ${errorMsg}`);
+                // Capture logcat for debugging
+                const logcatResult = await this.core.executeCommand('adb logcat -d | Select-Object -Last 50');
+                this.core.logger.error('📱 Recent logcat output:');
+                this.core.logger.error(logcatResult.output || 'No logcat output available');
+                // Dump UI for debugging
+                await this.dumpUI();
+                const uiDump = this.core.readLastUIDump();
+                this.core.logger.error('📱 Current UI state:');
+                this.core.logger.error(uiDump.substring(0, 1000));
+                throw new Error(errorMsg);
             }
 
             // 5. Performance and Responsiveness

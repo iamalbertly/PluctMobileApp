@@ -43,11 +43,25 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="pluct" android:host="debug" android:path="/error" />
             </intent-filter>
-            <!-- TikTok intent handling -->
+            <!-- TikTok intent handling with share target for prominence -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Share target for Android Sharesheet (makes app more prominent) -->
+            <meta-data
+                android:name="android.service.chooser.chooser_target_service"
+                android:value="androidx.sharetarget.ChooserTargetServiceCompat" />
+        </activity>
+        
+        <!-- Share target configuration for direct sharing -->
+        <activity
+            android:name="androidx.sharetarget.ChooserTargetServiceCompat"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.chooser.ChooserTargetService" />
             </intent-filter>
         </activity>
         

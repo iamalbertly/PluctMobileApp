@@ -19,8 +19,15 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
         private const val TAG = "PluctInputSanitizer"
         
         // URL patterns for supported platforms
+        // Updated to handle both short and long TikTok URLs with query parameters
         private val TIKTOK_URL_PATTERN = Pattern.compile(
-            "https?://(?:www\\.)?(?:vm\\.)?tiktok\\.com/[A-Za-z0-9]+/?",
+            "https?://(?:www\\.)?(?:vm\\.)?tiktok\\.com/(?:@[\\w.-]+/video/)?[A-Za-z0-9]+(?:/|\\?)?",
+            Pattern.CASE_INSENSITIVE
+        )
+        
+        // Pattern to extract clean TikTok URL from long share URLs
+        private val TIKTOK_VIDEO_ID_PATTERN = Pattern.compile(
+            "tiktok\\.com/(?:@([\\w.-]+)/video/)?([0-9]+)",
             Pattern.CASE_INSENSITIVE
         )
         
@@ -45,6 +52,27 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
         private const val MAX_TITLE_LENGTH = 500
         private const val MAX_DESCRIPTION_LENGTH = 2000
         private const val MAX_AUTHOR_LENGTH = 100
+        
+        /**
+         * Sanitize TikTok URL by extracting video ID and creating clean URL
+         */
+        private fun sanitizeTikTokUrl(url: String): String {
+            val matcher = TIKTOK_VIDEO_ID_PATTERN.matcher(url)
+            if (matcher.find()) {
+                val username = matcher.group(1)
+                val videoId = matcher.group(2)
+                
+                return if (username != null && videoId != null) {
+                    "https://www.tiktok.com/@$username/video/$videoId"
+                } else if (videoId != null) {
+                    // If no username, just use video ID (will work with API)
+                    "https://www.tiktok.com/video/$videoId"
+                } else {
+                    url // Return original if can't extract
+                }
+            }
+            return url
+        }
     }
     
     override val componentId: String = "pluct-core-validation-input-sanitizer"
@@ -85,10 +113,14 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
             )
         }
         
-        // Check for supported platforms
+        // Check for supported platforms and sanitize
         val warnings = mutableListOf<String>()
+        var sanitizedUrl = trimmedUrl
         val isSupported = when {
-            TIKTOK_URL_PATTERN.matcher(trimmedUrl).matches() -> {
+            trimmedUrl.contains("tiktok.com", ignoreCase = true) -> {
+                // Sanitize TikTok URL to remove query parameters
+                sanitizedUrl = sanitizeTikTokUrl(trimmedUrl)
+                Log.d(TAG, "TikTok URL sanitized: $trimmedUrl -> $sanitizedUrl")
                 warnings.add("TikTok URL detected")
                 true
             }
@@ -113,7 +145,7 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
         
         return ValidationResult(
             isValid = true,
-            sanitizedValue = trimmedUrl,
+            sanitizedValue = sanitizedUrl,
             warnings = warnings
         )
     }

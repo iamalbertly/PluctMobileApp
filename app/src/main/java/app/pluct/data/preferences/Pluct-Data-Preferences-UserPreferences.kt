@@ -24,6 +24,23 @@ class PluctUserPreferences(context: Context) {
         private const val DEFAULT_FREE_USES = 3
         private const val KEY_INTENT_FEEDBACK_MESSAGE = "intent_feedback_message"
         private const val KEY_INTENT_FEEDBACK_IS_ERROR = "intent_feedback_is_error"
+        private const val KEY_HAS_LAUNCHED_BEFORE = "has_launched_before"
+        
+        /**
+         * Check if this is the first time the user has launched the app
+         */
+        fun isFirstTimeUser(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            return !prefs.getBoolean(KEY_HAS_LAUNCHED_BEFORE, false)
+        }
+        
+        /**
+         * Mark the user as returning (not first time)
+         */
+        fun markUserAsReturning(context: Context) {
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(KEY_HAS_LAUNCHED_BEFORE, true).apply()
+        }
         
         /**
          * Set prefilled URL from intent

@@ -1,13 +1,13 @@
 package app.pluct
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,16 +17,18 @@ import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.AndroidEntryPoint
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreUserIdentification
+import app.pluct.services.PluctCoreValidationInputSanitizer
 import javax.inject.Inject
 import app.pluct.ui.theme.PluctTheme
 import app.pluct.ui.screens.PluctHomeScreen
+import app.pluct.ui.screens.PluctUIScreen01MainActivityIntentHandler
+import app.pluct.ui.screens.PluctUIScreen01MainActivityVideoProcessor
+import app.pluct.ui.screens.PluctVideoDetailScreen
+import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import app.pluct.data.entity.VideoItem
-import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.preferences.PluctUserPreferences
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
@@ -39,12 +41,19 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     @Inject lateinit var apiService: PluctCoreAPIUnifiedService
     @Inject lateinit var userIdentification: PluctCoreUserIdentification
     @Inject lateinit var videoRepository: app.pluct.data.repository.PluctVideoRepository
+    @Inject lateinit var validator: PluctCoreValidationInputSanitizer
+
+    // Drives recomposition when new intents provide a prefilled URL.
+    private val prefilledUrlState = mutableStateOf<String?>(null)
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         // Handle TikTok intent
-        handleTikTokIntent(intent)
+        PluctUIScreen01MainActivityIntentHandler.handleTikTokIntent(intent, this, validator)
+
+        // Seed any prefilled URL immediately so Compose can render it without waiting for effects.
+        prefilledUrlState.value = PluctUserPreferences.getAndClearPrefilledUrl(this)
         
         setContent {
             PluctTheme {
@@ -52,7 +61,13 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PluctMainContent(apiService, userIdentification, videoRepository)
+                    PluctMainContent(
+                        apiService = apiService,
+                        userIdentification = userIdentification,
+                        videoRepository = videoRepository,
+                        prefilledUrlExternal = prefilledUrlState.value,
+                        onPrefilledUrlConsumed = { prefilledUrlState.value = null }
+                    )
                 }
             }
         }
@@ -60,116 +75,16 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        intent?.let { handleTikTokIntent(it) }
-    }
-    
-    private fun handleTikTokIntent(intent: Intent) {
-        Log.d("MainActivity", "Handling intent: ${intent.action}")
-        try {
-            when (intent.action) {
-                Intent.ACTION_SEND -> {
-                    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                    Log.d("MainActivity", "Received shared text: $sharedText")
-                    processSharedTikTokText(sharedText)
-                }
-                Intent.ACTION_VIEW -> {
-                    val uri = intent.data
-                    Log.d("MainActivity", "Received URI: $uri")
-                    
-                    if (uri?.scheme == "pluct") {
-                        when (uri.host) {
-                            "ingest" -> {
-                                val url = uri.getQueryParameter("url")
-                                Log.d("MainActivity", "Deep link URL: $url")
-                                if (validateTikTokUrl(url)) {
-                                    url?.let {
-                                        PluctUserPreferences.setPrefilledUrl(this, it)
-                                        PluctUserPreferences.setIntentFeedback(
-                                            this,
-                                            "TikTok video link received!",
-                                            false
-                                        )
-                                    }
-                                } else {
-                                    PluctUserPreferences.setIntentFeedback(
-                                        this,
-                                        "Shared link is missing or not a TikTok URL.",
-                                        true
-                                    )
-                                }
-                            }
-                            "debug" -> {
-                                Log.d("MainActivity", "Debug deep link received")
-                            }
-                        }
-                    }
-                }
+        setIntent(intent) // Update the intent so getIntent() returns the new one
+        intent?.let { 
+            Log.d("MainActivity", "onNewIntent received: ${it.action}")
+            PluctUIScreen01MainActivityIntentHandler.handleTikTokIntent(it, this, validator)
+            // Check for prefilled URL immediately after handling intent
+            val url = PluctUserPreferences.getAndClearPrefilledUrl(this)
+            if (url != null) {
+                Log.d("MainActivity", "Prefilled URL from new intent: $url")
+                prefilledUrlState.value = url
             }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error handling intent: ${e.message}", e)
-            PluctUserPreferences.setIntentFeedback(
-                this,
-                "An error occurred while processing the shared content. Please try again.",
-                true
-            )
-        }
-    }
-
-    private fun processSharedTikTokText(sharedText: String?) {
-        if (sharedText.isNullOrBlank()) {
-            Log.w("MainActivity", "Shared text is null or blank")
-            PluctUserPreferences.setIntentFeedback(
-                this,
-                "No content was shared. Please share a valid TikTok video link.",
-                true
-            )
-            return
-        }
-
-        val extractedUrl = extractFirstUrl(sharedText)
-        if (extractedUrl == null) {
-            Log.w("MainActivity", "Unable to extract URL from shared text.")
-            PluctUserPreferences.setIntentFeedback(
-                this,
-                "Could not find a link in the shared content. Copy the TikTok link and try again.",
-                true
-            )
-            return
-        }
-
-        if (!validateTikTokUrl(extractedUrl)) {
-            Log.w("MainActivity", "Shared URL is not a TikTok link: $extractedUrl")
-            PluctUserPreferences.setIntentFeedback(
-                this,
-                "Only TikTok video links are supported. Please share a TikTok URL.",
-                true
-            )
-            return
-        }
-
-        Log.d("MainActivity", "TikTok URL detected: $extractedUrl")
-        PluctUserPreferences.setPrefilledUrl(this, extractedUrl)
-        PluctUserPreferences.setIntentFeedback(
-            this,
-            "TikTok video link received!",
-            false
-        )
-    }
-
-    private fun extractFirstUrl(text: String): String? {
-        val urlRegex = Regex("(https?://[^\\s]+)", RegexOption.IGNORE_CASE)
-        val match = urlRegex.find(text)
-        return match?.value?.trim()
-    }
-
-    private fun validateTikTokUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        return try {
-            val uri = Uri.parse(url)
-            val host = uri.host ?: return false
-            host.contains("tiktok.com", ignoreCase = true)
-        } catch (e: Exception) {
-            false
         }
     }
 }
@@ -181,18 +96,33 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
 fun PluctMainContent(
     apiService: PluctCoreAPIUnifiedService,
     userIdentification: PluctCoreUserIdentification,
-    videoRepository: app.pluct.data.repository.PluctVideoRepository
+    videoRepository: app.pluct.data.repository.PluctVideoRepository,
+    prefilledUrlExternal: String?,
+    onPrefilledUrlConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     
     // State management
     var creditBalance by remember { mutableStateOf(0) }
     var freeUsesRemaining by remember { mutableStateOf(3) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var prefilledUrl by remember { mutableStateOf<String?>(null) }
+    var currentError by remember { mutableStateOf<Throwable?>(null) }
+    var showWelcomeDialog by remember { mutableStateOf(false) }
+    var prefilledUrl by remember { mutableStateOf<String?>(prefilledUrlExternal) }
+    val userName = remember { userIdentification.userId }
+    var creditRequestLog by remember { mutableStateOf<String?>(null) }
+
+    // Keep local state in sync when a new intent provides a prefilled URL.
+    LaunchedEffect(prefilledUrlExternal) {
+        if (!prefilledUrlExternal.isNullOrBlank()) {
+            prefilledUrl = prefilledUrlExternal
+            onPrefilledUrlConsumed()
+        }
+    }
     
     // Load videos from database using Flow
     val videos by videoRepository.getAllVideos().collectAsState(initial = emptyList())
@@ -206,19 +136,28 @@ fun PluctMainContent(
             prefilledUrl = url
         }
         
-        loadInitialData(apiService, userIdentification) { balance, freeUses ->
-            creditBalance = balance
-            freeUsesRemaining = freeUses
+        // Check for first-time user
+        if (PluctUserPreferences.isFirstTimeUser(context)) {
+            showWelcomeDialog = true
         }
+        
+            PluctUIScreen01MainActivityVideoProcessor.loadInitialData(apiService, userIdentification) { balance, freeUses ->
+                creditBalance = balance
+                freeUsesRemaining = freeUses
+            }
 
         // Show any stored intent feedback to the user
         val feedback = PluctUserPreferences.getAndClearIntentFeedback(context)
         feedback?.let {
-            snackbarHostState.showSnackbar(
-                message = it.message,
-                withDismissAction = true,
-                duration = if (it.isError) SnackbarDuration.Long else SnackbarDuration.Short
-            )
+            if (it.isError) {
+                PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                    scope, snackbarHostState, it.message
+                )
+            } else {
+                PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                    scope, snackbarHostState, it.message
+                )
+            }
         }
     }
     
@@ -228,15 +167,33 @@ fun PluctMainContent(
             isLoading = true
             errorMessage = null
             try {
-                loadInitialData(apiService, userIdentification) { balance, freeUses ->
+                PluctUIScreen01MainActivityVideoProcessor.loadInitialData(apiService, userIdentification) { balance, freeUses ->
                     creditBalance = balance
                     freeUsesRemaining = freeUses
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Failed to refresh balance: ${e.message}", e)
                 errorMessage = "Failed to refresh balance"
+                currentError = e
+                PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                    scope,
+                    snackbarHostState,
+                    "Could not refresh credits. Check connection and retry."
+                )
             } finally {
                 isLoading = false
+            }
+        }
+    }
+
+    // Auto-dismiss welcome gate so the capture card stays reachable during tests and first run.
+    LaunchedEffect(showWelcomeDialog) {
+        if (showWelcomeDialog) {
+            delay(3000)
+            if (showWelcomeDialog) {
+                PluctUserPreferences.markUserAsReturning(context)
+                showWelcomeDialog = false
+                refreshCreditBalance()
             }
         }
     }
@@ -244,10 +201,27 @@ fun PluctMainContent(
     // Handle video processing
     val onTierSubmit: (String, ProcessingTier) -> Unit = { url: String, tier: ProcessingTier ->
         scope.launch {
-            processVideo(apiService, url, tier, creditBalance, freeUsesRemaining, videoRepository) { success, newBalance, newFreeUses ->
+            PluctUIScreen01MainActivityVideoProcessor.processVideo(apiService, url, tier, creditBalance, freeUsesRemaining, videoRepository, clipboardManager) { success, newBalance, newFreeUses, errorMessage, error ->
                 if (success) {
                     creditBalance = newBalance
                     freeUsesRemaining = newFreeUses
+                    // Show success message (or warning if provided)
+                    val msg = errorMessage ?: "Transcription started successfully"
+                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                        scope, snackbarHostState, msg
+                    )
+                } else {
+                    // Show error message via snackbar if it's not a handled error type
+                    // If it is a handled error (like 402/429), the ErrorHandler will show a dialog
+                    if (error != null) {
+                        currentError = error
+                    } else {
+                        val errorMsg = errorMessage ?: "Failed to process video. Please try again."
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope, snackbarHostState, errorMsg
+                        )
+                    }
+                    Log.e("MainActivity", "Video processing failed: ${errorMessage ?: error?.message}")
                 }
             }
         }
@@ -256,10 +230,23 @@ fun PluctMainContent(
     // Handle video retry
     val onRetryVideo: (VideoItem) -> Unit = { video ->
         scope.launch {
-            processVideo(apiService, video.url, video.tier, creditBalance, freeUsesRemaining, videoRepository) { success, newBalance, newFreeUses ->
+            PluctUIScreen01MainActivityVideoProcessor.processVideo(apiService, video.url, video.tier, creditBalance, freeUsesRemaining, videoRepository, clipboardManager) { success, newBalance, newFreeUses, errorMessage, error ->
                 if (success) {
                     creditBalance = newBalance
                     freeUsesRemaining = newFreeUses
+                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                        scope, snackbarHostState, "Retry started successfully"
+                    )
+                } else {
+                    if (error != null) {
+                        currentError = error
+                    } else {
+                        val errorMsg = errorMessage ?: "Failed to retry video. Please try again."
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope, snackbarHostState, errorMsg
+                        )
+                    }
+                    Log.e("MainActivity", "Video retry failed: ${errorMessage ?: error?.message}")
                 }
             }
         }
@@ -273,184 +260,72 @@ fun PluctMainContent(
         }
     }
     
+    // Navigation State
+    var selectedVideo by remember { mutableStateOf<VideoItem?>(null) }
+    
     // Main UI
-    PluctHomeScreen(
-        creditBalance = creditBalance,
-        freeUsesRemaining = freeUsesRemaining,
-        videos = videos,
-        isLoading = isLoading,
-        errorMessage = errorMessage,
-        onTierSubmit = onTierSubmit,
-        onRetryVideo = onRetryVideo,
-        onDeleteVideo = onDeleteVideo,
-        prefilledUrl = prefilledUrl,
-        apiService = apiService,
-        onRefreshCreditBalance = refreshCreditBalance,
-        snackbarHostState = snackbarHostState
-    )
-}
-
-/**
- * Load initial data from API
- */
-private suspend fun loadInitialData(
-    apiService: PluctCoreAPIUnifiedService,
-    userIdentification: PluctCoreUserIdentification,
-    onDataLoaded: (Int, Int) -> Unit
-) {
-    try {
-        Log.d("MainActivity", "Loading initial data...")
-        
-        // Get credit balance
-        val balanceResult = apiService.checkUserBalance()
-        balanceResult.fold(
-            onSuccess = { balance ->
-                Log.d("MainActivity", "REAL credit balance loaded: ${balance.balance} for user: ${userIdentification.userId}")
-                onDataLoaded(balance.balance, 3) // Default free uses
-            },
-            onFailure = { error ->
-                Log.e("MainActivity", "Failed to load credit balance: ${error.message}")
-                onDataLoaded(0, 3) // Fallback values
-            }
+    if (selectedVideo != null) {
+        PluctVideoDetailScreen(
+            video = selectedVideo!!,
+            onBackClick = { selectedVideo = null },
+            onUpgradeClick = { /* Handle upgrade */ }
         )
-    } catch (e: Exception) {
-        Log.e("MainActivity", "Error loading initial data: ${e.message}")
-        onDataLoaded(0, 3) // Fallback values
+    } else {
+        PluctHomeScreen(
+            creditBalance = creditBalance,
+            freeUsesRemaining = freeUsesRemaining,
+            videos = videos,
+            isLoading = isLoading,
+            errorMessage = errorMessage,
+            userName = userName,
+            onRequestCredits = { confirmation ->
+                // Record the manual request for validation; reuse error handler for visibility if needed
+                creditRequestLog = confirmation
+                PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                    scope,
+                    snackbarHostState,
+                    "Request received. We'll verify your payment and apply credits."
+                )
+            },
+            onTierSubmit = onTierSubmit,
+            onRetryVideo = onRetryVideo,
+            onDeleteVideo = onDeleteVideo,
+            onVideoClick = { video -> selectedVideo = video },
+            prefilledUrl = prefilledUrl,
+            apiService = apiService,
+            onRefreshCreditBalance = refreshCreditBalance,
+            snackbarHostState = snackbarHostState,
+            videoRepository = videoRepository
+        )
     }
-}
-
-/**
- * Process video with the selected tier
- */
-private suspend fun processVideo(
-    apiService: PluctCoreAPIUnifiedService,
-    url: String,
-    tier: ProcessingTier,
-    currentBalance: Int,
-    currentFreeUses: Int,
-    videoRepository: app.pluct.data.repository.PluctVideoRepository,
-    onResult: (Boolean, Int, Int) -> Unit
-) {
-    try {
-        Log.d("MainActivity", "Processing video: $url with tier: $tier")
-        
-        // Check if user has enough credits/free uses
-        val hasEnoughCredits = when (tier) {
-            ProcessingTier.EXTRACT_SCRIPT -> currentFreeUses > 0 || currentBalance >= 1
-            ProcessingTier.GENERATE_INSIGHTS -> currentBalance >= 2
-            else -> false // Other tiers not supported yet
+    
+    // Unified Error Handler
+    app.pluct.ui.error.PluctBusinessEngineErrorHandler(
+        error = currentError,
+        onDismiss = { currentError = null },
+        onPurchaseCredits = {
+            // TODO: Navigate to purchase screen
+            currentError = null
+            PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                scope, snackbarHostState, "Purchase flow coming soon!"
+            )
+        },
+        onRetry = {
+            currentError = null
+            // Retry logic would depend on context, for now just dismiss
         }
-        
-        if (!hasEnoughCredits) {
-            Log.w("MainActivity", "Insufficient credits for tier: $tier")
-            onResult(false, currentBalance, currentFreeUses)
-            return
-        }
-        
-        // Create video item and save to database before processing
-        val videoId = System.currentTimeMillis().toString()
-        val newVideo = VideoItem(
-            id = videoId,
-            url = url,
-            title = "Processing...",
-            thumbnailUrl = "",
-            author = "",
-            duration = 0L,
-            status = ProcessingStatus.PROCESSING,
-            progress = 0,
-            transcript = null,
-            timestamp = System.currentTimeMillis(),
-            tier = tier,
-            createdAt = System.currentTimeMillis()
-        )
-        val insertResult = videoRepository.insertVideo(newVideo)
-        if (insertResult.isFailure) {
-            Log.e("MainActivity", "Failed to save video to database: ${insertResult.exceptionOrNull()?.message}")
-        } else {
-            Log.d("MainActivity", "Video saved to database with id: $videoId")
-        }
-        
-        // Vend service token first
-        val vendResult = apiService.vendToken()
-        if (vendResult.isFailure) {
-            val error = vendResult.exceptionOrNull()
-            val errorMsg = error?.message ?: "Unknown error"
-            Log.e("MainActivity", "Failed to vend token: $errorMsg")
-            // Create detailed error string for debugging
-            val errorDetails = """
-                Service: BusinessEngine
-                Operation: Vend Token
-                Error: $errorMsg
-                Timestamp: ${System.currentTimeMillis()}
-                Stack: ${error?.stackTraceToString()?.take(500) ?: "N/A"}
-            """.trimIndent()
-            // Update video with failure
-            videoRepository.updateVideo(newVideo.copy(
-                status = ProcessingStatus.FAILED,
-                failureReason = "Failed to vend token: $errorMsg",
-                errorDetails = errorDetails
-            ))
-            onResult(false, currentBalance, currentFreeUses)
-            return
-        }
-        val serviceToken = vendResult.getOrNull()?.token ?: run {
-            Log.e("MainActivity", "Vend token returned null token")
-            val errorDetails = """
-                Service: BusinessEngine
-                Operation: Vend Token
-                Error: Token vending succeeded but returned null token
-                Status Code: 200
-                Expected: VendTokenResponse with non-null token
-                Actual: VendTokenResponse with null token field
-                Timestamp: ${System.currentTimeMillis()}
-            """.trimIndent()
-            videoRepository.updateVideo(newVideo.copy(
-                status = ProcessingStatus.FAILED,
-                failureReason = "Vend token returned null",
-                errorDetails = errorDetails
-            ))
-            onResult(false, currentBalance, currentFreeUses)
-            return
-        }
-        
-        // Start transcription with proper token
-        val transcriptionResult = apiService.submitTranscriptionJob(url, serviceToken)
-        transcriptionResult.fold(
-            onSuccess = { transcription ->
-                Log.d("MainActivity", "Transcription started: ${transcription.jobId}")
-                
-                // Update video with job details
-                videoRepository.updateVideo(newVideo.copy(
-                    status = ProcessingStatus.PROCESSING,
-                    transcript = "Job ID: ${transcription.jobId}"
-                ))
-                
-                // Update credits based on tier
-                val newBalance = when (tier) {
-                    ProcessingTier.EXTRACT_SCRIPT -> if (currentFreeUses > 0) currentBalance else currentBalance - 1
-                    ProcessingTier.GENERATE_INSIGHTS -> currentBalance - 2
-                    else -> currentBalance // Other tiers not supported yet
-                }
-                val newFreeUses = if (tier == ProcessingTier.EXTRACT_SCRIPT && currentFreeUses > 0) currentFreeUses - 1 else currentFreeUses
-                
-                onResult(true, newBalance, newFreeUses)
-            },
-            onFailure = { error ->
-                val errorMsg = error.message ?: "Unknown error"
-                Log.e("MainActivity", "Failed to start transcription: $errorMsg")
-                // Create detailed error string
-                val errorDetails = "Service: TTTranscribe\nOperation: Submit Transcription Job\nError: $errorMsg\nTimestamp: ${System.currentTimeMillis()}\nStack: ${error.stackTraceToString().take(500)}"
-                // Update video with failure
-                videoRepository.updateVideo(newVideo.copy(
-                    status = ProcessingStatus.FAILED,
-                    failureReason = "Transcription failed: $errorMsg",
-                    errorDetails = errorDetails
-                ))
-                onResult(false, currentBalance, currentFreeUses)
+    )
+    
+    // Welcome Dialog
+    if (showWelcomeDialog) {
+        app.pluct.ui.components.PluctWelcomeDialog(
+            onDismiss = { showWelcomeDialog = false },
+            onGetStarted = {
+                PluctUserPreferences.markUserAsReturning(context)
+                showWelcomeDialog = false
+                // Refresh balance to show free credits
+                refreshCreditBalance()
             }
         )
-    } catch (e: Exception) {
-        Log.e("MainActivity", "Error processing video: ${e.message}")
-        onResult(false, currentBalance, currentFreeUses)
     }
 }

@@ -37,7 +37,7 @@ class StatusUpdatesJourney {
                 await this.core.sleep(1000);
             }
             
-            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMADQVF4e/';
+            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMAKpqkpN/';
             await this.core.inputText(testUrl);
             await this.core.sleep(500);
             

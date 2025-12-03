@@ -165,12 +165,29 @@ class PluctTestResultsTracker {
             };
         }
         
+        // Find the first failed test in the test order
+        const firstFailedTestIndex = allTests.findIndex(test => availableFailedTests.includes(test));
+        
+        if (firstFailedTestIndex === -1) {
+            // Should not happen, but fallback to full run
+            return {
+                strategy: 'full',
+                reason: 'Failed tests not found in test order',
+                testsToRun: allTests,
+                failedTestsCount: 0
+            };
+        }
+        
+        // Start from first failed test and continue with all remaining tests
+        const testsToRun = allTests.slice(firstFailedTestIndex);
+        
         return {
-            strategy: 'failed-first',
-            reason: `Found ${availableFailedTests.length} failed tests from previous runs`,
-            testsToRun: availableFailedTests,
+            strategy: 'resume-from-failed',
+            reason: `Resuming from first failed test (${allTests[firstFailedTestIndex]}) - running ${testsToRun.length} tests`,
+            testsToRun: testsToRun,
             failedTestsCount: availableFailedTests.length,
-            allTests: allTests
+            allTests: allTests,
+            resumeFromIndex: firstFailedTestIndex
         };
     }
 

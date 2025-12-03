@@ -41,40 +41,42 @@ class PluctUIHeader02SettingsNavigationValidation extends BaseJourney {
                 // Continue anyway to test navigation if it exists
             }
             
-            // Try to tap on settings element
+            // Try to tap on settings element - use test tag first, then fallback to text
             let settingsTapped = false;
-            for (const element of settingsElements) {
-                const tapResult = await this.core.tapByText(element);
+            let tapResult = await this.core.tapByTestTag('settings_button');
+            if (tapResult.success) {
+                this.core.logger.info('✅ Tapped on settings button via test tag');
+                settingsTapped = true;
+            } else {
+                this.core.logger.warn('⚠️ Could not tap by test tag "settings_button", trying by text "Settings"');
+                // Fallback to text search
+                tapResult = await this.core.tapByText('Settings');
                 if (tapResult.success) {
-                    this.core.logger.info(`✅ Tapped on settings element: ${element}`);
+                    this.core.logger.info('✅ Tapped on settings element by text "Settings"');
                     settingsTapped = true;
-                    break;
                 }
             }
             
             if (!settingsTapped) {
-                this.core.logger.warn('⚠️ Could not tap on settings element');
-            } else {
-                // Wait for navigation
-                await this.core.sleep(2000);
-                await this.dumpUI();
-                const settingsUI = this.core.readLastUIDump();
-                
-                // Check if we're in settings screen
-                const isInSettings = settingsUI.includes('Settings') || 
+                await this.failWithDiagnostics('Could not tap on settings element');
+            }
+            
+            // Wait for settings dialog to appear
+            await this.core.sleep(2000);
+            await this.dumpUI();
+            const settingsUI = this.core.readLastUIDump();
+            
+            // Check if settings dialog appeared
+            const isInSettings = settingsUI.includes('settings_dialog') ||
+                                  settingsUI.includes('Settings') || 
                                   settingsUI.includes('settings') ||
-                                  settingsUI.includes('Configuration') ||
-                                  settingsUI.includes('configuration') ||
-                                  settingsUI.includes('Provider') ||
-                                  settingsUI.includes('provider') ||
-                                  settingsUI.includes('API') ||
-                                  settingsUI.includes('api');
-                
-                if (isInSettings) {
-                    this.core.logger.info('✅ Successfully navigated to Settings screen');
-                } else {
-                    this.core.logger.warn('⚠️ Navigation to Settings screen not confirmed');
-                }
+                                  settingsUI.includes('Settings configuration') ||
+                                  settingsUI.includes('Current Credits');
+            
+            if (isInSettings) {
+                this.core.logger.info('✅ Settings dialog appeared successfully');
+            } else {
+                await this.failWithDiagnostics('Settings dialog did not appear after clicking settings button');
             }
 
             // 2. Settings Screen Functionality
@@ -228,7 +230,10 @@ class PluctUIHeader02SettingsNavigationValidation extends BaseJourney {
             this.core.logger.info('- Step 5: Settings Persistence Validation');
             
             // Check if we can access settings again
-            const settingsAccessResult = await this.core.tapByText('Settings');
+            let settingsAccessResult = await this.core.tapByTestTag('settings_button');
+            if (!settingsAccessResult.success) {
+                settingsAccessResult = await this.core.tapByText('Settings');
+            }
             if (settingsAccessResult.success) {
                 this.core.logger.info('✅ Settings accessible after navigation');
                 await this.core.sleep(1000);
@@ -236,7 +241,7 @@ class PluctUIHeader02SettingsNavigationValidation extends BaseJourney {
                 await this.core.pressBackButton();
                 await this.core.sleep(1000);
             } else {
-                this.core.logger.warn('⚠️ Settings not accessible after navigation');
+                await this.failWithDiagnostics('Settings not accessible after navigation');
             }
 
             this.core.logger.info('✅ Completed: Pluct-UI-Header-02SettingsNavigation-Validation');

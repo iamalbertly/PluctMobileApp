@@ -66,7 +66,11 @@ class PluctSmartTestRunner {
         this.core.logger.info(`🎯 Reason: ${strategy.reason}`);
         this.core.logger.info(`🎯 Tests to run: ${strategy.testsToRun.length}`);
         
-        if (strategy.strategy === 'failed-first') {
+        if (strategy.strategy === 'resume-from-failed') {
+            this.core.logger.info(`🎯 Resuming from first failed test: ${strategy.testsToRun[0]}`);
+            this.core.logger.info(`🎯 Found ${strategy.failedTestsCount} failed tests from previous runs`);
+            this.core.logger.info(`🎯 Running ${strategy.testsToRun.length} tests starting from index ${strategy.resumeFromIndex || 0}`);
+        } else if (strategy.strategy === 'failed-first') {
             this.core.logger.info(`🎯 Prioritizing ${strategy.failedTestsCount} failed tests from previous runs`);
             this.core.logger.info(`🎯 Failed tests: ${strategy.testsToRun.join(', ')}`);
         }
@@ -182,10 +186,30 @@ class PluctSmartTestRunner {
             
             // 1. Current UI State
             this.core.logger.info('🔍 Capturing current UI state...');
-            await this.core.dumpUIHierarchy();
-            const uiDump = this.core.readLastUIDump();
-            this.core.logger.info('📱 Current UI State:');
-            this.core.logger.info(uiDump.substring(0, 2000) + (uiDump.length > 2000 ? '...' : ''));
+            const uiDumpResult = await this.core.dumpUIHierarchy();
+            if (uiDumpResult.success) {
+                const uiDump = this.core.readLastUIDump();
+                this.core.logger.info('📱 Current UI State:');
+                this.core.logger.info(uiDump.substring(0, 2000) + (uiDump.length > 2000 ? '...' : ''));
+            } else {
+                this.core.logger.error(`   ⚠️ UI dump failed: ${uiDumpResult.error}`);
+                if (uiDumpResult.stderr) {
+                    this.core.logger.error(`   ADB stderr: ${uiDumpResult.stderr}`);
+                }
+                if (uiDumpResult.adbConnectionIssue) {
+                    this.core.logger.error(`   🔴 ADB Connection Issue Detected!`);
+                }
+                // Try to read last dump if available
+                try {
+                    const lastDump = this.core.readLastUIDump();
+                    if (lastDump) {
+                        this.core.logger.info('📱 Using last known UI State:');
+                        this.core.logger.info(lastDump.substring(0, 2000) + (lastDump.length > 2000 ? '...' : ''));
+                    }
+                } catch (e) {
+                    this.core.logger.warn('   No previous UI dump available');
+                }
+            }
             
             // 2. Recent Logcat Errors
             this.core.logger.info('🔍 Checking recent logcat errors...');
@@ -196,6 +220,10 @@ class PluctSmartTestRunner {
                 this.core.logger.info(lines);
             } else {
                 this.core.logger.info('📱 No recent logcat errors found');
+                if (!logcatResult.success) {
+                    this.core.logger.error(`   ⚠️ Logcat command failed: ${logcatResult.error}`);
+                    if (logcatResult.stderr) this.core.logger.error(`   ADB stderr: ${logcatResult.stderr}`);
+                }
             }
             
             // 3. App Status
@@ -204,6 +232,16 @@ class PluctSmartTestRunner {
             if (appStatusResult.success && appStatusResult.output.trim()) {
                 this.core.logger.info('📱 App Status:');
                 this.core.logger.info(appStatusResult.output);
+            } else {
+                if (!appStatusResult.success) {
+                    this.core.logger.error(`   ⚠️ App status check failed: ${appStatusResult.error}`);
+                    if (appStatusResult.stderr) this.core.logger.error(`   ADB stderr: ${appStatusResult.stderr}`);
+                    if (appStatusResult.adbConnectionIssue) {
+                        this.core.logger.error(`   🔴 ADB Connection Issue Detected!`);
+                    }
+                } else {
+                    this.core.logger.info('📱 App not found in activity stack');
+                }
             }
             
             // 4. Device Information
@@ -211,6 +249,9 @@ class PluctSmartTestRunner {
             const deviceInfoResult = await this.core.executeCommand('adb shell getprop ro.build.version.release');
             if (deviceInfoResult.success) {
                 this.core.logger.info(`📱 Android Version: ${deviceInfoResult.output.trim()}`);
+            } else {
+                this.core.logger.error(`   ⚠️ Device info check failed: ${deviceInfoResult.error}`);
+                if (deviceInfoResult.stderr) this.core.logger.error(`   ADB stderr: ${deviceInfoResult.stderr}`);
             }
             
             // 5. Network Status
@@ -219,6 +260,13 @@ class PluctSmartTestRunner {
             if (networkResult.success && networkResult.output.trim()) {
                 this.core.logger.info('📱 Network Status:');
                 this.core.logger.info(networkResult.output);
+            } else {
+                if (!networkResult.success) {
+                    this.core.logger.error(`   ⚠️ Network status check failed: ${networkResult.error}`);
+                    if (networkResult.stderr) this.core.logger.error(`   ADB stderr: ${networkResult.stderr}`);
+                } else {
+                    this.core.logger.info('📱 Network status unavailable');
+                }
             }
             
             // 6. Memory Status
@@ -227,6 +275,13 @@ class PluctSmartTestRunner {
             if (memoryResult.success && memoryResult.output.trim()) {
                 this.core.logger.info('📱 Memory Status:');
                 this.core.logger.info(memoryResult.output.substring(0, 500) + '...');
+            } else {
+                if (!memoryResult.success) {
+                    this.core.logger.error(`   ⚠️ Memory status check failed: ${memoryResult.error}`);
+                    if (memoryResult.stderr) this.core.logger.error(`   ADB stderr: ${memoryResult.stderr}`);
+                } else {
+                    this.core.logger.info('📱 Memory status unavailable');
+                }
             }
             
             // 7. Test Statistics

@@ -19,7 +19,7 @@ class QuickScanJourney extends BaseJourney {
         await this.core.dumpUIHierarchy();
         const urlDump = this.core.readLastUIDump();
         
-        if (urlDump.includes('https://vm.tiktok.com/ZMADQVF4e/')) {
+        if (urlDump.includes('https://vm.tiktok.com/ZMAKpqkpN/')) {
             this.core.logger.info('✅ URL is already pre-populated');
         } else {
             this.core.logger.info('📱 Step 2b: Entering TikTok URL...');
@@ -161,12 +161,11 @@ class QuickScanJourney extends BaseJourney {
         this.core.logger.info('📱 Step 5: Validating REAL transcription processing with Business Engine...');
         this.core.logger.info('⏳ Starting 160-second timeout validation for REAL API transcription...');
         
-        // Monitor logcat for real Business Engine API calls
-        this.core.logger.info('🔍 Monitoring logcat for Business Engine API calls...');
-        const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "PluctBusinessEngineService"');
-        if (logcatResult.success) {
-            this.core.logger.info('📱 Recent Business Engine API calls:');
-            this.core.logger.info(logcatResult.output);
+        // Capture API logs before transcription starts
+        this.core.logger.info('🔍 Capturing API logs before transcription...');
+        const apiLogsBefore = await this.core.captureAPILogs(100);
+        if (apiLogsBefore.success) {
+            this.core.displayAPILogs(apiLogsBefore);
         }
         
         const result = await this.core.waitForTranscriptResult(160000, 1500);
@@ -179,12 +178,11 @@ class QuickScanJourney extends BaseJourney {
                 });
             }
             
-            // Check for Business Engine API errors
-            this.core.logger.error('🔍 Checking for Business Engine API errors...');
-            const errorLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctBusinessEngineService.*error"');
-            if (errorLogcat.success) {
-                this.core.logger.error('📱 Business Engine API errors:');
-                this.core.logger.error(errorLogcat.output);
+            // Capture and display full API logs on failure
+            this.core.logger.error('🔍 Capturing full API logs after failure...');
+            const apiLogsAfter = await this.core.captureAPILogs(500);
+            if (apiLogsAfter.success) {
+                this.core.displayAPILogs(apiLogsAfter);
             }
             
             // Check if the failure is due to a backend service issue (TTTranscribe 404)
@@ -208,6 +206,13 @@ class QuickScanJourney extends BaseJourney {
             return { success: false, error: `QuickScan timed out at stage: ${result.finalStage}`, history: result.history };
         }
 
+        // Capture API logs after successful completion
+        this.core.logger.info('🔍 Capturing API logs after successful transcription...');
+        const apiLogsAfter = await this.core.captureAPILogs(500);
+        if (apiLogsAfter.success) {
+            this.core.displayAPILogs(apiLogsAfter);
+        }
+        
         const duration = Date.now() - startTime;
         this.core.logger.info(`✅ QuickScan completed successfully in ${duration}ms`);
         this.core.logger.info('📊 Final result summary:');

@@ -1,0 +1,73 @@
+{
+  "features": {
+    "error-notifications": {
+      "description": "Error notification system with snackbars",
+      "tests": [
+        "Pluct-UI-Component-05Notification-01Snackbar-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt",
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-05Notification-01SnackbarManager.kt",
+        "app/src/main/java/app/pluct/core/error/Pluct-Core-Error-03UserMessageFormatter.kt"
+      ]
+    },
+    "progress-indicators": {
+      "description": "Progress indication during transcription",
+      "tests": [
+        "Pluct-UI-Component-03CaptureCard-04ProcessingIndicator-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-04ProcessingIndicator.kt",
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-03ProgressMonitor.kt"
+      ]
+    },
+    "error-display": {
+      "description": "Error display component with retry",
+      "tests": [
+        "Pluct-UI-Component-03CaptureCard-03ErrorDisplay-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-03ErrorDisplay.kt"
+      ]
+    },
+    "history-feature": {
+      "description": "URL history dropdown feature",
+      "tests": [
+        "Pluct-UI-Component-03CaptureCard-02URLInput-02History-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-02URLInput.kt",
+        "app/src/main/java/app/pluct/data/repository/PluctVideoRepository.kt"
+      ]
+    },
+    "retry-mechanism": {
+      "description": "Retry mechanism for failed operations",
+      "tests": [
+        "Pluct-Core-Error-05RetryManager-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/core/error/Pluct-Core-Error-05RetryManager.kt"
+      ]
+    },
+    "settings-navigation": {
+      "description": "Settings button navigation",
+      "tests": [
+        "Pluct-UI-Header-02SettingsNavigation-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen.kt"
+      ]
+    }
+  },
+  "testGroups": {
+    "all-new-features": [
+      "error-notifications",
+      "progress-indicators",
+      "error-display",
+      "history-feature",
+      "retry-mechanism",
+      "settings-navigation"
+    ]
+  }
+}
+

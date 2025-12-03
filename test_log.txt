@@ -1,0 +1,716 @@
+[13:07:31.565] [INFO] 📝 Journey setup completed
+[13:07:31.846] [INFO] 🎯 Starting Pluct Main Orchestrator...
+[13:07:31.853] [INFO] 🎯 Scope: All, URL: https://vm.tiktok.com/ZMAKpqkpN/
+[13:07:31.853] [INFO] 🧠 Initializing Smart Test Runner...
+[13:07:31.877] [INFO] 📊 Previous run found: 0 failed, 4 passed
+[13:07:31.878] [INFO] 📊 Last run: 2025-11-30T20:30:09.659Z
+[13:07:31.878] [INFO] 🎯 Validating environment...
+[13:07:31.896] [INFO] Validating environment...
+[13:07:42.179] [INFO] Environment validation passed
+[13:07:42.181] [INFO] ✅ Environment validation passed
+[13:07:42.181] [INFO] 🚀 Optimizing performance...
+[13:07:42.181] [INFO] 🚀 Running comprehensive optimization...
+[13:07:42.182] [INFO] Clearing app cache...
+[13:07:45.959] [INFO] App cache cleared successfully
+[13:07:48.052] [INFO] Clearing WorkManager tasks...
+[13:07:49.814] [INFO] No WorkManager tasks found (this is normal)
+[13:07:51.696] [INFO] ✅ Comprehensive optimization completed
+[13:07:51.696] [INFO] ✅ Performance optimization completed
+[13:07:51.697] [INFO] 🎯 Loading all journeys...
+[13:07:56.765] [INFO] 📝 Journey registered: AppLaunch
+[13:07:56.765] [INFO] 📝 Journey registered: ErrorNotificationValidation
+[13:07:56.782] [INFO] 📝 Journey registered: Pluct-UI-Header-01CreditBalance-Validation
+[13:07:56.782] [INFO] 📝 Journey registered: Pluct-UI-Header-02SettingsNavigation-Validation
+[13:07:56.782] [INFO] 📝 Journey registered: Pluct-UI-Header-03EndToEndIntegration-Validation
+[13:07:56.783] [INFO] 📝 Journey registered: QuickScan
+[13:07:56.783] [INFO] 📝 Journey registered: TikTokIntentTranscription
+[13:07:56.783] [INFO] 📝 Journey registered: TikTok-Intent-Route-01Transcription
+[13:07:56.783] [INFO] 📝 Journey registered: TikTokManualURLTranscription
+[13:07:56.784] [INFO] 📝 Journey registered: TranscriptStorageDisplay
+[13:07:56.784] [INFO] 📝 Journey registered: Pluct-Transcript-01BackgroundWorker-Validation
+[13:07:56.784] [INFO] 📝 Journey registered: Pluct-Transcript-02PerformanceTiming-Validation
+[13:07:56.784] [INFO] 📝 Journey registered: Pluct-Transcript-03EndToEndWorkflow-Validation
+[13:07:56.784] [INFO] 📝 Journey registered: FreeTier-E2E-01Validation
+[13:07:56.785] [INFO] 📝 Journey registered: PremiumTier-E2E-01Validation
+[13:07:56.785] [INFO] 📝 Journey registered: API-Connectivity-01ComprehensiveTest
+[13:07:56.785] [INFO] 📝 Journey registered: APIConnectivity
+[13:07:56.785] [INFO] 📝 Journey registered: BusinessEngineIntegration
+[13:07:56.785] [INFO] 📝 Journey registered: CacheOptimization
+[13:07:56.785] [INFO] 📝 Journey registered: CurrentAppValidation
+[13:07:56.787] [INFO] 📝 Journey registered: E2E-Dynamic-UI-01Validation
+[13:07:56.788] [INFO] 📝 Journey registered: E2E-Transcript-CompleteFlow
+[13:07:56.788] [INFO] 📝 Journey registered: Enhanced-E2E-01Validation
+[13:07:56.788] [INFO] 📝 Journey registered: ErrorE2E_Backend401
+[13:07:56.788] [INFO] 📝 Journey registered: ErrorE2E_DebugDeepLink
+[13:07:56.788] [INFO] 📝 Journey registered: ErrorE2E_SimpleTest
+[13:07:56.788] [INFO] 📝 Journey registered: ErrorInfraCheck
+[13:07:56.789] [INFO] 📝 Journey registered: ErrorNotification-02System
+[13:07:56.789] [INFO] 📝 Journey registered: ErrorReporting
+[13:07:56.789] [INFO] 📝 Journey registered: ExportSharing
+[13:07:56.789] [INFO] 📝 Journey registered: ManualURLInput
+[13:07:56.789] [INFO] 📝 Journey registered: MetadataFlow
+[13:07:56.790] [INFO] 📝 Journey registered: MetadataValidation
+[13:07:56.790] [INFO] 📝 Journey registered: OfflineQueue
+[13:07:56.790] [INFO] 📝 Journey registered: PerformanceMonitoring
+[13:07:56.790] [INFO] 📝 Journey registered: QualityScoring
+[13:07:56.791] [INFO] 📝 Journey registered: ShareIntent
+[13:07:56.791] [INFO] 📝 Journey registered: StatusMonitoring
+[13:07:56.791] [INFO] 📝 Journey registered: StatusUpdates
+[13:07:56.791] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-01VendToken
+[13:07:56.793] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-02SubmitTranscription
+[13:07:56.793] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-03PollStatus
+[13:07:56.794] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-04UIValidation
+[13:07:56.794] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-Orchestrator
+[13:07:56.794] [INFO] 📝 Journey registered: TokenVendingValidation
+[13:07:56.794] [INFO] 📝 Journey registered: TTTranscribeIntegration
+[13:07:56.884] [INFO] 📝 Journey registered: UserIdentificationValidation
+[13:07:56.885] [INFO] 📝 Journey registered: Pluct-Journey-01AppLaunch
+[13:07:56.889] [INFO] 📝 Journey registered: Pluct-Test-Validation-01Orchestrator
+[13:07:56.890] [INFO] 📝 Journey registered: Pluct-Test-Validation-02SystemHealth
+[13:07:56.890] [INFO] 📝 Journey registered: Pluct-Test-Validation-03AppUI
+[13:07:56.890] [INFO] 📝 Journey registered: Pluct-Test-Validation-04APIConnectivity
+[13:07:56.891] [INFO] 📝 Journey registered: Pluct-Test-Validation-05CreditBalance
+[13:07:56.891] [INFO] 📝 Journey registered: Pluct-Test-Validation-06TokenVending
+[13:07:56.891] [INFO] 📝 Journey registered: Pluct-Test-Validation-07VideoProcessing
+[13:07:56.891] [INFO] 📝 Journey registered: Pluct-Test-Validation-08Transcription
+[13:07:56.892] [INFO] 📝 Journey registered: Pluct-Test-Validation-09UIState
+[13:07:56.893] [INFO] 📝 Journey registered: Pluct-Test-Validation-10ErrorHandling
+[13:07:56.893] [INFO] 📝 Journey registered: Pluct-Test-Validation-11Performance
+[13:07:56.894] [INFO] 📝 Journey registered: Pluct-UI-Component-05Notification-01Snackbar-Validation
+[13:07:56.894] [INFO] 🎯 Loaded 60 journeys
+[13:07:56.918] [INFO] 🎯 === SMART TEST EXECUTION STRATEGY ===
+[13:07:56.918] [INFO] 🎯 Strategy: FULL
+[13:07:56.918] [INFO] 🎯 Reason: No failed tests from previous runs
+[13:07:56.918] [INFO] 🎯 Tests to run: 60
+[13:07:56.918] [INFO] 🎯 Running test: Journey-AppLaunch.js
+[13:07:56.918] [INFO] 🎯 Mapped Journey-AppLaunch.js to journey: AppLaunch
+[13:07:56.919] [INFO] 🎯 Running journey: AppLaunch
+[13:07:56.919] [INFO] 🎯 Testing App Launch end-to-end...
+[13:07:56.919] [INFO] Launching Pluct app...
+[13:07:58.504] [INFO] App launched successfully
+[13:08:07.582] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:08:07.582] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:08:15.839] [INFO] ✅ Found app content: Welcome to Pluct
+[13:08:15.839] [INFO] ✅ Journey AppLaunch completed successfully
+[13:08:15.840] [INFO] ✅ Journey-AppLaunch.js PASSED (18921ms)
+[13:08:15.840] [INFO] 🎯 Running test: Journey-ErrorNotificationValidation.js
+[13:08:15.840] [INFO] 🎯 Mapped Journey-ErrorNotificationValidation.js to journey: ErrorNotificationValidation
+[13:08:15.840] [INFO] 🎯 Running journey: ErrorNotificationValidation
+[13:08:15.841] [INFO] 🔴 Validating Error Notification System...
+[13:08:15.841] [INFO] Launching Pluct app...
+[13:08:16.909] [INFO] App launched successfully
+[13:08:32.582] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:08:32.583] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:08:40.539] [INFO] ✅ App detected
+[13:08:40.539] [INFO] ✅ App content found
+[13:08:40.539] [INFO] ✅ Main content found
+[13:08:40.539] [INFO] 📱 Testing Basic App Interaction...
+[13:08:42.591] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:08:42.591] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:08:52.151] [INFO] ✅ Title interaction successful
+[13:08:55.074] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:08:55.074] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:02.140] [INFO] ✅ App remains stable
+[13:09:02.141] [INFO] ✅ Error notification validation passed (simplified version)
+[13:09:02.141] [INFO] ✅ Journey ErrorNotificationValidation completed successfully
+[13:09:02.141] [INFO] ✅ Journey-ErrorNotificationValidation.js PASSED (46301ms)
+[13:09:02.141] [INFO] 🎯 Running test: Pluct-UI-Header-01CreditBalance-Validation.js
+[13:09:02.141] [INFO] 🎯 Mapped Pluct-UI-Header-01CreditBalance-Validation.js to journey: Pluct-UI-Header-01CreditBalance-Validation
+[13:09:02.141] [INFO] 🎯 Running journey: Pluct-UI-Header-01CreditBalance-Validation
+[13:09:02.142] [INFO] 🚀 Starting: Pluct-UI-Header-01CreditBalance-Validation
+[13:09:02.142] [INFO] - Step 1: App Initialization & Balance Load
+[13:09:09.898] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:09.898] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:14.964] [INFO] ✅ Credit balance display found in header
+[13:09:14.965] [INFO] - Step 2: Balance Refresh Functionality
+[13:09:16.970] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:16.971] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:27.922] [INFO] ✅ Tapped on credit balance container
+[13:09:32.038] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:32.038] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:41.015] [INFO] ✅ Balance refresh attempted
+[13:09:41.016] [INFO] - Step 3: Error Handling & Recovery
+[13:09:42.521] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:42.522] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:48.944] [INFO] ✅ No error state detected in header
+[13:09:48.945] [INFO] - Step 4: Low Balance Scenarios
+[13:09:49.700] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:49.700] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:09:57.027] [INFO] ✅ Low balance (0 credits) detected
+[13:09:57.027] [INFO] - Step 5: Header Layout and Accessibility
+[13:09:59.097] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:09:59.097] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:10:11.323] [INFO] ✅ Header elements found
+[13:10:11.324] [INFO] ✅ Completed: Pluct-UI-Header-01CreditBalance-Validation
+[13:10:11.324] [INFO] ✅ Journey Pluct-UI-Header-01CreditBalance-Validation completed successfully
+[13:10:11.324] [INFO] ✅ Pluct-UI-Header-01CreditBalance-Validation.js PASSED (69183ms)
+[13:10:11.324] [INFO] 🎯 Running test: Pluct-UI-Header-02SettingsNavigation-Validation.js
+[13:10:11.324] [INFO] 🎯 Mapped Pluct-UI-Header-02SettingsNavigation-Validation.js to journey: Pluct-UI-Header-02SettingsNavigation-Validation
+[13:10:11.324] [INFO] 🎯 Running journey: Pluct-UI-Header-02SettingsNavigation-Validation
+[13:10:11.325] [INFO] 🚀 Starting: Pluct-UI-Header-02SettingsNavigation-Validation
+[13:10:11.325] [INFO] - Step 1: Settings Navigation
+[13:10:18.988] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:10:18.988] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:10:24.972] [INFO] ✅ Settings element found: Settings
+[13:10:26.679] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:10:26.680] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:10:34.446] [INFO] Found element by contentDescription fallback: "Settings button"
+[13:10:37.937] [INFO] ✅ Tapped on settings button via test tag
+[13:10:41.302] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:10:41.302] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:10:49.117] [INFO] ✅ Settings dialog appeared successfully
+[13:10:49.117] [INFO] - Step 2: Settings Screen Functionality
+[13:10:50.716] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:10:50.716] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:11:00.467] [WARN] ⚠️ No provider configuration options found
+[13:11:00.467] [INFO] ✅ Found 1 toggle elements
+[13:11:00.467] [WARN] ⚠️ No API key input fields found
+[13:11:00.467] [INFO] - Step 3: Settings Integration with Business Engine
+[13:11:05.367] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:11:05.368] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:11:10.595] [INFO] ✅ Credit balance still visible in settings screen
+[13:11:10.595] [INFO] - Step 4: Navigation State Management
+[13:11:12.578] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:11:12.579] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:11:27.594] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:11:27.595] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:11:56.600] [ERROR] ❌ ADB Command Failed: adb shell uiautomator dump /sdcard/ui_dump.xml
+[13:11:56.600] [ERROR]    Error Code: SIGTERM
+[13:11:56.600] [ERROR]    Signal: SIGTERM
+[13:11:56.600] [ERROR]    Error Message: Command failed: adb shell uiautomator dump /sdcard/ui_dump.xml
+
+[13:11:56.601] [WARN]    ⚠️ No stderr captured - this may indicate a connection issue
+[13:11:56.601] [ERROR]    ADB stdout: UI hierchary dumped to: /sdcard/ui_dump.xml
+[13:11:56.602] [INFO] Retrying UI dump (attempt 2/3) after 1000ms...
+[13:12:00.448] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:12:00.448] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:12:09.174] [INFO] ✅ UI dump succeeded on attempt 2
+[13:12:11.405] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:12:11.405] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:12:27.657] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:12:27.657] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:12:46.011] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:12:46.011] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:13:01.925] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:13:01.926] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:13:12.540] [INFO] Killing existing uiautomator process: 30408
+[13:13:13.397] [ERROR] ❌ ADB Command Failed: adb shell kill 30408
+[13:13:13.397] [ERROR]    Error Code: 1
+[13:13:13.397] [ERROR]    Error Message: Command failed: adb shell kill 30408
+/system/bin/sh: kill: 30408: No such process
+
+[13:13:13.397] [ERROR]    ADB stderr: /system/bin/sh: kill: 30408: No such process
+[13:13:13.397] [WARN]    ⚠️ No stdout captured
+[13:13:26.780] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:13:26.780] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:13:38.961] [INFO] ✅ Used back button to navigate
+[13:13:44.168] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:13:44.169] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:13:49.727] [INFO] ✅ Successfully navigated back to home screen
+[13:13:49.728] [INFO] ✅ Header remains intact after navigation
+[13:13:49.728] [INFO] - Step 5: Settings Persistence Validation
+[13:13:50.884] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:13:50.884] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:14:13.491] [INFO] Found element by contentDescription fallback: "Settings button"
+[13:14:17.148] [INFO] ✅ Settings accessible after navigation
+[13:14:21.206] [INFO] ✅ Completed: Pluct-UI-Header-02SettingsNavigation-Validation
+[13:14:21.206] [INFO] ✅ Journey Pluct-UI-Header-02SettingsNavigation-Validation completed successfully
+[13:14:21.207] [INFO] ✅ Pluct-UI-Header-02SettingsNavigation-Validation.js PASSED (249882ms)
+[13:14:21.207] [INFO] 🎯 Running test: Pluct-UI-Header-03EndToEndIntegration-Validation.js
+[13:14:21.207] [INFO] 🎯 Mapped Pluct-UI-Header-03EndToEndIntegration-Validation.js to journey: Pluct-UI-Header-03EndToEndIntegration-Validation
+[13:14:21.207] [INFO] 🎯 Running journey: Pluct-UI-Header-03EndToEndIntegration-Validation
+[13:14:21.208] [INFO] 🚀 Starting: Pluct-UI-Header-03EndToEndIntegration-Validation
+[13:14:21.208] [INFO] - Step 1: Complete App Initialization
+[13:14:27.339] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:14:27.339] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:14:32.271] [INFO] ✅ Header loads completely with both credit balance and settings gear
+[13:14:32.271] [INFO] ✅ Accessibility labels found in header
+[13:14:32.271] [INFO] - Step 2: Credit Balance Integration with Transcription Flow
+[13:14:32.271] [INFO] ✅ Initial balance detected: 0 credits
+[13:14:32.271] [INFO] 🎬 Initiating transcription request...
+[13:14:32.271] [INFO] 📝 Inputting URL: https://vm.tiktok.com/ZMAKpqkpN/
+[13:14:32.272] [INFO] Inputting text via paste (length: 32): https://vm.tiktok.com/ZMAKpqkpN/...
+[13:14:37.074] [INFO] Clipboard set via service call
+[13:14:38.474] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:14:38.475] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:14:43.144] [INFO] Found element by contentDescription fallback: "Paste from clipboard"
+[13:14:45.588] [INFO] Text pasted via paste button
+[13:14:49.126] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:14:49.126] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:14:56.997] [WARN] ⚠️ Text not immediately visible in UI dump, but paste button was tapped
+[13:14:56.997] [WARN] Paste button not found, using paste keyevent
+[13:15:01.615] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:01.616] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:07.288] [WARN] ⚠️ Text not immediately visible in UI dump after paste keyevent
+[13:15:07.288] [INFO] ✅ URL input via test tag
+[13:15:09.289] [INFO] 🖱️ Clicking Extract Script button...
+[13:15:10.063] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:10.063] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:16.163] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:16.164] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:24.360] [INFO] ✅ Extract Script clicked via content description
+[13:15:24.360] [INFO] ✅ Transcription initiated
+[13:15:28.010] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:28.010] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:33.892] [WARN] ⚠️ Balance did not decrease: 0 -> 0
+[13:15:33.892] [INFO] - Step 3: Error Scenarios and Recovery
+[13:15:34.464] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:34.464] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:41.075] [INFO] ✅ No error state detected in header
+[13:15:41.075] [INFO] - Step 4: Header Persistence and State Management
+[13:15:42.504] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:42.505] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:15:51.164] [INFO] Found element by contentDescription fallback: "Settings button"
+[13:15:54.081] [INFO] ✅ Navigated to settings
+[13:15:56.960] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:15:56.960] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:02.084] [INFO] ✅ Header visible in settings
+[13:16:04.165] [INFO] ✅ Navigated back from settings
+[13:16:07.344] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:07.344] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:12.194] [INFO] ✅ Header intact after navigation
+[13:16:12.194] [INFO] - Step 5: Performance and Responsiveness
+[13:16:13.020] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:13.020] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:19.203] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:19.203] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:25.055] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:25.056] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:31.198] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:31.198] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:38.089] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:38.089] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:43.842] [WARN] ⚠️ Header may be slow (31648ms)
+[13:16:44.592] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:44.592] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:49.742] [INFO] ✅ Smooth transitions detected
+[13:16:49.742] [INFO] - Step 6: Final Header State Validation
+[13:16:50.718] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:50.719] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:16:55.659] [INFO] ✅ Complete header functionality validated
+[13:16:55.659] [INFO] ✅ No final error states detected
+[13:16:55.659] [INFO] ✅ Completed: Pluct-UI-Header-03EndToEndIntegration-Validation
+[13:16:55.659] [INFO] ✅ Journey Pluct-UI-Header-03EndToEndIntegration-Validation completed successfully
+[13:16:55.659] [INFO] ✅ Pluct-UI-Header-03EndToEndIntegration-Validation.js PASSED (154452ms)
+[13:16:55.660] [INFO] 🎯 Running test: Journey-QuickScan.js
+[13:16:55.660] [INFO] 🎯 Mapped Journey-QuickScan.js to journey: QuickScan
+[13:16:55.660] [INFO] 🎯 Running journey: QuickScan
+[13:16:55.661] [INFO] 🎯 Testing QuickScan (Start Transcription) end-to-end...
+[13:16:55.661] [INFO] 📱 Step 1: Ensuring app is in foreground...
+[13:16:58.651] [INFO] ✅ App is in foreground
+[13:16:58.651] [INFO] 📱 Step 2: Checking URL input...
+[13:16:59.370] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:16:59.370] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:03.714] [INFO] 📱 Step 2b: Entering TikTok URL...
+[13:17:04.280] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:04.280] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:09.224] [WARN] ⚠️ Could not tap by test tag, trying by text
+[13:17:09.996] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:09.996] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:15.543] [WARN] ⚠️ Could not tap by text, trying first edit text
+[13:17:15.544] [INFO] 👆 Tapping first edit text field...
+[13:17:16.408] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:16.408] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:22.135] [INFO] Found EditText at coordinates: (328, 257)
+[13:17:24.669] [INFO] ✅ URL field tapped
+[13:17:24.669] [INFO] 📝 Inputting URL: https://vm.tiktok.com/ZMAKpqkpN/
+[13:17:24.669] [INFO] Using clipboard method for URL/special characters
+[13:17:24.669] [INFO] Inputting text via paste (length: 32): https://vm.tiktok.com/ZMAKpqkpN/...
+[13:17:30.324] [INFO] Clipboard set via service call
+[13:17:31.616] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:31.617] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:36.597] [INFO] Found element by contentDescription fallback: "Paste from clipboard"
+[13:17:38.899] [INFO] Text pasted via paste button
+[13:17:41.594] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:41.594] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:47.483] [WARN] ⚠️ Text not immediately visible in UI dump, but paste button was tapped
+[13:17:47.483] [WARN] Paste button not found, using paste keyevent
+[13:17:51.672] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:17:51.672] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:17:56.640] [WARN] ⚠️ Text not immediately visible in UI dump after paste keyevent
+[13:17:56.640] [INFO] ✅ URL entered successfully
+[13:17:56.640] [INFO] 📱 Step 3: Waiting for Start Transcription button to be enabled...
+[13:17:58.646] [INFO] 📊 Dumping UI hierarchy for button detection...
+[13:18:02.445] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:02.445] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:08.233] [INFO] 📱 Current UI state (first 500 chars):
+[13:18:08.233] [INFO] <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="" class="android.widget.LinearLayout" package="app.pluct" content-desc=...
+[13:18:08.233] [INFO] 🔍 Method 1: Trying to tap by test tag "extract_script_button"...
+[13:18:09.328] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:09.328] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:14.345] [WARN] ⚠️ Could not tap by test tag
+[13:18:14.345] [INFO] 🔍 Method 2: Trying to tap by text "Extract Script"...
+[13:18:15.555] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:15.555] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:21.910] [WARN] ⚠️ Could not tap by text "Extract Script"
+[13:18:21.910] [INFO] 🔍 Method 3: Trying to tap by text "📄 Extract Script"...
+[13:18:23.210] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:23.210] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:31.520] [WARN] ⚠️ Could not tap by text with emoji
+[13:18:31.520] [INFO] 🔍 Method 4: Trying to tap by text "Extract Script"...
+[13:18:32.877] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:32.877] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:40.867] [WARN] ⚠️ Could not tap by text without emoji
+[13:18:40.867] [INFO] 🔍 Method 5: Trying to tap by content description "Extract Script button"...
+[13:18:42.549] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:42.549] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:18:51.956] [WARN] ⚠️ Could not tap by content description
+[13:18:51.957] [INFO] 🔍 Method 6: Searching for Extract Script button in UI dump...
+[13:18:51.957] [WARN] ⚠️ Extract Script button not found in UI dump
+[13:18:51.957] [ERROR] ❌ All methods failed to find Extract Script button
+[13:18:51.957] [ERROR] (Extract Script button not found) ❌ Journey QuickScan failed:
+[13:18:51.957] [ERROR] ❌ Journey-QuickScan.js FAILED (116297ms): Extract Script button not found
+[13:18:51.961] [INFO] 🔍 === DETAILED FAILURE ANALYSIS ===
+[13:18:51.961] [INFO] 🔍 Failed Test: Journey-QuickScan.js
+[13:18:51.961] [INFO] 🔍 Error: Extract Script button not found
+[13:18:51.961] [INFO] 🔍 Timestamp: 2025-12-01T10:18:51.961Z
+[13:18:51.962] [INFO] 🔍 Capturing current UI state...
+[13:18:55.336] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:18:55.336] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:19:03.157] [INFO] 📱 Current UI State:
+[13:19:03.158] [INFO] <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="" class="android.widget.LinearLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="android:id/content" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="androidx.compose.ui.platform.ComposeView" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resou...
+[13:19:03.158] [INFO] 🔍 Checking recent logcat errors...
+[13:19:06.581] [INFO] 📱 Recent Logcat Errors:
+[13:19:06.581] [INFO] 12-01 04:33:00.487  1372  1372 W auditd  : type=1327 audit(0.0:8225): proctitle="app.pluct"
+12-01 04:33:08.144 30285 30447 I app.pluct: Explicit concurrent copying GC freed 35703(1201KB) AllocSpace objects, 1(20KB) LOS objects, 50% free, 4MB/9MB, paused 22us total 91.834ms
+12-01 04:33:09.715 31456 31456 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:14.419 30285 30447 I app.pluct: Explicit concurrent copying GC freed 21971(751KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 22us total 95.491ms
+12-01 04:33:15.787 31478 31478 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:20.897 30285 30447 I app.pluct: Explicit concurrent copying GC freed 22423(767KB) AllocSpace objects, 1(20KB) LOS objects, 50% free, 4MB/9MB, paused 22us total 101.286ms
+12-01 04:33:22.294 31498 31498 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:29.863 30285 30301 I app.pluct: Explicit concurrent copying GC freed 29062(960KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 62us total 82.349ms
+12-01 04:33:31.634 31517 31517 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:38.576 30285 30447 I app.pluct: Explicit concurrent copying GC freed 28264(943KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 20us total 117.197ms
+12-01 04:33:38.581 30285 30447 W app.pluct: Suspending all threads took: 5.070ms
+12-01 04:33:38.688 30285 30447 W app.pluct: Suspending all threads took: 6.093ms
+12-01 04:33:40.626 31537 31537 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:49.398 30285 30447 I app.pluct: Explicit concurrent copying GC freed 34011(1136KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 23us total 108.722ms
+12-01 04:33:49.404 30285 30447 W app.pluct: Suspending all threads took: 5.900ms
+12-01 04:33:51.685 31558 31558 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:34:01.025 30285 30447 I app.pluct: Explicit concurrent copying GC freed 35669(1216KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 25us total 264.665ms
+12-01 04:34:01.031 30285 30447 W app.pluct: Suspending all threads took: 5.253ms
+12-01 04:34:04.129 31580 31580 E cutils-trace: Error opening trace file: No such file or directory (2)
+
+[13:19:06.581] [INFO] 🔍 Checking app status...
+[13:19:08.690] [INFO] 📱 App Status:
+[13:19:08.690] [INFO]     * TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+      affinity=app.pluct
+      intent={flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity}
+      realActivity=app.pluct/.PluctUIScreen01MainActivity
+      Activities=[ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}]
+      mRootProcess=ProcessRecord{a4f9213 30285:app.pluct/u0a277}
+      * Hist #0: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+          packageName=app.pluct processName=app.pluct
+          app=ProcessRecord{a4f9213 30285:app.pluct/u0a277}
+          Intent { flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity }
+          frontOfTask=true task=TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+          taskAffinity=app.pluct
+          realActivity=app.pluct/.PluctUIScreen01MainActivity
+          baseDir=/data/app/app.pluct-QVXY_q-5zNihuQP1SJK7zA==/base.apk
+          dataDir=/data/user/0/app.pluct
+      TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+        Run #0: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+    mResumedActivity: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+  ResumedActivity: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+
+[13:19:08.690] [INFO] 🔍 Checking device information...
+[13:19:10.024] [INFO] 📱 Android Version: 9
+[13:19:10.025] [INFO] 🔍 Checking network status...
+[13:19:11.645] [INFO] 📱 Network Status:
+[13:19:11.645] [INFO] NetworkFactories for: TelephonyNetworkFactory[0] WIFI_UT Ethernet PhoneSwitcherNetworkRequstListener WIFI_AWARE_FACTORY WIFI
+Active default network: 100
+Current Networks:
+  NetworkAgentInfo{ ni{[type: WIFI[], state: CONNECTED/CONNECTED, reason: (unspecified), extra: (none), failover: false, available: true, roaming: false]}  network{100}  nethandle{432902426637}  lp{{InterfaceName: wlan0 LinkAddresses: [fe80::2db:7cff:fed1:eba7/64,172.16.1.15/24,]  Routes: [fe80::/64 -> :: wlan0,172.16.1.0/24 -> 0.0.0.0 wlan0,0.0.0.0/0 -> 172.16.1.2 wlan0,] DnsAddresses: [10.233.254.254,8.8.8.8,192.168.0.1,] UsePrivateDns: true PrivateDnsServerName: null Domains: null MTU: 0 TcpBufferSizes: 524288,1048576,2097152,262144,524288,1048576 HttpProxy: [ProxyProperties.mHost == null] }}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED Unwanted:  LinkUpBandwidth>=1048576Kbps LinkDnBandwidth>=1048576Kbps SignalStrength: -50 SSID: ""station-EOKQVH""]}  Score{60}  everValidated{true}  lastValidated{true}  created{true} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} clat{null} }
+      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+      NetworkRequest [ LISTEN id=3, [] ]
+      NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+      NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+      NetworkRequest [ LISTEN id=10, [] ]
+      NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+Network Requests:
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2121 NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=3, [] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:1000/1579 NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10016/23224 NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=10, [] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ BACKGROUND_REQUEST id=2, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=4, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10062/30876 NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+    1 NetworkAgentInfo [WIFI () - 100] CONNECTED/CONNECTED
+mNetworkRequestInfoLogs (most recent first):
+  2025-12-01T00:58:27.392 - REGISTER uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.332 - REGISTER uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=67, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=68, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.608 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=66, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:59:26.291 - REGISTER uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T15:59:25.866 - REGISTER uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T15:59:02.285 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:53.884 - REGISTER uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:53.061 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=68, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:49.973 - REGISTER uid/pid:10051/9612 NetworkRequest [ LISTEN id=67, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:49.651 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=66, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:26:50.980 - RELEASE uid/pid:10016/8944 NetworkRequest [ TRACK_DEFAULT id=64, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T15:26:50.980 - RELEASE uid/pid:10016/8944 NetworkRequest [ LISTEN id=65, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T14:47:50.339 - RELEASE uid/pid:10016/21920 NetworkRequest [ LISTEN id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T14:47:50.339 - RELEASE uid/pid:10016/21920 NetworkRequest [ TRACK_DEFAULT id=51, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+mNetworkInfoBlockingLogs (most recent first):
+
+[13:19:11.645] [INFO] 🔍 Checking memory status...
+[13:19:14.080] [INFO] 📱 Memory Status:
+[13:19:14.080] [INFO] Applications Memory Usage (in Kilobytes):
+Uptime: 131789567 Realtime: 131789567
+
+** MEMINFO in pid 30285 [app.pluct] **
+                   Pss  Private  Private  SwapPss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap     9870     9772        0        0    18432    12957     5474
+  Dalvik Heap     5956     5880        0        0     9627     4...
+[13:19:14.081] [INFO] 📊 Test Statistics:
+[13:19:14.081] [INFO] 📊 Current Run: 6 passed, 1 failed
+[13:19:14.081] [INFO] 📊 Previous Run: 1 failed, 6 passed
+[13:19:14.081] [ERROR] ❌ === FAILURE ANALYSIS COMPLETE ===
+[13:19:14.081] [ERROR] ❌ Failed Test: Journey-QuickScan.js
+[13:19:14.081] [ERROR] ❌ Error: Extract Script button not found
+[13:19:14.081] [ERROR] ❌ Time: 2025-12-01T10:19:14.081Z
+[13:19:14.081] [ERROR] ❌ TERMINATING TEST EXECUTION DUE TO FAILURE
+[13:19:14.081] [ERROR] ❌ This is the expected behavior in development mode
+[13:19:14.081] [ERROR] ❌ Fix the failing test before running again
+[13:19:14.082] [ERROR] ❌ Journey-QuickScan.js FAILED WITH EXCEPTION (138421ms): Test Journey-QuickScan.js failed: Extract Script button not found
+[13:19:14.082] [INFO] 🔍 === DETAILED FAILURE ANALYSIS ===
+[13:19:14.082] [INFO] 🔍 Failed Test: Journey-QuickScan.js
+[13:19:14.082] [INFO] 🔍 Error: Test Journey-QuickScan.js failed: Extract Script button not found
+[13:19:14.082] [INFO] 🔍 Timestamp: 2025-12-01T10:19:14.082Z
+[13:19:14.082] [INFO] 🔍 Capturing current UI state...
+[13:19:15.579] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[13:19:15.579] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[13:19:23.937] [INFO] 📱 Current UI State:
+[13:19:23.938] [INFO] <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="" class="android.widget.LinearLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="android:id/content" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="androidx.compose.ui.platform.ComposeView" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resou...
+[13:19:23.938] [INFO] 🔍 Checking recent logcat errors...
+[13:19:28.766] [INFO] 📱 Recent Logcat Errors:
+[13:19:28.766] [INFO] 12-01 04:33:15.787 31478 31478 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:20.897 30285 30447 I app.pluct: Explicit concurrent copying GC freed 22423(767KB) AllocSpace objects, 1(20KB) LOS objects, 50% free, 4MB/9MB, paused 22us total 101.286ms
+12-01 04:33:22.294 31498 31498 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:29.863 30285 30301 I app.pluct: Explicit concurrent copying GC freed 29062(960KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 62us total 82.349ms
+12-01 04:33:31.634 31517 31517 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:38.576 30285 30447 I app.pluct: Explicit concurrent copying GC freed 28264(943KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 20us total 117.197ms
+12-01 04:33:38.581 30285 30447 W app.pluct: Suspending all threads took: 5.070ms
+12-01 04:33:38.688 30285 30447 W app.pluct: Suspending all threads took: 6.093ms
+12-01 04:33:40.626 31537 31537 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:33:49.398 30285 30447 I app.pluct: Explicit concurrent copying GC freed 34011(1136KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 23us total 108.722ms
+12-01 04:33:49.404 30285 30447 W app.pluct: Suspending all threads took: 5.900ms
+12-01 04:33:51.685 31558 31558 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:34:01.025 30285 30447 I app.pluct: Explicit concurrent copying GC freed 35669(1216KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 25us total 264.665ms
+12-01 04:34:01.031 30285 30447 W app.pluct: Suspending all threads took: 5.253ms
+12-01 04:34:04.129 31580 31580 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 04:34:17.636 30285 30447 I app.pluct: Explicit concurrent copying GC freed 49798(1632KB) AllocSpace objects, 1(20KB) LOS objects, 50% free, 4MB/9MB, paused 43us total 144.651ms
+12-01 04:34:21.990 30285 30447 I app.pluct: Explicit concurrent copying GC freed 15215(544KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 21us total 134.762ms
+12-01 04:34:22.114 30285 30447 W app.pluct: Suspending all threads took: 7.518ms
+12-01 04:34:23.947 31617 31617 E cutils-trace: Error opening trace file: No such file or directory (2)
+
+[13:19:28.769] [INFO] 🔍 Checking app status...
+[13:19:30.253] [INFO] 📱 App Status:
+[13:19:30.253] [INFO]     * TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+      affinity=app.pluct
+      intent={flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity}
+      realActivity=app.pluct/.PluctUIScreen01MainActivity
+      Activities=[ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}]
+      mRootProcess=ProcessRecord{a4f9213 30285:app.pluct/u0a277}
+      * Hist #0: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+          packageName=app.pluct processName=app.pluct
+          app=ProcessRecord{a4f9213 30285:app.pluct/u0a277}
+          Intent { flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity }
+          frontOfTask=true task=TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+          taskAffinity=app.pluct
+          realActivity=app.pluct/.PluctUIScreen01MainActivity
+          baseDir=/data/app/app.pluct-QVXY_q-5zNihuQP1SJK7zA==/base.apk
+          dataDir=/data/user/0/app.pluct
+      TaskRecord{2aeb902 #51 A=app.pluct U=0 StackId=49 sz=1}
+        Run #0: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+    mResumedActivity: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+  ResumedActivity: ActivityRecord{da42673 u0 app.pluct/.PluctUIScreen01MainActivity t51}
+
+[13:19:30.253] [INFO] 🔍 Checking device information...
+[13:19:31.184] [INFO] 📱 Android Version: 9
+[13:19:31.184] [INFO] 🔍 Checking network status...
+[13:19:32.469] [INFO] 📱 Network Status:
+[13:19:32.469] [INFO] NetworkFactories for: TelephonyNetworkFactory[0] WIFI_UT Ethernet PhoneSwitcherNetworkRequstListener WIFI_AWARE_FACTORY WIFI
+Active default network: 100
+Current Networks:
+  NetworkAgentInfo{ ni{[type: WIFI[], state: CONNECTED/CONNECTED, reason: (unspecified), extra: (none), failover: false, available: true, roaming: false]}  network{100}  nethandle{432902426637}  lp{{InterfaceName: wlan0 LinkAddresses: [fe80::2db:7cff:fed1:eba7/64,172.16.1.15/24,]  Routes: [fe80::/64 -> :: wlan0,172.16.1.0/24 -> 0.0.0.0 wlan0,0.0.0.0/0 -> 172.16.1.2 wlan0,] DnsAddresses: [10.233.254.254,8.8.8.8,192.168.0.1,] UsePrivateDns: true PrivateDnsServerName: null Domains: null MTU: 0 TcpBufferSizes: 524288,1048576,2097152,262144,524288,1048576 HttpProxy: [ProxyProperties.mHost == null] }}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED Unwanted:  LinkUpBandwidth>=1048576Kbps LinkDnBandwidth>=1048576Kbps SignalStrength: -50 SSID: ""station-EOKQVH""]}  Score{60}  everValidated{true}  lastValidated{true}  created{true} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} clat{null} }
+      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+      NetworkRequest [ LISTEN id=3, [] ]
+      NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+      NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+      NetworkRequest [ LISTEN id=10, [] ]
+      NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+Network Requests:
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2121 NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=3, [] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:1000/1579 NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10016/23224 NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=10, [] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ BACKGROUND_REQUEST id=2, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=4, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10062/30876 NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+    1 NetworkAgentInfo [WIFI () - 100] CONNECTED/CONNECTED
+mNetworkRequestInfoLogs (most recent first):
+  2025-12-01T00:58:27.392 - REGISTER uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.332 - REGISTER uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=67, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=68, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.608 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=66, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:59:26.291 - REGISTER uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T15:59:25.866 - REGISTER uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T15:59:02.285 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:53.884 - REGISTER uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:53.061 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=68, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:49.973 - REGISTER uid/pid:10051/9612 NetworkRequest [ LISTEN id=67, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:58:49.651 - REGISTER uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=66, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T15:26:50.980 - RELEASE uid/pid:10016/8944 NetworkRequest [ TRACK_DEFAULT id=64, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T15:26:50.980 - RELEASE uid/pid:10016/8944 NetworkRequest [ LISTEN id=65, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T14:47:50.339 - RELEASE uid/pid:10016/21920 NetworkRequest [ LISTEN id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T14:47:50.339 - RELEASE uid/pid:10016/21920 NetworkRequest [ TRACK_DEFAULT id=51, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+mNetworkInfoBlockingLogs (most recent first):
+
+[13:19:32.469] [INFO] 🔍 Checking memory status...
+[13:19:35.441] [INFO] 📱 Memory Status:
+[13:19:35.442] [INFO] Applications Memory Usage (in Kilobytes):
+Uptime: 131811080 Realtime: 131811080
+
+** MEMINFO in pid 30285 [app.pluct] **
+                   Pss  Private  Private  SwapPss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap    10450    10352        0        0    18432    13231     5200
+  Dalvik Heap     5988     5912        0        0     9628     4...
+[13:19:35.444] [INFO] 📊 Test Statistics:
+[13:19:35.445] [INFO] 📊 Current Run: 6 passed, 1 failed
+[13:19:35.445] [INFO] 📊 Previous Run: 1 failed, 6 passed
+[13:19:35.445] [ERROR] ❌ === FAILURE ANALYSIS COMPLETE ===
+[13:19:35.445] [ERROR] ❌ Failed Test: Journey-QuickScan.js
+[13:19:35.445] [ERROR] ❌ Error: Test Journey-QuickScan.js failed: Extract Script button not found
+[13:19:35.445] [ERROR] ❌ Time: 2025-12-01T10:19:35.445Z
+[13:19:35.445] [ERROR] ❌ TERMINATING TEST EXECUTION DUE TO EXCEPTION
+[13:19:35.447] [ERROR] ❌ Test execution terminated due to failure
+[13:19:35.447] [ERROR] ❌ Error: Test Journey-QuickScan.js failed: Extract Script button not found
+[13:19:35.449] [ERROR] ❌ Test execution failed
+[13:19:35.449] [ERROR] ❌ Error: Test Journey-QuickScan.js failed: Extract Script button not found
+❌ Tests failed: Test Journey-QuickScan.js failed: Extract Script button not found

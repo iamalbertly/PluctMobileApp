@@ -268,7 +268,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
                 const client = url.protocol === 'https:' ? https : http;
 
                 const postData = JSON.stringify({
-                    url: "https://vm.tiktok.com/ZMADQVF4e/"
+                    url: "https://vm.tiktok.com/ZMAKpqkpN/"
                 });
 
                 const options = {

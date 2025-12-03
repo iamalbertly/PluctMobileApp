@@ -65,14 +65,12 @@ class PluctCoreUserIdentification @Inject constructor(
             // Convert to hex string
             val hashHex = hashBytes.joinToString("") { "%02x".format(it) }
             
-            // Take first 12 characters of hash for uniqueness
-            val shortHash = hashHex.substring(0, 12)
-            
-            // Generate a short random suffix for additional uniqueness
-            val shortId = UUID.randomUUID().toString().substring(0, 4)
+            // Take first 16 characters of hash for uniqueness
+            val shortHash = hashHex.substring(0, 16)
             
             // Create mobile-hyphenated username
-            val userId = "mobile-$shortHash-$shortId"
+            // Format: mobile-{hash}
+            val userId = "mobile-$shortHash"
             
             Log.d(TAG, "Generated user ID: $userId")
             Log.d(TAG, "Based on Android ID: $androidId")
@@ -82,10 +80,9 @@ class PluctCoreUserIdentification @Inject constructor(
             
         } catch (e: Exception) {
             Log.e(TAG, "Error generating user ID: ${e.message}", e)
-            // Fallback to UUID-based ID
-            val fallbackId = "mobile-${UUID.randomUUID().toString().replace("-", "").substring(0, 16)}"
-            Log.w(TAG, "Using fallback user ID: $fallbackId")
-            return fallbackId
+            // Fallback to a persistent-like ID if possible, but for now just log error
+            // In worst case, use a hash of the exception message or something stable-ish
+            return "mobile-error-fallback"
         }
     }
 

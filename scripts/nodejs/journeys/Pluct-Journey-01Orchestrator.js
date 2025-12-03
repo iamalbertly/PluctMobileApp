@@ -28,7 +28,8 @@ class PluctJourneyOrchestrator {
             'Pluct-Transcript-02PerformanceTiming-Validation.js',
             'Pluct-Transcript-03EndToEndWorkflow-Validation.js',
             'Journey-FreeTier-E2E-01Validation.js', // New Smart Free Tier test
-            'Journey-PremiumTier-E2E-01Validation.js' // New Smart Premium Tier test
+            'Journey-PremiumTier-E2E-01Validation.js', // New Smart Premium Tier test
+            'Pluct-Journey-BusinessEngine-Credits-01Validation.js'
             // Add other journeys here in the desired order
         ];
         
@@ -50,7 +51,8 @@ class PluctJourneyOrchestrator {
             'Pluct-Transcript-02PerformanceTiming-Validation.js': 'Pluct-Transcript-02PerformanceTiming-Validation',
             'Pluct-Transcript-03EndToEndWorkflow-Validation.js': 'Pluct-Transcript-03EndToEndWorkflow-Validation',
             'Journey-FreeTier-E2E-01Validation.js': 'FreeTier-E2E-01Validation',
-            'Journey-PremiumTier-E2E-01Validation.js': 'PremiumTier-E2E-01Validation'
+            'Journey-PremiumTier-E2E-01Validation.js': 'PremiumTier-E2E-01Validation',
+            'Pluct-Journey-BusinessEngine-Credits-01Validation.js': 'Pluct-Journey-BusinessEngine-Credits-01Validation'
         };
     }
 
@@ -186,44 +188,98 @@ class PluctJourneyOrchestrator {
             this.core.logger.info('🔍 Generating detailed failure report...');
             
             // 1. Current UI State
-            await this.core.dumpUIHierarchy();
-            const uiDump = this.core.readLastUIDump();
-            this.core.logger.info('📱 Current UI State:');
-            this.core.logger.info(uiDump.substring(0, 2000) + (uiDump.length > 2000 ? '...' : ''));
+            const uiDumpResult = await this.core.dumpUIHierarchy();
+            if (uiDumpResult.success) {
+                const uiDump = this.core.readLastUIDump();
+                this.core.logger.info('📱 Current UI State:');
+                this.core.logger.info(uiDump.substring(0, 2000) + (uiDump.length > 2000 ? '...' : ''));
+            } else {
+                this.core.logger.error(`   ⚠️ UI dump failed: ${uiDumpResult.error}`);
+                if (uiDumpResult.stderr) {
+                    this.core.logger.error(`   ADB stderr: ${uiDumpResult.stderr}`);
+                }
+                if (uiDumpResult.adbConnectionIssue) {
+                    this.core.logger.error(`   🔴 ADB Connection Issue Detected!`);
+                }
+                // Try to read last dump if available
+                try {
+                    const lastDump = this.core.readLastUIDump();
+                    if (lastDump) {
+                        this.core.logger.info('📱 Using last known UI State:');
+                        this.core.logger.info(lastDump.substring(0, 2000) + (lastDump.length > 2000 ? '...' : ''));
+                    }
+                } catch (e) {
+                    this.core.logger.warn('   No previous UI dump available');
+                }
+            }
             
             // 2. Recent Logcat
             const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"');
-            if (logcatResult.success) {
+            if (logcatResult.success && logcatResult.output.trim()) {
                 this.core.logger.info('📱 Recent Logcat Errors:');
                 const lines = logcatResult.output.split('\n').slice(-20).join('\n');
                 this.core.logger.info(lines);
+            } else {
+                if (!logcatResult.success) {
+                    this.core.logger.error(`   ⚠️ Logcat command failed: ${logcatResult.error}`);
+                    if (logcatResult.stderr) this.core.logger.error(`   ADB stderr: ${logcatResult.stderr}`);
+                } else {
+                    this.core.logger.info('📱 No recent logcat errors found');
+                }
             }
             
             // 3. App Status
             const appStatusResult = await this.core.executeCommand('adb shell dumpsys activity activities | findstr -i pluct');
-            if (appStatusResult.success) {
+            if (appStatusResult.success && appStatusResult.output.trim()) {
                 this.core.logger.info('📱 App Status:');
                 this.core.logger.info(appStatusResult.output);
+            } else {
+                if (!appStatusResult.success) {
+                    this.core.logger.error(`   ⚠️ App status check failed: ${appStatusResult.error}`);
+                    if (appStatusResult.stderr) this.core.logger.error(`   ADB stderr: ${appStatusResult.stderr}`);
+                    if (appStatusResult.adbConnectionIssue) {
+                        this.core.logger.error(`   🔴 ADB Connection Issue Detected!`);
+                    }
+                } else {
+                    this.core.logger.info('📱 App not found in activity stack');
+                }
             }
             
             // 4. Device Info
             const deviceInfoResult = await this.core.executeCommand('adb shell getprop ro.build.version.release');
             if (deviceInfoResult.success) {
                 this.core.logger.info(`📱 Android Version: ${deviceInfoResult.output.trim()}`);
+            } else {
+                this.core.logger.error(`   ⚠️ Device info check failed: ${deviceInfoResult.error}`);
+                if (deviceInfoResult.stderr) this.core.logger.error(`   ADB stderr: ${deviceInfoResult.stderr}`);
             }
             
             // 5. Network Status
             const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i "active network"');
-            if (networkResult.success) {
+            if (networkResult.success && networkResult.output.trim()) {
                 this.core.logger.info('📱 Network Status:');
                 this.core.logger.info(networkResult.output);
+            } else {
+                if (!networkResult.success) {
+                    this.core.logger.error(`   ⚠️ Network status check failed: ${networkResult.error}`);
+                    if (networkResult.stderr) this.core.logger.error(`   ADB stderr: ${networkResult.stderr}`);
+                } else {
+                    this.core.logger.info('📱 Network status unavailable');
+                }
             }
             
             // 6. Memory Status
             const memoryResult = await this.core.executeCommand('adb shell dumpsys meminfo app.pluct');
-            if (memoryResult.success) {
+            if (memoryResult.success && memoryResult.output.trim()) {
                 this.core.logger.info('📱 Memory Status:');
                 this.core.logger.info(memoryResult.output.substring(0, 500) + '...');
+            } else {
+                if (!memoryResult.success) {
+                    this.core.logger.error(`   ⚠️ Memory status check failed: ${memoryResult.error}`);
+                    if (memoryResult.stderr) this.core.logger.error(`   ADB stderr: ${memoryResult.stderr}`);
+                } else {
+                    this.core.logger.info('📱 Memory status unavailable');
+                }
             }
             
             this.core.logger.error(`❌ FAILURE ANALYSIS COMPLETE FOR: ${failedJourney}`);
@@ -292,6 +348,53 @@ class BaseJourney {
 
     async dumpUI() {
         return await this.core.dumpUIHierarchy();
+    }
+
+    /**
+     * Fail with logcat output, API logs, and UI dump for debugging
+     */
+    async failWithDiagnostics(errorMessage) {
+        this.core.logger.error(`❌ ${errorMessage}`);
+        
+        // Capture API logs first (most important for debugging API issues)
+        try {
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            this.core.logger.error('🔍 CAPTURING API LOGS FOR DIAGNOSTICS');
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            const apiLogs = await this.core.captureAPILogs(500);
+            if (apiLogs.success) {
+                this.core.displayAPILogs(apiLogs);
+            } else {
+                this.core.logger.error(`Failed to capture API logs: ${apiLogs.error}`);
+            }
+        } catch (e) {
+            this.core.logger.error(`Exception capturing API logs: ${e.message}`);
+        }
+        
+        // Capture general logcat for debugging
+        try {
+            const logcatResult = await this.core.executeCommand('adb logcat -d -t 100');
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            this.core.logger.error('📱 RECENT LOGCAT OUTPUT:');
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            this.core.logger.error(logcatResult.output || 'No logcat output available');
+        } catch (e) {
+            this.core.logger.error(`Failed to capture logcat: ${e.message}`);
+        }
+        
+        // Dump UI for debugging
+        try {
+            await this.dumpUI();
+            const uiDump = this.core.readLastUIDump();
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            this.core.logger.error('📱 CURRENT UI STATE:');
+            this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            this.core.logger.error(uiDump.substring(0, 2000));
+        } catch (e) {
+            this.core.logger.error(`Failed to capture UI dump: ${e.message}`);
+        }
+        
+        throw new Error(errorMessage);
     }
 }
 

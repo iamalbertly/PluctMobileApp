@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,14 +82,18 @@ fun PluctHeader(
                             }
                         )
                     } else {
-                        Text(
-                            text = "$creditBalance",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance: $creditBalance credits"
-                            }
-                        )
+                        Column {
+                            Text(
+                                text = "Credits: $creditBalance",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Credit balance: $creditBalance credits"
+                                }
+                            )
+                            // Note: Credit holds will be shown here when backend supports it
+                            // Format: "($available available, $held pending)"
+                        }
                     }
                 }
             }
@@ -96,16 +101,15 @@ fun PluctHeader(
         actions = {
             IconButton(
                 onClick = onSettingsClick,
-                modifier = Modifier.semantics {
-                    contentDescription = "Settings button"
-                }
+                modifier = Modifier
+                    .semantics {
+                        contentDescription = "Settings button"
+                        testTag = "settings_button"
+                    }
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    modifier = Modifier.semantics {
-                        contentDescription = "Settings icon"
-                    }
+                    contentDescription = null // Remove to avoid overriding parent semantics
                 )
             }
         },
@@ -181,14 +185,18 @@ fun PluctHeaderWithRefreshableBalance(
                             }
                         )
                     } else {
-                        Text(
-                            text = "$creditBalance",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance: $creditBalance credits"
-                            }
-                        )
+                        Column {
+                            Text(
+                                text = "Credits: $creditBalance",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Credit balance: $creditBalance credits"
+                                }
+                            )
+                            // Note: Credit holds will be shown here when backend supports it
+                            // Format: "($available available, $held pending)"
+                        }
                     }
                 }
             }
@@ -196,16 +204,15 @@ fun PluctHeaderWithRefreshableBalance(
         actions = {
             IconButton(
                 onClick = onSettingsClick,
-                modifier = Modifier.semantics {
-                    contentDescription = "Settings button"
-                }
+                modifier = Modifier
+                    .semantics {
+                        contentDescription = "Settings button"
+                        testTag = "settings_button"
+                    }
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    modifier = Modifier.semantics {
-                        contentDescription = "Settings icon"
-                    }
+                    contentDescription = null // Remove to avoid overriding parent semantics
                 )
             }
         },

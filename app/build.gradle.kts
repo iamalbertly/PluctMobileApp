@@ -29,9 +29,9 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             isShrinkResources = false
-            isZipAlignEnabled = false
-            isDebuggable = true
             buildConfigField("boolean", "DEBUG", "true")
+            buildConfigField("String", "VERSION_NAME", "\"1.0.0\"")
+            buildConfigField("String", "PLATFORM", "\"android\"")
             // Optimize debug builds
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"
@@ -40,7 +40,6 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            isZipAlignEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

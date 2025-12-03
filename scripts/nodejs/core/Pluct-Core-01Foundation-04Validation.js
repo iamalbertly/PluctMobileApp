@@ -16,33 +16,33 @@ class PluctCoreFoundationValidation {
     async validateEnvironment() {
         try {
             this.logger.info('Validating environment...');
-            
+
             // Check ADB connectivity
             const adbResult = await this.checkADBConnectivity();
             if (!adbResult.success) {
                 return { success: false, error: 'ADB connectivity check failed' };
             }
-            
+
             // Check device status
             const deviceResult = await this.checkDeviceStatus();
             if (!deviceResult.success) {
                 return { success: false, error: 'Device status check failed' };
             }
-            
+
             // Check app installation
             const appResult = await this.checkAppInstallation();
             if (!appResult.success) {
                 return { success: false, error: 'App installation check failed' };
             }
-            
+
             this.logger.info('Environment validation passed');
-            return { 
-                success: true, 
-                details: { 
-                    adb: adbResult, 
-                    device: deviceResult, 
-                    app: appResult 
-                } 
+            return {
+                success: true,
+                details: {
+                    adb: adbResult,
+                    device: deviceResult,
+                    app: appResult
+                }
             };
         } catch (error) {
             this.logger.error(`Environment validation failed: ${error.message}`);
@@ -75,7 +75,7 @@ class PluctCoreFoundationValidation {
             const deviceMatch = devicesResult.output?.match(/^([^\s]+)\s+device$/m);
             const deviceId = deviceMatch ? deviceMatch[1] : null;
             const adbPrefix = deviceId ? `adb -s ${deviceId}` : 'adb';
-            
+
             const result = await this.commands.executeCommand(`${adbPrefix} shell getprop ro.build.version.release`);
             if (result.success && result.output.trim()) {
                 return { success: true, androidVersion: result.output.trim() };
@@ -100,6 +100,42 @@ class PluctCoreFoundationValidation {
             return { success: false, error: error.message };
         }
     }
+
+    /**
+     * Search logcat for specific terms (cross-platform alternative to findstr/grep)
+     * @param {string[]} searchTerms - Array of terms to search for
+     * @param {boolean} caseInsensitive - Whether to perform case-insensitive search
+     * @returns {Promise<{success: boolean, matches: string[], found: boolean, error?: string}>}
+     */
+    async searchLogcat(searchTerms, caseInsensitive = true) {
+        try {
+            this.logger.info(`Searching logcat for: ${searchTerms.join(', ')}`);
+
+            const result = await this.commands.executeCommand('adb logcat -d');
+            if (!result.success) {
+                return { success: false, error: 'Failed to get logcat', matches: [], found: false };
+            }
+
+            const logOutput = result.output || '';
+            const matches = [];
+
+            for (const term of searchTerms) {
+                const searchText = caseInsensitive ? logOutput.toLowerCase() : logOutput;
+                const searchTerm = caseInsensitive ? term.toLowerCase() : term;
+
+                if (searchText.includes(searchTerm)) {
+                    matches.push(term);
+                    this.logger.info(`Found term in logcat: ${term}`);
+                }
+            }
+
+            return { success: true, matches, found: matches.length > 0 };
+        } catch (error) {
+            this.logger.error(`Search logcat failed: ${error.message}`);
+            return { success: false, error: error.message, matches: [], found: false };
+        }
+    }
 }
 
 module.exports = PluctCoreFoundationValidation;
+

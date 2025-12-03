@@ -16,7 +16,7 @@ class JourneyE2EDynamicUIValidation extends BaseJourney {
         super(core);
         this.name = 'Journey-E2E-Dynamic-UI-01Validation';
         this.uiStateTracker = new PluctUIStateTrackerService(core);
-        this.testUrl = 'https://vm.tiktok.com/ZMADQVF4e/';
+        this.testUrl = 'https://vm.tiktok.com/ZMAKpqkpN/';
     }
 
     async execute() {

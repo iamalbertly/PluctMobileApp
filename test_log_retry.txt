@@ -1,0 +1,484 @@
+[15:21:43.794] [INFO] 📝 Journey setup completed
+🎯 Filtered test run: Journey-TikTok-Manual-URL-01Transcription.js
+[15:21:44.429] [INFO] 🎯 Starting Pluct Main Orchestrator...
+[15:21:44.431] [INFO] 🎯 Scope: All, URL: https://vm.tiktok.com/ZMAKpqkpN/
+[15:21:44.431] [INFO] 🎯 Test filter active: Journey-TikTok-Manual-URL-01Transcription.js
+[15:21:44.431] [INFO] 🧠 Initializing Smart Test Runner...
+[15:21:44.443] [INFO] 📊 Previous run found: 0 failed, 1 passed
+[15:21:44.444] [INFO] 📊 Last run: 2025-12-01T10:51:44.953Z
+[15:21:44.476] [INFO] 🎯 Validating environment...
+[15:21:44.487] [INFO] Validating environment...
+[15:21:53.380] [INFO] Environment validation passed
+[15:21:53.380] [INFO] ✅ Environment validation passed
+[15:21:53.380] [INFO] 🚀 Optimizing performance...
+[15:21:53.380] [INFO] 🚀 Running comprehensive optimization...
+[15:21:53.381] [INFO] Clearing app cache...
+[15:21:59.004] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell pm clear app.pluct\n","code":"SIGTERM","signal":"SIGTERM","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:21:59.026] [ERROR] ❌ ADB Command Failed: adb shell pm clear app.pluct
+[15:21:59.027] [ERROR]    Error Code: SIGTERM
+[15:21:59.027] [ERROR]    Signal: SIGTERM
+[15:21:59.027] [ERROR]    Error Message: Command failed: adb shell pm clear app.pluct
+
+[15:21:59.030] [WARN]    ⚠️ No stderr captured - this may indicate a connection issue
+[15:21:59.030] [WARN]    ⚠️ No stdout captured
+[15:21:59.030] [INFO] Clearing WorkManager tasks...
+[15:22:04.458] [INFO] No WorkManager tasks found (this is normal)
+[15:22:09.426] [INFO] ✅ Comprehensive optimization completed
+[15:22:09.426] [INFO] ✅ Performance optimization completed
+[15:22:09.426] [INFO] 🎯 Loading all journeys...
+[15:22:13.491] [INFO] 📝 Journey registered: AppLaunch
+[15:22:13.491] [INFO] 📝 Journey registered: ErrorNotificationValidation
+[15:22:13.491] [INFO] 📝 Journey registered: Pluct-UI-Header-01CreditBalance-Validation
+[15:22:13.491] [INFO] 📝 Journey registered: Pluct-UI-Header-02SettingsNavigation-Validation
+[15:22:13.492] [INFO] 📝 Journey registered: Pluct-UI-Header-03EndToEndIntegration-Validation
+[15:22:13.492] [INFO] 📝 Journey registered: QuickScan
+[15:22:13.492] [INFO] 📝 Journey registered: TikTokIntentTranscription
+[15:22:13.492] [INFO] 📝 Journey registered: TikTok-Intent-Route-01Transcription
+[15:22:13.493] [INFO] 📝 Journey registered: TikTokManualURLTranscription
+[15:22:13.493] [INFO] 📝 Journey registered: TranscriptStorageDisplay
+[15:22:13.493] [INFO] 📝 Journey registered: Pluct-Transcript-01BackgroundWorker-Validation
+[15:22:13.493] [INFO] 📝 Journey registered: Pluct-Transcript-02PerformanceTiming-Validation
+[15:22:13.493] [INFO] 📝 Journey registered: Pluct-Transcript-03EndToEndWorkflow-Validation
+[15:22:13.494] [INFO] 📝 Journey registered: FreeTier-E2E-01Validation
+[15:22:13.494] [INFO] 📝 Journey registered: PremiumTier-E2E-01Validation
+[15:22:13.494] [INFO] 📝 Journey registered: API-Connectivity-01ComprehensiveTest
+[15:22:13.494] [INFO] 📝 Journey registered: APIConnectivity
+[15:22:13.494] [INFO] 📝 Journey registered: BusinessEngineIntegration
+[15:22:13.494] [INFO] 📝 Journey registered: CacheOptimization
+[15:22:13.495] [INFO] 📝 Journey registered: CurrentAppValidation
+[15:22:13.495] [INFO] 📝 Journey registered: E2E-Dynamic-UI-01Validation
+[15:22:13.497] [INFO] 📝 Journey registered: E2E-Transcript-CompleteFlow
+[15:22:13.497] [INFO] 📝 Journey registered: Enhanced-E2E-01Validation
+[15:22:13.497] [INFO] 📝 Journey registered: ErrorE2E_Backend401
+[15:22:13.497] [INFO] 📝 Journey registered: ErrorE2E_DebugDeepLink
+[15:22:13.497] [INFO] 📝 Journey registered: ErrorE2E_SimpleTest
+[15:22:13.498] [INFO] 📝 Journey registered: ErrorInfraCheck
+[15:22:13.498] [INFO] 📝 Journey registered: ErrorNotification-02System
+[15:22:13.498] [INFO] 📝 Journey registered: ErrorReporting
+[15:22:13.498] [INFO] 📝 Journey registered: ExportSharing
+[15:22:13.498] [INFO] 📝 Journey registered: ManualURLInput
+[15:22:13.498] [INFO] 📝 Journey registered: MetadataFlow
+[15:22:13.499] [INFO] 📝 Journey registered: MetadataValidation
+[15:22:13.499] [INFO] 📝 Journey registered: OfflineQueue
+[15:22:13.499] [INFO] 📝 Journey registered: PerformanceMonitoring
+[15:22:13.499] [INFO] 📝 Journey registered: QualityScoring
+[15:22:13.499] [INFO] 📝 Journey registered: ShareIntent
+[15:22:13.499] [INFO] 📝 Journey registered: StatusMonitoring
+[15:22:13.499] [INFO] 📝 Journey registered: StatusUpdates
+[15:22:13.500] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-01VendToken
+[15:22:13.500] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-02SubmitTranscription
+[15:22:13.500] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-03PollStatus
+[15:22:13.500] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-04UIValidation
+[15:22:13.500] [INFO] 📝 Journey registered: TikTok-Intent-01Transcription-Orchestrator
+[15:22:13.501] [INFO] 📝 Journey registered: TokenVendingValidation
+[15:22:13.501] [INFO] 📝 Journey registered: TTTranscribeIntegration
+[15:22:13.501] [INFO] 📝 Journey registered: UserIdentificationValidation
+[15:22:13.501] [INFO] 📝 Journey registered: Pluct-Journey-01AppLaunch
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-01Orchestrator
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-02SystemHealth
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-03AppUI
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-04APIConnectivity
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-05CreditBalance
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-06TokenVending
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-07VideoProcessing
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-08Transcription
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-09UIState
+[15:22:13.503] [INFO] 📝 Journey registered: Pluct-Test-Validation-10ErrorHandling
+[15:22:13.504] [INFO] 📝 Journey registered: Pluct-Test-Validation-11Performance
+[15:22:13.504] [INFO] 📝 Journey registered: Pluct-UI-Component-05Notification-01Snackbar-Validation
+[15:22:13.504] [INFO] 🎯 Loaded 60 journeys
+[15:22:13.615] [INFO] 🎯 === SMART TEST EXECUTION STRATEGY ===
+[15:22:13.615] [INFO] 🎯 Strategy: FULL
+[15:22:13.615] [INFO] 🎯 Reason: No failed tests from previous runs
+[15:22:13.615] [INFO] 🎯 Tests to run: 1
+[15:22:13.615] [INFO] 🎯 Running test: Journey-TikTok-Manual-URL-01Transcription.js
+[15:22:13.615] [INFO] 🎯 Mapped Journey-TikTok-Manual-URL-01Transcription.js to journey: TikTokManualURLTranscription
+[15:22:13.615] [INFO] 🎯 Running journey: TikTokManualURLTranscription
+[15:22:13.616] [INFO] 🎯 Starting TikTok Manual URL Transcription Journey...
+[15:22:13.616] [INFO] 🔄 Step 0: Clearing app data for clean test run
+[15:22:23.354] [INFO] 📱 Step 1: App Launch and Initial State
+[15:22:23.354] [INFO] Launching Pluct app...
+[15:22:26.972] [INFO] App launched successfully
+[15:22:32.214] [INFO] 📱 Step 2: Verifying Always-Visible Capture Component
+[15:22:33.534] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:22:33.561] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[15:22:39.538] [ERROR] ❌ ADB Command Failed: adb shell dumpsys meminfo app.pluct
+[15:22:39.538] [ERROR]    Error Code: SIGTERM
+[15:22:39.538] [ERROR]    Signal: SIGTERM
+[15:22:39.539] [ERROR]    Error Message: Command failed: adb shell dumpsys meminfo app.pluct
+
+[15:22:39.539] [WARN]    ⚠️ No stderr captured - this may indicate a connection issue
+[15:22:39.539] [ERROR]    ADB stdout: Applications Memory Usage (in Kilobytes):
+Uptime: 139194125 Realtime: 139194125
+
+** MEMINFO in pid 2225 [app.pluct] **
+[15:22:52.684] [INFO] 👋 Welcome Screen detected, tapping Get Started...
+[15:22:54.151] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:22:54.151] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[15:23:16.350] [INFO] 🔍 Verifying always-visible capture component...
+[15:23:18.953] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:23:18.953] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[15:23:29.615] [ERROR] ❌ Always-visible capture component not found
+[15:23:29.616] [ERROR] ❌ Available UI elements:
+[15:23:29.621] [ERROR] ❌   - "Welcome to Pluct! &#127881;"
+[15:23:29.621] [ERROR] ❌   - "Get started with 3 FREE transcriptions!"
+[15:23:29.621] [ERROR] ❌   - "✨ No credit card required"
+[15:23:29.621] [ERROR] ❌   - "⚡ Instant transcripts"
+[15:23:29.621] [ERROR] ❌   - "&#128241; Auto-copy to clipboard"
+[15:23:29.622] [ERROR] ❌   - "Get Started"
+[15:23:29.622] [ERROR] (Capture component not found) ❌ Journey TikTokManualURLTranscription failed:
+[15:23:29.623] [ERROR] ❌ Journey-TikTok-Manual-URL-01Transcription.js FAILED (76007ms): Capture component not found
+[15:23:29.624] [INFO] 🔍 === DETAILED FAILURE ANALYSIS ===
+[15:23:29.624] [INFO] 🔍 Failed Test: Journey-TikTok-Manual-URL-01Transcription.js
+[15:23:29.624] [INFO] 🔍 Error: Capture component not found
+[15:23:29.624] [INFO] 🔍 Timestamp: 2025-12-01T12:23:29.624Z
+[15:23:29.624] [INFO] 🔍 Capturing current UI state...
+[15:23:34.137] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:23:34.138] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[15:23:42.609] [INFO] 📱 Current UI State:
+[15:23:42.612] [INFO] <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="" class="android.widget.LinearLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="android:id/content" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="androidx.compose.ui.platform.ComposeView" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resou...
+[15:23:42.612] [INFO] 🔍 Checking recent logcat errors...
+[15:23:47.003] [INFO] 📱 Recent Logcat Errors:
+[15:23:47.017] [INFO] 12-01 06:38:20.938  2225  2301 E PluctAPI: ❌ API ERROR [req_1764560300736]
+12-01 06:38:20.938  2225  2301 E PluctAPI:    Status: 401 Unauthorized
+12-01 06:38:20.938  2225  2301 E PluctAPI:    Error Body (full): {"ok":false,"code":"unauthorized","message":"Invalid or expired token","details":{"error":"\"exp\" claim timestamp check failed"},"build":{"ref":"c16de6c3-26f1-4f22-9873-d2c835209098","deployedAt":"2025-10-15T04:28:10Z","gitVersion":"2b7eec18e164afeb4e6b1e7332bd913964854df6"},"guidance":"Provide a valid authentication token"}
+12-01 06:38:20.938  2225  2301 E PluctCoreAPIHTTPClient: ❌ API ERROR [req_1764560300736] - 401 Unauthorized
+12-01 06:38:20.938  2225  2301 E PluctCoreAPIHTTPClient:    Error Body: {"ok":false,"code":"unauthorized","message":"Invalid or expired token","details":{"error":"\"exp\" claim timestamp check failed"},"build":{"ref":"c16de6c3-26f1-4f22-9873-d2c835209098","deployedAt":"2025-10-15T04:28:10Z","gitVersion":"2b7eec18e164afeb4e6b1e7332bd913964854df6"},"guidance":"Provide a valid authentication token"}
+12-01 06:38:20.939  2225  2301 E PluctAPI: ❌ Request failed [req_1764560300736]: HTTP 401: Invalid or expired token
+12-01 06:38:20.939  2225  2301 E PluctCoreAPIHTTPClient: ❌ Request failed [req_1764560300736]: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctAPI: 🔴 Circuit breaker OPENED - 6 consecutive failures (threshold: 5)
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: 🔴 Circuit breaker OPENED - 6 consecutive failures (threshold: 5)
+12-01 06:38:20.940  2225  2225 E PluctAPI: ❌ Request failed after 3 attempts [req_1764560297269]: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: ❌ Request failed after 3 attempts: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctAPI: ❌ All retry attempts exhausted [req_1764560297269] (3671ms)
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: ❌ Failed to get balance: HTTP 401: Invalid or expired token
+12-01 06:38:21.050  1372  1372 W auditd  : type=1327 audit(0.0:9074): proctitle="app.pluct"
+12-01 06:38:25.644  2225  2258 I app.pluct: Explicit concurrent copying GC freed 17123(841KB) AllocSpace objects, 10(268KB) LOS objects, 49% free, 4MB/9MB, paused 20us total 100.177ms
+12-01 06:38:30.045  2388  2388 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 06:38:39.756  2225  2258 I app.pluct: Explicit concurrent copying GC freed 4444(208KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 19us total 101.591ms
+12-01 06:38:39.767  2225  2258 W app.pluct: Suspending all threads took: 10.971ms
+12-01 06:38:41.733  2419  2419 E cutils-trace: Error opening trace file: No such file or directory (2)
+
+[15:23:47.017] [INFO] 🔍 Checking app status...
+[15:23:48.751] [INFO] 📱 App Status:
+[15:23:48.752] [INFO]     * TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+      affinity=app.pluct
+      intent={flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity}
+      realActivity=app.pluct/.PluctUIScreen01MainActivity
+      Activities=[ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}]
+      mRootProcess=ProcessRecord{25e4690 2225:app.pluct/u0a277}
+      * Hist #0: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+          packageName=app.pluct processName=app.pluct
+          app=ProcessRecord{25e4690 2225:app.pluct/u0a277}
+          Intent { flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity }
+          frontOfTask=true task=TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+          taskAffinity=app.pluct
+          realActivity=app.pluct/.PluctUIScreen01MainActivity
+          baseDir=/data/app/app.pluct-QVXY_q-5zNihuQP1SJK7zA==/base.apk
+          dataDir=/data/user/0/app.pluct
+      TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+        Run #0: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+    mResumedActivity: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+  ResumedActivity: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+
+[15:23:48.752] [INFO] 🔍 Checking device information...
+[15:23:50.712] [INFO] 📱 Android Version: 9
+[15:23:50.712] [INFO] 🔍 Checking network status...
+[15:23:52.929] [INFO] 📱 Network Status:
+[15:23:52.929] [INFO] NetworkFactories for: TelephonyNetworkFactory[0] WIFI_UT Ethernet PhoneSwitcherNetworkRequstListener WIFI_AWARE_FACTORY WIFI
+Active default network: 100
+Current Networks:
+  NetworkAgentInfo{ ni{[type: WIFI[], state: CONNECTED/CONNECTED, reason: (unspecified), extra: (none), failover: false, available: true, roaming: false]}  network{100}  nethandle{432902426637}  lp{{InterfaceName: wlan0 LinkAddresses: [fe80::2db:7cff:fed1:eba7/64,172.16.1.15/24,]  Routes: [fe80::/64 -> :: wlan0,172.16.1.0/24 -> 0.0.0.0 wlan0,0.0.0.0/0 -> 172.16.1.2 wlan0,] DnsAddresses: [10.233.254.254,8.8.8.8,192.168.0.1,] UsePrivateDns: true PrivateDnsServerName: null Domains: null MTU: 0 TcpBufferSizes: 524288,1048576,2097152,262144,524288,1048576 HttpProxy: [ProxyProperties.mHost == null] }}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED Unwanted:  LinkUpBandwidth>=1048576Kbps LinkDnBandwidth>=1048576Kbps SignalStrength: -50 SSID: ""station-EOKQVH""]}  Score{60}  everValidated{true}  lastValidated{true}  created{true} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} clat{null} }
+      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+      NetworkRequest [ LISTEN id=3, [] ]
+      NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+      NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+      NetworkRequest [ LISTEN id=10, [] ]
+      NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+      NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+Network Requests:
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10068/701 NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2121 NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=3, [] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:1000/1579 NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10016/23224 NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=10, [] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ BACKGROUND_REQUEST id=2, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=4, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10062/30876 NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+  uid/pid:10068/701 NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+    1 NetworkAgentInfo [WIFI () - 100] CONNECTED/CONNECTED
+mNetworkRequestInfoLogs (most recent first):
+  2025-12-01T06:13:29.994 - REGISTER uid/pid:10068/701 NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+  2025-12-01T06:13:29.908 - REGISTER uid/pid:10068/701 NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+  2025-12-01T06:10:59.682 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=79, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T06:10:59.497 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=79, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:20:14.871 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=78, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:20:14.522 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=78, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:19:14.416 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:19:14.285 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:16:15.194 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=76, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:16:14.702 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=76, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:11:03.833 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=75, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:10:41.113 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=75, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T04:50:31.684 - RELEASE uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T04:50:31.678 - RELEASE uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.392 - REGISTER uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.332 - REGISTER uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+mNetworkInfoBlockingLogs (most recent first):
+
+[15:23:52.929] [INFO] 🔍 Checking memory status...
+[15:23:54.412] [INFO] 📱 Memory Status:
+[15:23:54.412] [INFO] Applications Memory Usage (in Kilobytes):
+Uptime: 139270159 Realtime: 139270159
+
+** MEMINFO in pid 2225 [app.pluct] **
+                   Pss  Private  Private  SwapPss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap     7845     7756        0        0    14336    11795     2540
+  Dalvik Heap     4552     4484        0        0     9295     46...
+[15:23:54.413] [INFO] 📊 Test Statistics:
+[15:23:54.413] [INFO] 📊 Current Run: 1 passed, 1 failed
+[15:23:54.413] [INFO] 📊 Previous Run: 1 failed, 1 passed
+[15:23:54.413] [ERROR] ❌ === FAILURE ANALYSIS COMPLETE ===
+[15:23:54.413] [ERROR] ❌ Failed Test: Journey-TikTok-Manual-URL-01Transcription.js
+[15:23:54.413] [ERROR] ❌ Error: Capture component not found
+[15:23:54.416] [ERROR] ❌ Time: 2025-12-01T12:23:54.416Z
+[15:23:54.416] [ERROR] ❌ TERMINATING TEST EXECUTION DUE TO FAILURE
+[15:23:54.416] [ERROR] ❌ This is the expected behavior in development mode
+[15:23:54.416] [ERROR] ❌ Fix the failing test before running again
+[15:23:54.425] [ERROR] ❌ Journey-TikTok-Manual-URL-01Transcription.js FAILED WITH EXCEPTION (100809ms): Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found
+[15:23:54.425] [INFO] 🔍 === DETAILED FAILURE ANALYSIS ===
+[15:23:54.425] [INFO] 🔍 Failed Test: Journey-TikTok-Manual-URL-01Transcription.js
+[15:23:54.425] [INFO] 🔍 Error: Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found
+[15:23:54.425] [INFO] 🔍 Timestamp: 2025-12-01T12:23:54.425Z
+[15:23:54.425] [INFO] 🔍 Capturing current UI state...
+[15:23:55.047] [WARN] ⚠️ ADB command failed but no stderr/stdout captured. Error structure: {"message":"Command failed: adb shell ps | findstr uiautomator\n","code":1,"signal":"","hasStderr":false,"hasStdout":false,"errorKeys":["code","killed","signal","cmd","stdout","stderr"]}
+[15:23:55.048] [INFO] Search command returned no matches (exit code 1): adb shell ps | findstr uiautomator
+[15:24:05.350] [INFO] 📱 Current UI State:
+[15:24:05.350] [INFO] <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="" class="android.widget.LinearLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][720,1280]"><node index="0" text="" resource-id="android:id/content" class="android.widget.FrameLayout" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="androidx.compose.ui.platform.ComposeView" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resource-id="" class="android.view.View" package="app.pluct" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,48][720,1280]"><node index="0" text="" resou...
+[15:24:05.350] [INFO] 🔍 Checking recent logcat errors...
+[15:24:08.600] [INFO] 📱 Recent Logcat Errors:
+[15:24:08.601] [INFO] 12-01 06:38:20.938  2225  2301 E PluctCoreAPIHTTPClient:    Error Body: {"ok":false,"code":"unauthorized","message":"Invalid or expired token","details":{"error":"\"exp\" claim timestamp check failed"},"build":{"ref":"c16de6c3-26f1-4f22-9873-d2c835209098","deployedAt":"2025-10-15T04:28:10Z","gitVersion":"2b7eec18e164afeb4e6b1e7332bd913964854df6"},"guidance":"Provide a valid authentication token"}
+12-01 06:38:20.939  2225  2301 E PluctAPI: ❌ Request failed [req_1764560300736]: HTTP 401: Invalid or expired token
+12-01 06:38:20.939  2225  2301 E PluctCoreAPIHTTPClient: ❌ Request failed [req_1764560300736]: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctAPI: 🔴 Circuit breaker OPENED - 6 consecutive failures (threshold: 5)
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: 🔴 Circuit breaker OPENED - 6 consecutive failures (threshold: 5)
+12-01 06:38:20.940  2225  2225 E PluctAPI: ❌ Request failed after 3 attempts [req_1764560297269]: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: ❌ Request failed after 3 attempts: HTTP 401: Invalid or expired token
+12-01 06:38:20.940  2225  2225 E PluctAPI: ❌ All retry attempts exhausted [req_1764560297269] (3671ms)
+12-01 06:38:20.940  2225  2225 E PluctCoreAPIUnified: ❌ Failed to get balance: HTTP 401: Invalid or expired token
+12-01 06:38:21.050  1372  1372 W auditd  : type=1327 audit(0.0:9074): proctitle="app.pluct"
+12-01 06:38:25.644  2225  2258 I app.pluct: Explicit concurrent copying GC freed 17123(841KB) AllocSpace objects, 10(268KB) LOS objects, 49% free, 4MB/9MB, paused 20us total 100.177ms
+12-01 06:38:30.045  2388  2388 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 06:38:39.756  2225  2258 I app.pluct: Explicit concurrent copying GC freed 4444(208KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 19us total 101.591ms
+12-01 06:38:39.767  2225  2258 W app.pluct: Suspending all threads took: 10.971ms
+12-01 06:38:41.733  2419  2419 E cutils-trace: Error opening trace file: No such file or directory (2)
+12-01 06:38:58.176  2225  2258 I app.pluct: Explicit concurrent copying GC freed 8925(391KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 18us total 101.051ms
+12-01 06:38:58.190  2225  2258 W app.pluct: Suspending all threads took: 13.811ms
+12-01 06:39:04.823  2225  2258 I app.pluct: Explicit concurrent copying GC freed 4115(180KB) AllocSpace objects, 1(20KB) LOS objects, 49% free, 4MB/9MB, paused 18us total 99.229ms
+12-01 06:39:06.772  2489  2489 E cutils-trace: Error opening trace file: No such file or directory (2)
+
+[15:24:08.602] [INFO] 🔍 Checking app status...
+[15:24:09.928] [INFO] 📱 App Status:
+[15:24:09.928] [INFO]     * TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+      affinity=app.pluct
+      intent={flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity}
+      realActivity=app.pluct/.PluctUIScreen01MainActivity
+      Activities=[ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}]
+      mRootProcess=ProcessRecord{25e4690 2225:app.pluct/u0a277}
+      * Hist #0: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+          packageName=app.pluct processName=app.pluct
+          app=ProcessRecord{25e4690 2225:app.pluct/u0a277}
+          Intent { flg=0x10000000 cmp=app.pluct/.PluctUIScreen01MainActivity }
+          frontOfTask=true task=TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+          taskAffinity=app.pluct
+          realActivity=app.pluct/.PluctUIScreen01MainActivity
+          baseDir=/data/app/app.pluct-QVXY_q-5zNihuQP1SJK7zA==/base.apk
+          dataDir=/data/user/0/app.pluct
+      TaskRecord{47fad53 #56 A=app.pluct U=0 StackId=54 sz=1}
+        Run #0: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+    mResumedActivity: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+  ResumedActivity: ActivityRecord{6d7369c u0 app.pluct/.PluctUIScreen01MainActivity t56}
+
+[15:24:09.928] [INFO] 🔍 Checking device information...
+[15:24:10.416] [INFO] 📱 Android Version: 9
+[15:24:10.416] [INFO] 🔍 Checking network status...
+[15:24:11.384] [INFO] 📱 Network Status:
+[15:24:11.384] [INFO] NetworkFactories for: TelephonyNetworkFactory[0] WIFI_UT Ethernet PhoneSwitcherNetworkRequstListener WIFI_AWARE_FACTORY WIFI
+Active default network: 100
+Current Networks:
+  NetworkAgentInfo{ ni{[type: WIFI[], state: CONNECTED/CONNECTED, reason: (unspecified), extra: (none), failover: false, available: true, roaming: false]}  network{100}  nethandle{432902426637}  lp{{InterfaceName: wlan0 LinkAddresses: [fe80::2db:7cff:fed1:eba7/64,172.16.1.15/24,]  Routes: [fe80::/64 -> :: wlan0,172.16.1.0/24 -> 0.0.0.0 wlan0,0.0.0.0/0 -> 172.16.1.2 wlan0,] DnsAddresses: [10.233.254.254,8.8.8.8,192.168.0.1,] UsePrivateDns: true PrivateDnsServerName: null Domains: null MTU: 0 TcpBufferSizes: 524288,1048576,2097152,262144,524288,1048576 HttpProxy: [ProxyProperties.mHost == null] }}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED Unwanted:  LinkUpBandwidth>=1048576Kbps LinkDnBandwidth>=1048576Kbps SignalStrength: -50 SSID: ""station-EOKQVH""]}  Score{60}  everValidated{true}  lastValidated{true}  created{true} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} clat{null} }
+      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+      NetworkRequest [ LISTEN id=3, [] ]
+      NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+      NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+      NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+      NetworkRequest [ LISTEN id=10, [] ]
+      NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+      NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+      NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+      NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+      NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+      NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+      NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+      NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+Network Requests:
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=8, [ Transports: WIFI Capabilities: NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=11, [ Capabilities: INTERNET&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10068/701 NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED Unwanted:  Uid: 1000] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2121 NetworkRequest [ LISTEN id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=35, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=3, [] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:1000/1579 NetworkRequest [ TRACK_DEFAULT id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=13, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=39, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=38, [ Transports: CELLULAR|WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10016/23224 NetworkRequest [ LISTEN id=46, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ LISTEN id=10, [] ]
+  uid/pid:10016/23224 NetworkRequest [ TRACK_DEFAULT id=48, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  uid/pid:1000/1579 NetworkRequest [ BACKGROUND_REQUEST id=2, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted: ] ]
+  uid/pid:10014/2121 NetworkRequest [ TRACK_DEFAULT id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=4, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10062/30876 NetworkRequest [ LISTEN id=55, [ Transports: CELLULAR|WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10062] ]
+  uid/pid:10068/701 NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=22, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:10019/1718 NetworkRequest [ TRACK_DEFAULT id=9, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10019] ]
+  uid/pid:10014/2066 NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10014] ]
+  uid/pid:1000/1579 NetworkRequest [ LISTEN id=5, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 1000] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=34, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10014/2066 NetworkRequest [ LISTEN id=40, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10014] ]
+  uid/pid:10062/30876 NetworkRequest [ TRACK_DEFAULT id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10062] ]
+  uid/pid:10020/2895 NetworkRequest [ TRACK_DEFAULT id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10020] ]
+  uid/pid:10020/2895 NetworkRequest [ LISTEN id=29, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN Unwanted:  Uid: 10020] ]
+    1 NetworkAgentInfo [WIFI () - 100] CONNECTED/CONNECTED
+mNetworkRequestInfoLogs (most recent first):
+  2025-12-01T06:13:29.994 - REGISTER uid/pid:10068/701 NetworkRequest [ LISTEN id=81, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&FOREGROUND Unwanted:  Uid: 10068] ]
+  2025-12-01T06:13:29.908 - REGISTER uid/pid:10068/701 NetworkRequest [ TRACK_DEFAULT id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10068] ]
+  2025-12-01T06:10:59.682 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=79, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T06:10:59.497 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=79, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:20:14.871 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=78, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:20:14.522 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=78, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:19:14.416 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:19:14.285 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:16:15.194 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=76, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:16:14.702 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=76, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:11:03.833 - RELEASE uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=75, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T05:10:41.113 - REGISTER uid/pid:10066/32225 NetworkRequest [ TRACK_DEFAULT id=75, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10066] ]
+  2025-12-01T04:50:31.684 - RELEASE uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T04:50:31.678 - RELEASE uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.392 - REGISTER uid/pid:10016/24591 NetworkRequest [ LISTEN id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-12-01T00:58:27.332 - REGISTER uid/pid:10016/24591 NetworkRequest [ TRACK_DEFAULT id=73, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10016] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ LISTEN id=72, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:57.722 - RELEASE uid/pid:10045/16344 NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10045] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ TRACK_DEFAULT id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+  2025-11-30T16:53:52.659 - RELEASE uid/pid:10051/9612 NetworkRequest [ LISTEN id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Unwanted:  Uid: 10051] ]
+mNetworkInfoBlockingLogs (most recent first):
+
+[15:24:11.384] [INFO] 🔍 Checking memory status...
+[15:24:12.519] [INFO] 📱 Memory Status:
+[15:24:12.519] [INFO] Applications Memory Usage (in Kilobytes):
+Uptime: 139288283 Realtime: 139288283
+
+** MEMINFO in pid 2225 [app.pluct] **
+                   Pss  Private  Private  SwapPss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap     8025     7932        0        0    14336    11515     2820
+  Dalvik Heap     4363     4292        0        0     9285     46...
+[15:24:12.520] [INFO] 📊 Test Statistics:
+[15:24:12.520] [INFO] 📊 Current Run: 1 passed, 1 failed
+[15:24:12.520] [INFO] 📊 Previous Run: 1 failed, 1 passed
+[15:24:12.520] [ERROR] ❌ === FAILURE ANALYSIS COMPLETE ===
+[15:24:12.520] [ERROR] ❌ Failed Test: Journey-TikTok-Manual-URL-01Transcription.js
+[15:24:12.520] [ERROR] ❌ Error: Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found
+[15:24:12.520] [ERROR] ❌ Time: 2025-12-01T12:24:12.520Z
+[15:24:12.520] [ERROR] ❌ TERMINATING TEST EXECUTION DUE TO EXCEPTION
+[15:24:12.525] [ERROR] ❌ Test execution terminated due to failure
+[15:24:12.525] [ERROR] ❌ Error: Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found
+[15:24:12.526] [ERROR] ❌ Test execution failed
+[15:24:12.526] [ERROR] ❌ Error: Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found
+❌ Tests failed: Test Journey-TikTok-Manual-URL-01Transcription.js failed: Capture component not found

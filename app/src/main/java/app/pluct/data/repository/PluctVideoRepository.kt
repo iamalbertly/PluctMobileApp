@@ -68,6 +68,30 @@ class PluctVideoRepository @Inject constructor(
     }
     
     /**
+     * Get video by URL (for duplicate prevention)
+     */
+    suspend fun getVideoByUrl(url: String): VideoItem? {
+        return try {
+            videoDao.getVideoByUrl(url)
+        } catch (error: Exception) {
+            Log.e(TAG, "Error getting video by URL $url: ${error.message}", error)
+            null
+        }
+    }
+    
+    /**
+     * Get processing video by URL (to prevent duplicates)
+     */
+    suspend fun getProcessingVideoByUrl(url: String): VideoItem? {
+        return try {
+            videoDao.getProcessingVideoByUrl(url)
+        } catch (error: Exception) {
+            Log.e(TAG, "Error getting processing video by URL $url: ${error.message}", error)
+            null
+        }
+    }
+    
+    /**
      * Insert a new video
      */
     suspend fun insertVideo(video: VideoItem): Result<Unit> {
@@ -132,6 +156,34 @@ class PluctVideoRepository @Inject constructor(
         } catch (error: Exception) {
             Log.e(TAG, "Error deleting all videos: ${error.message}", error)
             Result.failure(error)
+        }
+    }
+    
+    /**
+     * Get unique URLs with their latest status (for URL history dropdown)
+     * Only returns URL history - not full video data
+     */
+    suspend fun getUniqueUrlsWithLatestStatus(): List<VideoItem> {
+        return try {
+            Log.d(TAG, "🔍 Fetching unique URLs with latest status...")
+            
+            // Directly call the DAO method - it's already a suspend function
+            val uniqueUrls = videoDao.getUniqueUrlsWithLatestStatus()
+            Log.d(TAG, "✅ Found ${uniqueUrls.size} unique URLs in history")
+            
+            if (uniqueUrls.isEmpty()) {
+                Log.d(TAG, "📭 No history found - database may be empty or URLs haven't been processed yet")
+            } else {
+                uniqueUrls.forEachIndexed { index, video ->
+                    Log.d(TAG, "   [${index + 1}] URL: ${video.url}, Status: ${video.status}, Timestamp: ${video.timestamp}")
+                }
+            }
+            
+            uniqueUrls
+        } catch (error: Exception) {
+            Log.e(TAG, "❌ Error getting unique URLs: ${error.message}", error)
+            Log.e(TAG, "   Stack trace: ${error.stackTraceToString()}")
+            emptyList()
         }
     }
 }
