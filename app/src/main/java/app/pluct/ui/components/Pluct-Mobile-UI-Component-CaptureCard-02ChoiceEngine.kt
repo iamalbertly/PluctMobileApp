@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -33,111 +35,77 @@ fun PluctChoiceEngine(
     isSubmitting: Boolean,
     onTierSubmit: () -> Unit,
     onGetCoins: () -> Unit,
-    onInsightsClick: () -> Unit
+    onInsightsClick: () -> Unit,
+    submittingLabel: String = "Starting...",
+    submittingHint: String = "Please wait"
 ) {
-    val isExtractEnabled = urlText.isNotBlank()
+    val isExtractEnabled = urlText.isNotBlank() && (freeUsesRemaining > 0 || creditBalance > 0)
+    val buttonText = if (isSubmitting) submittingLabel else "Extract Script"
+    val subText = when {
+        isSubmitting -> submittingHint
+        freeUsesRemaining > 0 -> "Free (uses left: $freeUsesRemaining)"
+        creditBalance > 0 -> "1 Credit (balance: $creditBalance)"
+        else -> "Get Credits"
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics {
-                contentDescription = "Processing options"
-            },
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .semantics { contentDescription = "Processing options" },
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Primary Unified Action Button
         Button(
             onClick = {
-                Log.d("ChoiceEngine", "Extract Script clicked")
-                onTierSubmit()
+                if (freeUsesRemaining == 0 && creditBalance == 0) {
+                    onGetCoins()
+                } else {
+                    onTierSubmit()
+                }
             },
-            enabled = isExtractEnabled && !isSubmitting,
+            enabled = urlText.isNotBlank() && !isSubmitting,
             modifier = Modifier
-                .height(56.dp)
+                .height(64.dp)
                 .fillMaxWidth()
                 .semantics {
-                    contentDescription = "Extract Script"
+                    contentDescription = "Extract Script option"
                     testTag = "extract_script_button"
                 },
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = if (freeUsesRemaining == 0 && creditBalance == 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
             ),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
         ) {
+            if (isSubmitting) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(24.dp)
+                        .padding(end = 8.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            }
+            
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Extract Script",
+                    text = buttonText,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
                 )
                 Text(
-                    text = if (freeUsesRemaining > 0) "Free (uses left: $freeUsesRemaining)" else "1 Coin (balance: $creditBalance)",
+                    text = subText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                     maxLines = 1
                 )
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Free uses: $freeUsesRemaining  •  Credits: $creditBalance",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            FilledTonalButton(
-                onClick = {
-                    Log.d("ChoiceEngine", "AI Insights clicked")
-                    if (creditBalance < 2) {
-                        onGetCoins()
-                    } else {
-                        onInsightsClick()
-                    }
-                },
-                enabled = urlText.isNotBlank() && !isSubmitting,
-                modifier = Modifier
-                    .height(44.dp)
-                    .semantics {
-                        contentDescription = "AI Insights option"
-                        testTag = "generate_insights_button"
-                    },
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "Insights",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = if (creditBalance >= 2) "2 Coins" else "Get Coins",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                        maxLines = 1
-                    )
-                }
             }
         }
     }

@@ -15,18 +15,22 @@ class TikTokManualURLInsightsJourney extends BaseJourney {
     async execute() {
         this.core.logger.info('🎯 Starting TikTok Insights & Pre-warming Verification Journey...');
         const startTime = Date.now();
-        const testUrl = 'https://vm.tiktok.com/ZMAoYtB5p/'; // Use the URL from the user request
+        const testUrl = this.core.getActiveUrl(); // Use active test URL
 
         try {
             // Step 0: Clear app data for clean test run
-            this.core.logger.info('🔄 Step 0: Clearing app data for clean test run');
-            try {
-                await this.core.executeCommand('adb shell pm clear app.pluct');
+            if (this.core.config.skipAppDataClear) {
+                this.core.logger.info('dY", Step 0: Skipping app data clear (preserving cached tokens)');
+            } else {
+                this.core.logger.info('dY", Step 0: Clearing app data for clean test run');
+                try {
+                    await this.core.executeCommand('adb shell pm clear app.pluct');
+                    await this.core.sleep(1000);
+                } catch (error) {
+                    this.core.logger.warn('?s??,? App data clear failed, continuing anyway');
+                }
                 await this.core.sleep(1000);
-            } catch (error) {
-                this.core.logger.warn('⚠️ App data clear failed, continuing anyway');
             }
-            await this.core.sleep(1000);
 
             // Step 1: App Launch
             this.core.logger.info('📱 Step 1: App Launch');
@@ -61,18 +65,23 @@ class TikTokManualURLInsightsJourney extends BaseJourney {
                 this.core.logger.warn('⚠️ Background pre-warming log not found. It might have happened too fast or logging is disabled.');
                 // We don't fail the test here, but we log a warning
             }
+            const submitResult = await this.submitUrlForInsights();
+            if (!submitResult.success) {
+                return { success: false, error: submitResult.error || 'Failed to submit URL for transcription' };
+            }
+
+            const transcriptResult = await this.core.waitForTranscriptResult(120000);
+            if (!transcriptResult.success) {
+                return { success: false, error: transcriptResult.error || 'Transcript did not complete' };
+            }
 
             // Step 3: Open Insights Dialog
             this.core.logger.info('📱 Step 3: Opening Insights Dialog');
 
             // Tap Insights button
-            const insightsTap = await this.core.tapByText('Insights');
+            const insightsTap = await this.tapInsightsButton();
             if (!insightsTap.success) {
-                // Try by test tag if text fails
-                const tagTap = await this.core.tapByTestTag('generate_insights_button');
-                if (!tagTap.success) {
-                    return { success: false, error: 'Failed to tap Insights button' };
-                }
+                return { success: false, error: insightsTap.error || 'Failed to tap Insights button' };
             }
 
             await this.core.sleep(1000);
@@ -153,19 +162,97 @@ class TikTokManualURLInsightsJourney extends BaseJourney {
         // Find and tap the URL input field
         const urlTap = await this.core.tapByTestTag('url_input_field');
         if (!urlTap.success) {
-            await this.core.tapByText('TikTok URL');
+            const contentTap = await this.core.tapByContentDesc('Video URL input field');
+            if (!contentTap.success) {
+                const fallbackTap = await this.core.tapByText('Paste TikTok Link');
+                if (!fallbackTap.success) {
+                    await this.core.tapByText('Paste a TikTok link');
+                }
+            }
         }
 
-        // Enter the URL
-        const inputResult = await this.core.inputText(url);
-        if (!inputResult.success) {
-            return { success: false };
+        // Enter the URL (retry once if not visible in UI)
+        let urlVisible = false;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const inputResult = await this.core.inputText(url);
+            if (!inputResult.success) {
+                if (attempt === 1) return { success: false };
+            }
+            await this.core.sleep(500);
+            await this.core.dumpUIHierarchy();
+            const uiDump = this.core.readLastUIDump() || '';
+            if (uiDump.includes('tiktok.com')) {
+                urlVisible = true;
+                break;
+            }
+            this.core.logger.warn('URL not visible after paste, retrying...');
+        }
+
+        if (!urlVisible) {
+            const escapedUrl = url.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
+            await this.core.executeCommand(`adb shell input text "${escapedUrl}"`);
+            await this.core.sleep(500);
+            await this.core.dumpUIHierarchy();
+            const finalDump = this.core.readLastUIDump() || '';
+            if (!finalDump.includes('tiktok.com')) {
+                return { success: false, error: 'URL not visible after direct input' };
+            }
         }
 
         // Hide keyboard
         await this.core.executeCommand('adb shell input keyevent 111'); // KEYCODE_ESCAPE to hide keyboard
 
         return { success: true };
+    }
+
+    async submitUrlForInsights() {
+        // Try common extract script actions
+        let submitTap = await this.core.tapByTestTag('extract_script_action_button');
+        if (!submitTap.success) submitTap = await this.core.tapByTestTag('extract_script_button');
+        if (!submitTap.success) submitTap = await this.core.tapByText('Extract Script');
+        if (!submitTap.success) submitTap = await this.core.tapByText('FREE');
+        if (!submitTap.success) submitTap = await this.core.tapByContentDesc('Extract Script');
+
+        if (!submitTap.success) {
+            return { success: false, error: 'Extract Script button not found' };
+        }
+
+        await this.core.sleep(1000);
+        return { success: true };
+    }
+
+    async tapInsightsButton() {
+        const strategies = [
+            () => this.core.tapByTestTag('generate_insights_button'),
+            () => this.core.tapByTestTag('insights_button'),
+            () => this.core.tapByText('Insights'),
+            () => this.core.tapByText('Ask Insights'),
+            () => this.core.tapByText('Ask'),
+            () => this.core.tapByContentDesc('Insights'),
+            () => this.core.tapByContentDesc('Ask Insights')
+        ];
+
+        for (const attempt of strategies) {
+            const result = await attempt();
+            if (result.success) return result;
+        }
+
+        // Fallback: scan UI dump for any Insights/Ask button bounds
+        await this.core.dumpUIHierarchy();
+        const uiDump = this.core.readLastUIDump() || '';
+        const regex = /text=\"(Insights|Ask Insights|Ask)\"[^>]*bounds=\"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]\"/i;
+        const match = uiDump.match(regex);
+        if (match) {
+            const x1 = parseInt(match[2], 10);
+            const y1 = parseInt(match[3], 10);
+            const x2 = parseInt(match[4], 10);
+            const y2 = parseInt(match[5], 10);
+            const x = Math.floor((x1 + x2) / 2);
+            const y = Math.floor((y1 + y2) / 2);
+            return this.core.tapByCoordinates(x, y);
+        }
+
+        return { success: false, error: 'Insights button not found in UI' };
     }
 }
 

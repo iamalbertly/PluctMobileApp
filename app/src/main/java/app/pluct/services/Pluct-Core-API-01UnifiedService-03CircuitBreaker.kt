@@ -13,7 +13,8 @@ class PluctCoreAPIUnifiedServiceCircuitBreaker {
         private const val TAG = "PluctCoreAPIUnified"
         const val API_LOG_TAG = "PluctAPI"
         private const val CIRCUIT_BREAKER_THRESHOLD = 5
-        private const val CIRCUIT_BREAKER_RESET_MS = 60000L
+        private const val CIRCUIT_BREAKER_RETRYABLE_THRESHOLD = 8
+        private const val CIRCUIT_BREAKER_RESET_MS = 15000L
     }
 
     private val consecutiveFailures = AtomicInteger(0)
@@ -41,15 +42,16 @@ class PluctCoreAPIUnifiedServiceCircuitBreaker {
         consecutiveFailures.set(0)
     }
 
-    fun recordFailure() {
+    fun recordFailure(isRetryable: Boolean) {
         val failures = consecutiveFailures.incrementAndGet()
-        if (failures >= CIRCUIT_BREAKER_THRESHOLD) {
+        val threshold = if (isRetryable) CIRCUIT_BREAKER_RETRYABLE_THRESHOLD else CIRCUIT_BREAKER_THRESHOLD
+        if (failures >= threshold) {
             circuitBreakerOpen.set(System.currentTimeMillis())
-            Log.e(API_LOG_TAG, "Circuit breaker OPENED - $failures consecutive failures (threshold: $CIRCUIT_BREAKER_THRESHOLD)")
-            Log.e(TAG, "Circuit breaker OPENED - $failures consecutive failures (threshold: $CIRCUIT_BREAKER_THRESHOLD)")
+            Log.e(API_LOG_TAG, "Circuit breaker OPENED - $failures consecutive failures (threshold: $threshold, retryable=$isRetryable)")
+            Log.e(TAG, "Circuit breaker OPENED - $failures consecutive failures (threshold: $threshold, retryable=$isRetryable)")
         } else {
-            Log.w(API_LOG_TAG, "Consecutive failures: $failures/$CIRCUIT_BREAKER_THRESHOLD")
-            Log.w(TAG, "Consecutive failures: $failures/$CIRCUIT_BREAKER_THRESHOLD")
+            Log.w(API_LOG_TAG, "Consecutive failures: $failures/$threshold (retryable=$isRetryable)")
+            Log.w(TAG, "Consecutive failures: $failures/$threshold (retryable=$isRetryable)")
         }
     }
 

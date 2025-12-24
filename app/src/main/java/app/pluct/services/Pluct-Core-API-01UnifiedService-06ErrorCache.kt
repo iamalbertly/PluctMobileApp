@@ -18,6 +18,10 @@ object PluctCoreAPIUnifiedServiceErrorCache {
      * Cache error details for a URL
      */
     fun cacheError(url: String, error: PluctCoreAPIDetailedError) {
+        if (!isCacheableError(error)) {
+            Log.d(TAG, "Skipping cache for transient error on URL: $url")
+            return
+        }
         errorCache[url] = CachedErrorDetails(
             error = error,
             timestamp = System.currentTimeMillis()
@@ -30,6 +34,11 @@ object PluctCoreAPIUnifiedServiceErrorCache {
      */
     fun getCachedError(url: String): PluctCoreAPIDetailedError? {
         val cached = errorCache[url] ?: return null
+        if (!isCacheableError(cached.error)) {
+            errorCache.remove(url)
+            Log.d(TAG, "Cleared transient cached error for URL: $url")
+            return null
+        }
         
         // Check if cache is expired
         val age = System.currentTimeMillis() - cached.timestamp
@@ -64,8 +73,23 @@ object PluctCoreAPIUnifiedServiceErrorCache {
      */
     fun hasCachedError(url: String): Boolean {
         val cached = errorCache[url] ?: return false
+        if (!isCacheableError(cached.error)) {
+            errorCache.remove(url)
+            return false
+        }
         val age = System.currentTimeMillis() - cached.timestamp
         return age <= CACHE_EXPIRY_MS
+    }
+
+    private fun isCacheableError(error: PluctCoreAPIDetailedError): Boolean {
+        if (error.isRetryable) return false
+        val statusCode = error.technicalDetails.responseStatusCode
+        if (statusCode == 408 || statusCode == 429 || statusCode >= 500) return false
+        val message = error.userMessage.lowercase()
+        if (message.contains("timeout") || message.contains("timed out")) return false
+        if (message.contains("circuit breaker")) return false
+        if (message.contains("temporarily") || message.contains("unavailable")) return false
+        return true
     }
 }
 

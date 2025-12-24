@@ -29,7 +29,18 @@ class PluctJourneyOrchestrator {
             'Pluct-Transcript-03EndToEndWorkflow-Validation.js',
             'Journey-FreeTier-E2E-01Validation.js', // New Smart Free Tier test
             'Journey-PremiumTier-E2E-01Validation.js', // New Smart Premium Tier test
-            'Pluct-Journey-BusinessEngine-Credits-01Validation.js'
+            'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
+            'Pluct-Journey-Home-04EmptyState-01DemoLink.js',
+            // UX Fixes Validation Journeys
+            'Journey-UX-01CreditsIcon-Validation.js',
+            'Journey-UX-02CreditsLoading-Validation.js',
+            'Journey-UX-03CreditRequestLogging-Validation.js',
+            'Journey-UX-04ErrorPersistence-Validation.js',
+            'Journey-UX-05RedundantVisuals-Validation.js',
+            'Journey-UX-06CorrelationIds-Validation.js',
+            'Journey-UX-07DebugLogsSearch-Validation.js',
+            'Journey-UX-08CreditRequestFeedback-Validation.js',
+            'Journey-UX-09ErrorRecoveryActions-Validation.js'
             // Add other journeys here in the desired order
         ];
         
@@ -41,6 +52,7 @@ class PluctJourneyOrchestrator {
             'Journey-TikTok-Intent-01Transcription.js': 'TikTokIntentTranscription',
             'Journey-TikTok-Intent-Route-01Transcription.js': 'TikTok-Intent-Route-01Transcription',
             'Journey-TikTok-Manual-URL-01Transcription.js': 'TikTokManualURLTranscription',
+            'Journey-TikTok-Manual-URL-02Insights.js': 'TikTokManualURLInsights',
             'Journey-Transcript-Storage-01Display.js': 'TranscriptStorageDisplay',
             'Pluct-Journey-01AppLaunch.js': 'Pluct-Journey-01AppLaunch',
             'Pluct-Node-Tests-Journey-01-AppLaunch.js': 'Pluct-Node-Tests-Journey-01-AppLaunch',
@@ -52,7 +64,18 @@ class PluctJourneyOrchestrator {
             'Pluct-Transcript-03EndToEndWorkflow-Validation.js': 'Pluct-Transcript-03EndToEndWorkflow-Validation',
             'Journey-FreeTier-E2E-01Validation.js': 'FreeTier-E2E-01Validation',
             'Journey-PremiumTier-E2E-01Validation.js': 'PremiumTier-E2E-01Validation',
-            'Pluct-Journey-BusinessEngine-Credits-01Validation.js': 'Pluct-Journey-BusinessEngine-Credits-01Validation'
+            'Pluct-Journey-BusinessEngine-Credits-01Validation.js': 'Pluct-Journey-BusinessEngine-Credits-01Validation',
+            'Pluct-Journey-Home-04EmptyState-01DemoLink.js': 'Pluct-Journey-Home-04EmptyState-01DemoLink',
+            // UX Fixes Validation Journey Mappings
+            'Journey-UX-01CreditsIcon-Validation.js': 'Journey-UX-01CreditsIcon-Validation',
+            'Journey-UX-02CreditsLoading-Validation.js': 'Journey-UX-02CreditsLoading-Validation',
+            'Journey-UX-03CreditRequestLogging-Validation.js': 'Journey-UX-03CreditRequestLogging-Validation',
+            'Journey-UX-04ErrorPersistence-Validation.js': 'Journey-UX-04ErrorPersistence-Validation',
+            'Journey-UX-05RedundantVisuals-Validation.js': 'Journey-UX-05RedundantVisuals-Validation',
+            'Journey-UX-06CorrelationIds-Validation.js': 'Journey-UX-06CorrelationIds-Validation',
+            'Journey-UX-07DebugLogsSearch-Validation.js': 'Journey-UX-07DebugLogsSearch-Validation',
+            'Journey-UX-08CreditRequestFeedback-Validation.js': 'Journey-UX-08CreditRequestFeedback-Validation',
+            'Journey-UX-09ErrorRecoveryActions-Validation.js': 'Journey-UX-09ErrorRecoveryActions-Validation'
         };
     }
 
@@ -76,7 +99,35 @@ class PluctJourneyOrchestrator {
         this.core.logger.info(`🎯 Running journey: ${name}`);
         
         try {
-            const result = await (journey.run ? journey.run() : journey.execute());
+            await this.core.clearLogcat();
+
+            let result = await (journey.run ? journey.run() : journey.execute());
+
+            // If the journey reported success, double-check for silent API/UI failures.
+            if (result.success) {
+                const apiCheck = await this.core.checkRecentAPIErrors(400);
+                if (!apiCheck.success) {
+                    this.core.logger.error('❌ API errors detected in logcat after journey execution');
+                    if (apiCheck.errors) {
+                        apiCheck.errors.forEach(err => this.core.logger.error(`   ${err}`));
+                    }
+                    result = {
+                        success: false,
+                        error: apiCheck.error || 'API errors detected in logcat',
+                        details: apiCheck.errors || []
+                    };
+                } else {
+                    const uiCheck = await this.core.scanUIForErrors();
+                    if (!uiCheck.success) {
+                        this.core.logger.error(`❌ UI error detected after journey: ${uiCheck.error}`);
+                        result = {
+                            success: false,
+                            error: uiCheck.error
+                        };
+                    }
+                }
+            }
+
             this.results.push({ name, result, success: result.success });
             
             if (result.success) {
@@ -214,10 +265,10 @@ class PluctJourneyOrchestrator {
             }
             
             // 2. Recent Logcat
-            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"');
+            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i \"pluct error exception crash fatal\"');
             if (logcatResult.success && logcatResult.output.trim()) {
                 this.core.logger.info('📱 Recent Logcat Errors:');
-                const lines = logcatResult.output.split('\n').slice(-20).join('\n');
+                const lines = logcatResult.output.split('\\n').slice(-20).join('\\n');
                 this.core.logger.info(lines);
             } else {
                 if (!logcatResult.success) {
@@ -255,7 +306,7 @@ class PluctJourneyOrchestrator {
             }
             
             // 5. Network Status
-            const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i "active network"');
+            const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i \"active network\"');
             if (networkResult.success && networkResult.output.trim()) {
                 this.core.logger.info('📱 Network Status:');
                 this.core.logger.info(networkResult.output);

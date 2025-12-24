@@ -30,7 +30,7 @@ class FreeTierE2EValidationJourney extends BaseJourney {
 
             // 2. Enter TikTok URL in input field first (button may only appear after URL is entered)
             this.core.logger.info('📱 Step 2: Entering TikTok URL...');
-            const testUrl = 'https://vm.tiktok.com/ZMA730880/';
+            const testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
 
             // Try to find and tap input field
             let inputResult = await this.core.tapByTestTag('tiktok_url_input');

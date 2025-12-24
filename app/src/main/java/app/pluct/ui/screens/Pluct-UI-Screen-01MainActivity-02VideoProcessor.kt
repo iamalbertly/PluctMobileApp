@@ -24,26 +24,122 @@ object PluctUIScreen01MainActivityVideoProcessor {
     suspend fun loadInitialData(
         apiService: PluctCoreAPIUnifiedService,
         userIdentification: app.pluct.services.PluctCoreUserIdentification,
+        debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager?,
         onDataLoaded: (Int, Int) -> Unit
     ) {
         try {
             Log.d("VideoProcessor", "Loading initial data...")
+            debugLogManager?.logInfo(
+                category = "CREDIT_CHECK",
+                operation = "loadInitialData",
+                message = "Starting credit balance load",
+                details = "User: ${userIdentification.userId}"
+            )
             
-            // Get credit balance
+            // Get credit balance - sum main and bonus credits for unified display
             val balanceResult = apiService.checkUserBalance()
             balanceResult.fold(
                 onSuccess = { balance ->
-                    Log.d("VideoProcessor", "REAL credit balance loaded: ${balance.balance} for user: ${userIdentification.userId}")
-                    onDataLoaded(balance.balance, 3) // Default free uses
+                    // Calculate total available credits (main + bonus), ensure non-negative
+                    val totalCredits = maxOf(0, balance.main + balance.bonus)
+                    Log.d("VideoProcessor", "Credit balance loaded: $totalCredits total (${balance.main} main + ${balance.bonus} bonus) for user: ${userIdentification.userId}")
+                    debugLogManager?.logInfo(
+                        category = "CREDIT_CHECK",
+                        operation = "loadInitialData",
+                        message = "Credit balance loaded",
+                        details = "Total=$totalCredits; Main=${balance.main}; Bonus=${balance.bonus}; User=${userIdentification.userId}",
+                        requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance",
+                        requestMethod = "GET"
+                    )
+                    
+                    // Log if credits are invalid/negative with full API details
+                    if (balance.main < 0 || balance.bonus < 0) {
+                        debugLogManager?.logWarning(
+                            category = "CREDIT_CHECK",
+                            operation = "loadInitialData",
+                            message = "Received negative credit values from API",
+                            details = buildString {
+                                appendLine("USER CONTEXT:")
+                                appendLine("  User ID: ${userIdentification.userId}")
+                                appendLine()
+                                appendLine("API RESPONSE:")
+                                appendLine("  Main Credits: ${balance.main}")
+                                appendLine("  Bonus Credits: ${balance.bonus}")
+                                appendLine("  Total (calculated): $totalCredits")
+                                appendLine("  Available Credits: ${balance.availableCredits}")
+                                appendLine("  Held Credits: ${balance.heldCredits}")
+                                appendLine("  Pending Jobs: ${balance.pendingJobs}")
+                                appendLine("  Updated At: ${balance.updatedAt}")
+                                appendLine()
+                                appendLine("REQUEST DETAILS:")
+                                appendLine("  Endpoint: /v1/credits/balance")
+                                appendLine("  Method: GET")
+                                appendLine("  Service: Business Engine")
+                                appendLine("  Base URL: https://pluct-business-engine.romeo-lya2.workers.dev")
+                                appendLine()
+                                appendLine("EXPECTED BEHAVIOR:")
+                                appendLine("  Both main and bonus credits should be >= 0")
+                                appendLine("  Negative values indicate API error or data corruption")
+                            }
+                        )
+                    }
+                    
+                    onDataLoaded(totalCredits, 3) // Default free uses
                 },
                 onFailure = { error ->
                     Log.e("VideoProcessor", "Failed to load credit balance: ${error.message}")
-                    onDataLoaded(0, 3) // Fallback values
+                    
+                    // Log credit check failure to debug system with full details
+                    debugLogManager?.logError(
+                        category = "CREDIT_CHECK",
+                        operation = "checkUserBalance",
+                        message = "Failed to load credit balance from Business Engine",
+                        exception = error,
+                        requestUrl = "Business Engine API: /credits/balance",
+                        requestPayload = buildString {
+                            appendLine("REQUEST:")
+                            appendLine("  Method: GET")
+                            appendLine("  Endpoint: /v1/credits/balance")
+                            appendLine("  User ID: ${userIdentification.userId}")
+                            appendLine("  Base URL: https://pluct-business-engine.romeo-lya2.workers.dev")
+                        },
+                        responseBody = buildString {
+                            appendLine("ERROR DETAILS:")
+                            appendLine("  Error Type: ${error::class.simpleName}")
+                            appendLine("  Error Message: ${error.message}")
+                            if (error is app.pluct.services.PluctCoreAPIDetailedError) {
+                                appendLine()
+                                appendLine("DETAILED ERROR INFO:")
+                                appendLine(error.getDetailedMessage())
+                            }
+                        }
+                    )
+                    
+                    onDataLoaded(0, 3) // Fallback to 0 credits, not -1
                 }
             )
         } catch (e: Exception) {
             Log.e("VideoProcessor", "Error loading initial data: ${e.message}")
-            onDataLoaded(0, 3) // Fallback values
+            
+            // Log exception to debug system with full context
+            debugLogManager?.logError(
+                category = "CREDIT_CHECK",
+                operation = "loadInitialData",
+                message = "Exception during credit balance load",
+                exception = e,
+                requestUrl = "Business Engine API: /credits/balance",
+                requestPayload = buildString {
+                    appendLine("CONTEXT:")
+                    appendLine("  User ID: ${userIdentification.userId}")
+                    appendLine("  Operation: Initial data load")
+                    appendLine("  Endpoint: /v1/credits/balance")
+                    appendLine()
+                    appendLine("STACK TRACE:")
+                    appendLine(e.stackTraceToString())
+                }
+            )
+            
+            onDataLoaded(0, 3) // Fallback to 0 credits, not -1
         }
     }
     
@@ -58,10 +154,22 @@ object PluctUIScreen01MainActivityVideoProcessor {
         currentFreeUses: Int,
         videoRepository: PluctVideoRepository,
         clipboardManager: ClipboardManager,
+        debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager?,
         onResult: (Boolean, Int, Int, String?, Throwable?) -> Unit
     ) {
         try {
             Log.d("VideoProcessor", "Processing video: $url with tier: $tier")
+            debugLogManager?.logInfo(
+                category = "TRANSCRIPTION",
+                operation = "processVideo_start",
+                message = "Starting transcription flow",
+                details = buildString {
+                    appendLine("URL: $url")
+                    appendLine("Tier: $tier")
+                    appendLine("Balance: $currentBalance")
+                    appendLine("Free uses: $currentFreeUses")
+                }
+            )
             
             // Check if user has enough credits/free uses
             val hasEnoughCredits = when (tier) {
@@ -152,8 +260,8 @@ object PluctUIScreen01MainActivityVideoProcessor {
                 Log.d("VideoProcessor", "URL history saved/updated for: $url")
             }
             
-            // Fetch metadata to populate title and author
-            val metadataResult = apiService.getMetadata(url)
+            // Fetch metadata to populate title and author (fast-fail to avoid blocking UX on slow /meta)
+            val metadataResult = apiService.getMetadata(url, timeoutMs = 8000L)
             var currentVideoItem = urlHistoryItem
             
             if (metadataResult.isSuccess) {
@@ -179,21 +287,43 @@ object PluctUIScreen01MainActivityVideoProcessor {
                 onSuccess = { statusResponse ->
                     Log.d("VideoProcessor", "Transcription completed successfully")
                     
+                    // CRITICAL: Validate transcript exists before saving
+                    val transcriptText = statusResponse.transcript?.takeIf { it.isNotBlank() }
+                        ?: statusResponse.result?.transcription?.takeIf { it.isNotBlank() }
+                        ?: null
+                    
+                    if (transcriptText == null) {
+                        Log.e("VideoProcessor", "WARNING: Transcript is null or empty in response")
+                        debugLogManager?.logWarning(
+                            category = "TRANSCRIPTION",
+                            operation = "processVideo_missing_transcript",
+                            message = "Transcription completed but transcript field is empty",
+                            details = "Response structure: transcript=${statusResponse.transcript != null}, result.transcription=${statusResponse.result?.transcription != null}"
+                        )
+                    }
+                    
                     // Update video item with completed status and transcript
                     val completedItem = currentVideoItem.copy(
                         status = ProcessingStatus.COMPLETED,
                         progress = 100,
-                        transcript = statusResponse.transcript,
-                        duration = (statusResponse.duration ?: 0).toLong()
+                        transcript = transcriptText, // Use validated transcript
+                        duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong()
                     )
-                    videoRepository.updateVideo(completedItem)
+                    
+                    // Use insertVideo to ensure transcript is saved (handles both insert and update)
+                    val updateResult = videoRepository.insertVideo(completedItem)
+                    if (updateResult.isFailure) {
+                        Log.e("VideoProcessor", "Failed to save transcript: ${updateResult.exceptionOrNull()?.message}")
+                    } else {
+                        Log.d("VideoProcessor", "Transcript saved successfully: ${transcriptText?.length ?: 0} chars")
+                    }
                     
                     // AUTO-COPY TO CLIPBOARD (Simplicity)
-                    statusResponse.transcript?.let { transcript ->
+                    transcriptText?.let { transcript ->
                         try {
                             val clipData = ClipData.newPlainText("Pluct Transcript", transcript)
                             clipboardManager.setPrimaryClip(clipData)
-                            Log.d("VideoProcessor", "✅ Transcript auto-copied to clipboard (${transcript.length} chars)")
+                            Log.d("VideoProcessor", "Transcript auto-copied to clipboard (${transcript.length} chars)")
                         } catch (e: Exception) {
                             Log.w("VideoProcessor", "Failed to auto-copy to clipboard: ${e.message}")
                         }
@@ -207,7 +337,19 @@ object PluctUIScreen01MainActivityVideoProcessor {
                     }
                     val newFreeUses = if (tier == ProcessingTier.EXTRACT_SCRIPT && currentFreeUses > 0) currentFreeUses - 1 else currentFreeUses
                     
-                    Log.d("VideoProcessor", "Transcript saved: ${statusResponse.transcript?.length ?: 0} characters")
+                    Log.d("VideoProcessor", "Transcript saved: ${transcriptText?.length ?: 0} characters")
+                    debugLogManager?.logInfo(
+                        category = "TRANSCRIPTION",
+                        operation = "processVideo_complete",
+                        message = "Transcription completed",
+                        details = buildString {
+                            appendLine("URL: $url")
+                            appendLine("Tier: $tier")
+                            appendLine("Transcript chars: ${transcriptText?.length ?: 0}")
+                            appendLine("New balance: $newBalance")
+                            appendLine("Free uses remaining: $newFreeUses")
+                        }
+                    )
                     
                     // Check for low balance warning
                     var successMessage: String? = null
@@ -220,20 +362,52 @@ object PluctUIScreen01MainActivityVideoProcessor {
                 onFailure = { error ->
                     Log.e("VideoProcessor", "Transcription failed: ${error.message}")
                     
+                    // Log transcription failure to debug system with full details
+                    debugLogManager?.logError(
+                        category = "TRANSCRIPTION",
+                        operation = "processTikTokVideo",
+                        message = "Transcription failed for URL: $url",
+                        exception = error,
+                        requestUrl = url,
+                        requestPayload = buildString {
+                            appendLine("REQUEST CONTEXT:")
+                            appendLine("  Video URL: $url")
+                            appendLine("  Processing Tier: $tier")
+                            appendLine("  Current Balance: $currentBalance")
+                            appendLine("  Free Uses Remaining: $currentFreeUses")
+                            appendLine()
+                            appendLine("FLOW DETAILS:")
+                            appendLine("  Expected Flow: Metadata → Vend Token → Submit → Poll → Complete")
+                            appendLine("  Cost: ${if (tier == ProcessingTier.EXTRACT_SCRIPT) "1 credit" else "2 credits"}")
+                        },
+                        responseBody = buildString {
+                            appendLine("ERROR DETAILS:")
+                            appendLine("  Error Type: ${error::class.simpleName}")
+                            appendLine("  Error Message: ${error.message}")
+                            if (error is app.pluct.services.PluctCoreAPIDetailedError) {
+                                appendLine()
+                                appendLine("DETAILED API ERROR:")
+                                appendLine(error.getDetailedMessage())
+                            }
+                            appendLine()
+                            appendLine("STACK TRACE:")
+                            appendLine(error.stackTraceToString())
+                        }
+                    )
+                    
                     // Update video item with failure status
                     videoRepository.updateVideo(currentVideoItem.copy(
                         status = ProcessingStatus.FAILED,
                         failureReason = "Transcription failed: ${error.message}"
                     ))
                     
-                    val isAuth = error.message?.contains("auth", ignoreCase = true) == true || error.message?.contains("401") == true
-                    val costHint = if (tier == ProcessingTier.EXTRACT_SCRIPT) {
-                        if (currentFreeUses > 0) "This attempt uses a free credit (remaining: $currentFreeUses)." else "This attempt costs 1 credit (balance: $currentBalance)."
-                    } else {
-                        "This attempt costs 2 credits (balance: $currentBalance)."
-                    }
+                    val isAuth = error.message?.contains("auth", ignoreCase = true) == true || 
+                                 error.message?.contains("401") == true ||
+                                 error.message?.contains("token_expired", ignoreCase = true) == true ||
+                                 error.message?.contains("session has expired", ignoreCase = true) == true
+                    
                     val friendly = when {
-                        isAuth -> "We couldn’t authenticate with the transcription service. $costHint Please retry."
+                        isAuth -> "Authentication expired. We'll refresh and retry automatically."
                         else -> null
                     }
 
@@ -258,9 +432,3 @@ object PluctUIScreen01MainActivityVideoProcessor {
         }
     }
 }
-
-
-
-
-
-

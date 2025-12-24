@@ -3,37 +3,39 @@ Reusing configuration cache.
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
-> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
 > Task :app:generateDebugResources UP-TO-DATE
-> Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:stripDebugDebugSymbols NO-SOURCE
-> Task :app:extractDebugNativeSymbolTables NO-SOURCE
-> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app:packageDebugResources UP-TO-DATE
-> Task :app:parseDebugLocalResources UP-TO-DATE
-> Task :app:checkDebugAarMetadata UP-TO-DATE
 > Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
 > Task :app:javaPreCompileDebug UP-TO-DATE
 > Task :app:desugarDebugFileDependencies UP-TO-DATE
-> Task :app:generateDebugBuildConfig UP-TO-DATE
-> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
-> Task :app:mergeDebugAssets UP-TO-DATE
 > Task :app:validateSigningDebug UP-TO-DATE
-> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:extractDebugNativeSymbolTables NO-SOURCE
 > Task :app:writeDebugAppMetadata UP-TO-DATE
-> Task :app:compressDebugAssets UP-TO-DATE
 > Task :app:writeDebugSigningConfigVersions UP-TO-DATE
-> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
 > Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
 > Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
-> Task :app:mergeLibDexDebug UP-TO-DATE
-> Task :app:mapDebugSourceSetPaths UP-TO-DATE
 > Task :app:mergeExtDexDebug UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
 > Task :app:kspDebugKotlin UP-TO-DATE
+
 > Task :app:compileDebugKotlin
-e: file:///C:/Shared/Projects/Pluct/PluctMobileApp/app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-01Main.kt:734:29 Val cannot be reassigned
+e: file:///C:/Shared/Projects/Pluct/PluctMobileApp/app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen.kt:226:38 Unresolved reference: FontWeight
+e: file:///C:/Shared/Projects/Pluct/PluctMobileApp/app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen.kt:236:44 Unresolved reference: HorizontalDivider
 
 > Task :app:compileDebugKotlin FAILED
 
@@ -50,6 +52,6 @@ Execution failed for task ':app:compileDebugKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 56s
+BUILD FAILED in 11s
 26 actionable tasks: 1 executed, 25 up-to-date
 Configuration cache entry reused.

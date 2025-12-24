@@ -11,11 +11,17 @@ const { logInfo, logSuccess, logWarn, logError } = require('./Logger');
  */
 class PluctCoreFoundation {
     constructor() {
+        const shortUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
+        const longUrl = 'https://www.tiktok.com/@thesunnahguy/video/7493203244727012630';
+        const skipAppDataClear = process.env.PLUCT_SKIP_APP_CLEAR === '1' || process.env.PLUCT_PRESERVE_APP_DATA === '1';
         this.config = {
-            url: 'https://vm.tiktok.com/ZMAKpqkpN/',
+            // Use real TikTok URLs (short + long) for validation
+            url: shortUrl,
+            testUrls: [shortUrl, longUrl],
             businessEngineUrl: 'https://pluct-business-engine.romeo-lya2.workers.dev',
             timeouts: { default: 5000, short: 2000, long: 10000 },
-            retry: { maxAttempts: 3, delay: 1000 }
+            retry: { maxAttempts: 3, delay: 1000 },
+            skipAppDataClear
         };
         this.logger = { info: logInfo, success: logSuccess, warn: logWarn, error: logError };
 
@@ -27,8 +33,22 @@ class PluctCoreFoundation {
     }
 
     // Delegate to specialized modules
-    async executeCommand(command, timeout) {
-        return this.commands.executeCommand(command, timeout);
+    async executeCommand(command, timeout, retries, options) {
+        return this.commands.executeCommand(command, timeout, retries, options);
+    }
+
+    getTestUrls() {
+        return Array.isArray(this.config.testUrls) && this.config.testUrls.length > 0
+            ? this.config.testUrls
+            : [this.config.url];
+    }
+
+    setActiveUrl(url) {
+        this.config.url = url;
+    }
+
+    getActiveUrl() {
+        return this.config.url;
     }
 
     async sleep(ms) {
@@ -79,6 +99,10 @@ class PluctCoreFoundation {
         return this.ui.inputText(rawText);
     }
 
+    async clearLogcat() {
+        return this.executeCommand('adb logcat -c');
+    }
+
     async clearAppCache() {
         return this.commands.clearAppCache();
     }
@@ -105,7 +129,8 @@ class PluctCoreFoundation {
      */
     async captureAPILogs(lines = 200) {
         try {
-            const result = await this.executeCommand(`adb logcat -d -t ${lines} PluctAPI:* *:E`);
+            // Only capture PluctAPI logs, not system errors
+            const result = await this.executeCommand(`adb logcat -d -t ${lines} PluctAPI:* PluctCoreAPIHTTPClient:*`);
             if (result.success && result.output) {
                 // Parse and format API logs
                 const lines = result.output.split('\n').filter(line => line.trim());
@@ -118,11 +143,15 @@ class PluctCoreFoundation {
                 };
 
                 for (const line of lines) {
-                    if (line.includes('🚀 API REQUEST')) {
+                    // Only process lines that are actually from PluctAPI or PluctCoreAPIHTTPClient
+                    if (!line.includes('PluctAPI') && !line.includes('PluctCoreAPIHTTPClient')) {
+                        continue;
+                    }
+                    if (line.includes('🚀 API REQUEST') || line.includes('API REQUEST')) {
                         apiLogs.requests.push(line);
-                    } else if (line.includes('📥 API RESPONSE')) {
+                    } else if (line.includes('📥 API RESPONSE') || line.includes('API RESPONSE')) {
                         apiLogs.responses.push(line);
-                    } else if (line.includes('❌') || line.includes('ERROR')) {
+                    } else if (line.includes('❌') || (line.includes('ERROR') && line.includes('PluctAPI'))) {
                         apiLogs.errors.push(line);
                     } else if (line.includes('retrying') || line.includes('Retry')) {
                         apiLogs.retries.push(line);
@@ -329,17 +358,31 @@ class PluctCoreFoundation {
             const uiDump = this.readLastUIDump();
 
             // Look for completion indicators in the UI
-            if (uiDump.includes('transcript') || uiDump.includes('completed') || uiDump.includes('success')) {
-                this.logger.info('✅ Transcript result detected in UI');
+            const hasEmptyState = uiDump.includes('No transcripts yet') || uiDump.includes('get your first transcript');
+            const hasTranscriptCard = uiDump.includes('Video item') || uiDump.includes('Transcript card');
+            const hasCompletionText = uiDump.includes('Completed') || uiDump.includes('Ready');
+            const hasTranscriptText = uiDump.includes('transcript') || uiDump.includes('Transcript');
+
+            if ((hasTranscriptText && !hasEmptyState) || hasTranscriptCard || hasCompletionText) {
+                this.logger.info('?o. Transcript result detected in UI');
                 return { success: true, message: 'Transcript result found in UI' };
             }
 
             // Check for error indicators
-            if (uiDump.includes('error') || uiDump.includes('failed') || uiDump.includes('timeout')) {
-                this.logger.warn('⚠️ Error indicators found in UI');
+            // Check for error indicators
+            const errorSignals = [
+                'Transcription failed',
+                'Session expired',
+                'Insufficient credits',
+                'Failed'
+            ];
+            if (errorSignals.some(signal => uiDump.includes(signal))) {
+                this.logger.warn('?? Error indicators found in UI');
                 return { success: false, error: 'Error indicators found in UI' };
             }
 
+            // Wait before next check
+            await this.sleep(5000);
             // Wait before next check
             await this.sleep(5000);
         }
@@ -348,12 +391,155 @@ class PluctCoreFoundation {
         return { success: false, error: `Timeout waiting for transcript result after ${timeoutMs}ms` };
     }
 
+    /**
+     * Detect recent Business Engine / TTTranscribe failures in logcat.
+     */
+    async checkRecentAPIErrors(lines = 300) {
+        try {
+            const apiLogs = await this.captureAPILogs(lines);
+            
+            if (!apiLogs.parsed || apiLogs.parsed.errors.length === 0) {
+                return { success: true, hasErrors: false, errors: [] };
+            }
+
+            // Filter to only PluctAPI errors (not system errors)
+            const pluctAPIErrors = apiLogs.parsed.errors.filter(err => {
+                // Must contain PluctAPI tag
+                if (!err.includes('PluctAPI') && !err.includes('PluctCoreAPIHTTPClient')) return false;
+                
+                // Exclude system-level errors that leak through
+                const systemErrorPatterns = [
+                    /memtrack/i,
+                    /EGL_emulation/i,
+                    /storaged/i,
+                    /libc/i,
+                    /DEBUG/i
+                ];
+                if (systemErrorPatterns.some(p => p.test(err))) return false;
+                
+                // Must be actual API errors (status codes, error messages)
+                const apiErrorPatterns = [
+                    /\b(401|402|403|404|429|500|502|503|504)\b/,
+                    /API.*(error|failed|failure)/i,
+                    /Request failed/i,
+                    /Authentication failed/i,
+                    /Insufficient credits/i
+                ];
+                return apiErrorPatterns.some(p => p.test(err));
+            });
+
+            return {
+                success: pluctAPIErrors.length === 0,
+                hasErrors: pluctAPIErrors.length > 0,
+                errors: pluctAPIErrors
+            };
+        } catch (error) {
+            this.logger.error(`Failed to check API errors: ${error.message}`);
+            return { success: false, hasErrors: false, errors: [], error: error.message };
+        }
+    }
+
+    /**
+     * Validates that a sequence of API calls occurred successfully
+     * @param {Array} expectedCalls - Array of {method, endpoint, minStatus, maxStatus}
+     * @returns {Object} {success: boolean, missing: Array, failed: Array}
+     */
+    async validateAPICallSequence(expectedCalls) {
+        const apiLogs = await this.captureAPILogs(500);
+        const found = [];
+        const missing = [];
+        const failed = [];
+
+        expectedCalls.forEach(expected => {
+            const callPattern = new RegExp(
+                `🚀 API REQUEST.*${expected.method}.*${expected.endpoint.replace(/\//g, '\\/')}`,
+                'i'
+            );
+            const responsePattern = new RegExp(
+                `📥 API RESPONSE.*${expected.endpoint.replace(/\//g, '\\/')}.*(\\d{3})`,
+                'i'
+            );
+
+            const requestFound = apiLogs.parsed.requests.some(r => callPattern.test(r));
+            if (!requestFound) {
+                missing.push(`${expected.method} ${expected.endpoint}`);
+                return;
+            }
+
+            const responseMatch = apiLogs.parsed.responses.find(r => responsePattern.test(r));
+            if (!responseMatch) {
+                missing.push(`Response for ${expected.method} ${expected.endpoint}`);
+                return;
+            }
+
+            const statusMatch = responseMatch.match(/(\d{3})/);
+            if (statusMatch) {
+                const statusCode = parseInt(statusMatch[1], 10);
+                const minStatus = expected.minStatus || 200;
+                const maxStatus = expected.maxStatus || 299;
+                
+                if (statusCode < minStatus || statusCode > maxStatus) {
+                    failed.push(`${expected.method} ${expected.endpoint}: ${statusCode} (expected ${minStatus}-${maxStatus})`);
+                    return;
+                }
+            }
+
+            found.push(`${expected.method} ${expected.endpoint}`);
+        });
+
+        return {
+            success: missing.length === 0 && failed.length === 0,
+            found: found,
+            missing: missing,
+            failed: failed
+        };
+    }
+
+    /**
+     * Scan current UI dump for visible error states to fail journeys early.
+     */
+    async scanUIForErrors() {
+        try {
+            const dumpResult = await this.dumpUIHierarchy();
+            if (!dumpResult.success) {
+                return { success: true, note: 'UI dump unavailable' };
+            }
+            const uiDump = this.readLastUIDump() || '';
+            const lowered = uiDump.toLowerCase();
+            const patterns = [
+                /api error/,
+                /transcription failed/,
+                /session expired/,
+                /timed out/,
+                /insufficient credits/,
+                /unauthorized/,
+                /invalid url/,
+                /retry/i
+            ];
+            const matched = patterns.filter(p => p.test(lowered));
+            if (matched.length > 0) {
+                return {
+                    success: false,
+                    error: `UI shows potential error state: ${matched[0]}`
+                };
+            }
+            return { success: true };
+        } catch (error) {
+            this.logger.warn(`UI error scan failed: ${error.message}`);
+            return { success: true, note: 'UI error scan unavailable' };
+        }
+    }
+
     // Performance optimization methods
     async comprehensiveOptimization() {
         this.logger.info('🚀 Running comprehensive optimization...');
         try {
-            // Clear app cache
-            await this.clearAppCache();
+            if (this.config.skipAppDataClear) {
+                this.logger.info('dYs? Skipping app data clear (preserving cached tokens)');
+            } else {
+                // Clear app cache
+                await this.clearAppCache();
+            }
 
             // Clear WorkManager tasks
             await this.clearWorkManagerTasks();

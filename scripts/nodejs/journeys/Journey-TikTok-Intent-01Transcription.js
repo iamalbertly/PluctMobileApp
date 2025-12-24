@@ -13,73 +13,96 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
     }
 
     async execute() {
-        this.core.logger.info('🎯 Starting TikTok Intent Transcription Journey...');
+        this.core.logger.info('dYZ_ Starting TikTok Intent Transcription Journey...');
         const startTime = Date.now();
-        
+        const originalUrl = this.core.getActiveUrl();
+        const urlsToTest = this.core.getTestUrls();
+        const transcripts = [];
+
+        try {
+            for (const url of urlsToTest) {
+                this.core.setActiveUrl(url);
+                this.core.logger.info(`dYZ_ Running transcription flow for URL: ${url}`);
+                const result = await this.executeForActiveUrl();
+                if (!result.success) {
+                    return { success: false, error: `URL ${url} failed: ${result.error}` };
+                }
+                transcripts.push(result.transcript);
+            }
+        } finally {
+            this.core.setActiveUrl(originalUrl);
+        }
+
+        const duration = Date.now() - startTime;
+        this.core.logger.info(`?o. TikTok Intent Transcription Journey completed in ${duration}ms`);
+
+        return {
+            success: true,
+            duration: duration,
+            transcript: transcripts[transcripts.length - 1]
+        };
+    }
+
+    async executeForActiveUrl() {
         try {
             // Step 0: Clear EditText Field for Clean Test Run (but preserve intent data)
-            this.core.logger.info('🧹 Step 0: Clearing EditText Field for Clean Test Run');
+            this.core.logger.info('dY1 Step 0: Clearing EditText Field for Clean Test Run');
             // Note: inputText now automatically clears the field, so we don't need to call clearEditText separately
             await this.core.sleep(1000);
-            
+
             // Step 1: App Launch and Initial State
-            this.core.logger.info('📱 Step 1: App Launch and Initial State');
+            this.core.logger.info('dY"? Step 1: App Launch and Initial State');
             const launchResult = await this.core.launchApp();
             if (!launchResult.success) {
                 return { success: false, error: 'App launch failed' };
             }
             await this.core.sleep(2000);
-            
+
             // Step 2: Simulate TikTok Intent
-            this.core.logger.info('📱 Step 2: Simulating TikTok Intent');
+            this.core.logger.info('dY"? Step 2: Simulating TikTok Intent');
             const intentResult = await this.simulateTikTokIntent();
             if (!intentResult.success) {
                 return { success: false, error: 'Intent simulation failed' };
             }
-            
+
             // Step 3: Verify Always-Visible Capture Component with Pre-filled URL
-            this.core.logger.info('📱 Step 3: Verifying Always-Visible Capture Component with Pre-filled URL');
+            this.core.logger.info('dY"? Step 3: Verifying Always-Visible Capture Component with Pre-filled URL');
             const captureResult = await this.verifyPreFilledCaptureComponent();
             if (!captureResult.success) {
                 return { success: false, error: 'Pre-filled capture component not found' };
             }
-            
+
             // Step 4: Submit Pre-filled URL for Processing
-            this.core.logger.info('📱 Step 4: Submitting Pre-filled URL for Processing');
+            this.core.logger.info('dY"? Step 4: Submitting Pre-filled URL for Processing');
             const submitResult = await this.submitPreFilledUrl();
             if (!submitResult.success) {
                 return { success: false, error: 'Failed to submit pre-filled URL' };
             }
-            
+
             // Step 5: Monitor Transcription Process
-            this.core.logger.info('📱 Step 5: Monitoring Transcription Process');
+            this.core.logger.info('dY"? Step 5: Monitoring Transcription Process');
             const transcriptionResult = await this.monitorTranscriptionProcess();
             if (!transcriptionResult.success) {
                 return { success: false, error: 'Transcription process failed' };
             }
-            
+
             // Step 6: Verify Transcript Display
-            this.core.logger.info('📱 Step 6: Verifying Transcript Display');
+            this.core.logger.info('dY"? Step 6: Verifying Transcript Display');
             const displayResult = await this.verifyTranscriptDisplay();
             if (!displayResult.success) {
                 return { success: false, error: 'Transcript display failed' };
             }
-            
-            const duration = Date.now() - startTime;
-            this.core.logger.info(`✅ TikTok Intent Transcription Journey completed in ${duration}ms`);
-            
-            return { 
-                success: true, 
-                duration: duration,
+
+            return {
+                success: true,
                 transcript: transcriptionResult.transcript
             };
-            
         } catch (error) {
-            this.core.logger.error('❌ TikTok Intent Transcription Journey failed:', error.message);
+            this.core.logger.error('??O TikTok Intent Transcription Journey failed:', error.message);
             return { success: false, error: error.message };
         }
     }
-    
+
     /**
      * Simulate TikTok intent by injecting URL into app
      */

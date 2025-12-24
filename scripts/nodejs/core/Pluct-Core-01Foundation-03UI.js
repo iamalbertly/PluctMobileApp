@@ -107,7 +107,8 @@ class PluctCoreFoundationUI {
     async _killExistingUiautomatorProcesses() {
         try {
             // Find all uiautomator processes
-            const psResult = await this.executeCommand('adb shell ps | findstr uiautomator');
+            const psResult = await this.executeCommand('adb shell ps | findstr uiautomator', undefined, undefined, { allowFailure: true });
+            // Exit code 1 from findstr means "no matches"; treat as clean slate, not an error.
             if (psResult.success && psResult.output) {
                 const lines = psResult.output.split('\n').filter(line => line.trim());
                 for (const line of lines) {
@@ -122,6 +123,9 @@ class PluctCoreFoundationUI {
                 }
                 // Wait for processes to terminate
                 await this.sleep(500);
+            } else if (!psResult.success && psResult.code === 1) {
+                // No uiautomator processes running; nothing to kill
+                return { success: true };
             }
         } catch (error) {
             this.logger.warn(`Failed to kill existing uiautomator processes: ${error.message}`);
@@ -576,7 +580,8 @@ class PluctCoreFoundationUI {
                 'settings_button': 'Settings button',
                 'paste_button': 'Paste from clipboard',
                 'url_history_button': 'Show URL history',
-                'error_retry_button': 'Retry operation'
+                'error_retry_button': 'Retry operation',
+                'extract_script_button': 'Extract Script option'
             };
             
             const contentDesc = contentDescMap[testTag];

@@ -73,7 +73,7 @@ class PluctUIHeader03EndToEndIntegrationValidation extends BaseJourney {
             this.core.logger.info('🎬 Initiating transcription request...');
             
             // Input test URL into always-visible input field
-            const testUrl = 'https://vm.tiktok.com/ZMAKpqkpN/';
+            const testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
             this.core.logger.info(`📝 Inputting URL: ${testUrl}`);
             
             // Try multiple strategies to input URL

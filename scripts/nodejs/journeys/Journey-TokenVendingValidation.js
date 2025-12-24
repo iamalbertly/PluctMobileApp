@@ -41,7 +41,7 @@ class TokenVendingValidationJourney extends BaseJourney {
         // 4) Test TTTranscribe endpoint
         this.core.logger.info('🔍 Testing TTTranscribe endpoint...');
         const tttResult = await this.core.executeCommand(
-            `powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe' -Method POST -ContentType 'application/json' -Body '{\"url\":\"https://vm.tiktok.com/ZMAKpqkpN/\"}' -UseBasicParsing; $response.StatusCode } catch { 0 }"`
+            `powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe' -Method POST -ContentType 'application/json' -Body '{\"url\":\"https://vm.tiktok.com/ZMDRUGT2P/\"}' -UseBasicParsing; $response.StatusCode } catch { 0 }"`
         );
         
         // TTTranscribe should return 401 (unauthorized) without JWT, which is expected
@@ -69,11 +69,11 @@ class TokenVendingValidationJourney extends BaseJourney {
         }
         
         // inputText automatically clears the field, so no need to call clearEditText
-        await this.core.inputText('https://vm.tiktok.com/ZMAKpqkpN/');
+        await this.core.inputText('https://vm.tiktok.com/ZMDRUGT2P/');
 
         // 6) Validate URL and check for processing (optional - normalizeTikTokUrl may not exist)
         if (this.core.normalizeTikTokUrl) {
-            const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMAKpqkpN/');
+            const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMDRUGT2P/');
             if (!normalized.valid) {
                 return { success: false, error: 'Invalid TikTok URL' };
             }

@@ -32,7 +32,13 @@ class PluctCoreAPIHTTPClientResponseParser {
             val details = jsonResponse["details"] as? JsonObject
             val upstreamStatus = details?.get("upstreamStatus")?.toString()?.trim('"')
             val upstreamResponse = details?.get("upstreamResponse")?.toString()?.trim('"')
+            
+            // Enhanced: Check multiple error field locations
             val upstreamError = details?.get("error")?.toString()?.trim('"')
+                ?: details?.get("upstreamError")?.toString()?.trim('"')
+                ?: details?.get("message")?.toString()?.trim('"')
+                ?: jsonResponse["error"]?.toString()?.trim('"')
+                .takeIf { it != null && it.isNotBlank() }
 
             ErrorInfo(
                 statusCode = statusCode,
@@ -45,17 +51,29 @@ class PluctCoreAPIHTTPClientResponseParser {
                 endpoint = endpoint
             )
         } catch (_: Exception) {
+            // Fallback: Try to extract any error-like text from raw body
+            val extractedError = extractErrorFromRawBody(responseBody)
             ErrorInfo(
                 statusCode = statusCode,
                 errorCode = "parse_error",
-                errorMessage = statusMessage,
+                errorMessage = extractedError ?: statusMessage,
                 upstreamStatus = null,
                 upstreamResponse = null,
-                upstreamError = null,
+                upstreamError = extractedError,
                 fullResponse = responseBody,
                 endpoint = endpoint
             )
         }
+    }
+
+    private fun extractErrorFromRawBody(body: String): String? {
+        // Try to find error-like patterns in raw body
+        val patterns = listOf(
+            Regex("""(?i)"error"\s*:\s*"([^"]+)""""),
+            Regex("""(?i)error[:\s]+([^\n,}]+)"""),
+            Regex("""(?i)failed[:\s]+([^\n,}]+)""")
+        )
+        return patterns.firstNotNullOfOrNull { it.find(body)?.groupValues?.get(1)?.trim() }
     }
 
     fun parseResponse(endpoint: String, responseBody: String): Result<Any> {

@@ -111,6 +111,62 @@ fun PluctProcessingDebugDetails(debugInfo: TranscriptionDebugInfo) {
             }
         }
 
+        // Expectation vs actual and next actions
+        val latest = debugInfo.timeline.lastOrNull()
+        latest?.expected?.let { expected ->
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Expectation:",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = expected,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+
+        latest?.received?.let { received ->
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Received:",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = received,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+
+        latest?.nextAction?.let { action ->
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Next Action:",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = action,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+
+        latest?.correlationId?.let { corr ->
+            Spacer(modifier = Modifier.height(2.dp))
+            PluctProcessingDebugInfoRow("Correlation ID", corr)
+        }
+
+        latest?.retryCount?.let { retries ->
+            PluctProcessingDebugInfoRow("Retries", retries.toString())
+        }
+
         if (debugInfo.timeline.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(

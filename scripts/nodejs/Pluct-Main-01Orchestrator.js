@@ -46,9 +46,6 @@ class PluctMainOrchestrator {
             }
             this.core.logger.info('✅ Environment validation passed');
 
-            // Run performance optimizations
-            await this.optimizePerformance();
-
             // Load all journeys first
             await this.journeyOrchestrator.loadAllJourneys();
 
@@ -59,6 +56,16 @@ class PluctMainOrchestrator {
                 : [];
 
             const testsToRun = requested.length > 0 ? requested : allJourneys;
+
+            // Decide strategy early to preserve cached tokens when resuming
+            const preStrategy = this.smartTestRunner.determineExecutionStrategy(testsToRun);
+            if (preStrategy.strategy === 'resume-from-failed') {
+                this.core.config.skipAppDataClear = true;
+                this.core.logger.info('dYZ_ Preserving app data to reuse cached tokens while resuming');
+            }
+
+            // Run performance optimizations
+            await this.optimizePerformance();
             
             // Execute tests with smart prioritization
             const testResults = await this.smartTestRunner.executeTests(this.journeyOrchestrator, testsToRun);

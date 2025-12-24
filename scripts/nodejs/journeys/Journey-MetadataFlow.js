@@ -39,7 +39,7 @@ class MetadataFlowJourney {
             }
             
             // Step 4: Focus text field and input test URL
-            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMAKpqkpN/';
+            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMDRUGT2P/';
             
             // First, tap on the text field to focus it
             await this.core.tapByCoordinates(360, 992); // Center of the text field

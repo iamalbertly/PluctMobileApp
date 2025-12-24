@@ -17,22 +17,26 @@ class PluctTestValidationVideoProcessing extends BaseJourney {
             this.core.logger.info('🔍 Validating video processing pipeline...');
             
             // Test metadata endpoint
-            const testUrl = 'https://vm.tiktok.com/ZMA730880/';
-            const metaResponse = await this.core.httpGet(
-                `https://pluct-business-engine.romeo-lya2.workers.dev/meta?url=${encodeURIComponent(testUrl)}`
-            );
-            
-            if (!metaResponse.success || metaResponse.status !== 200) {
-                return { success: false, error: 'Metadata endpoint request failed' };
+            let lastMeta = null;
+            const urlsToTest = this.core.getTestUrls();
+            for (const testUrl of urlsToTest) {
+                const metaResponse = await this.core.httpGet(
+                    `${this.core.config.businessEngineUrl}/meta?url=${encodeURIComponent(testUrl)}`
+                );
+
+                if (!metaResponse.success || metaResponse.status !== 200) {
+                    return { success: false, error: `Metadata endpoint request failed for ${testUrl}` };
+                }
+
+                const metaData = JSON.parse(metaResponse.body);
+                lastMeta = metaData;
+                if (!metaData.title || !metaData.author) {
+                    return { success: false, error: `Invalid metadata response format for ${testUrl}` };
+                }
             }
-            
-            const metaData = JSON.parse(metaResponse.body);
-            if (!metaData.title || !metaData.author) {
-                return { success: false, error: 'Invalid metadata response format' };
-            }
-            
+
             this.core.logger.info('✅ Video processing pipeline validation passed');
-            return { success: true, details: { metadataReceived: true, title: metaData.title } };
+            return { success: true, details: { metadataReceived: true, title: lastMeta ? lastMeta.title : null } };
             
         } catch (error) {
             this.core.logger.error(`❌ Video processing pipeline validation failed: ${error.message}`);

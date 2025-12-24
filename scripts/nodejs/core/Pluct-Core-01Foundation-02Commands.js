@@ -74,8 +74,9 @@ class PluctCoreFoundationCommands {
      * Execute command with error handling and retry logic
      * Auto-selects first device if multiple devices are connected
      */
-    async executeCommand(command, timeout = this.config.timeouts.default, retries = 0) {
+    async executeCommand(command, timeout = this.config.timeouts.default, retries = 0, options = {}) {
         const maxRetries = command.startsWith('adb ') ? 2 : 0; // Retry ADB commands up to 2 times
+        const allowFailure = options.allowFailure === true;
         
         try {
             // For ADB commands, verify connection first
@@ -187,10 +188,31 @@ class PluctCoreFoundationCommands {
                 lastError = result;
             }
 
-            return lastError || { success: false, error: 'Command failed after retries', command: command };
+            const finalError = lastError || { success: false, error: 'Command failed after retries', command: command };
+
+            // Hard fail on ADB errors to stop the suite immediately with context.
+            if (command.startsWith('adb ') && !finalError.success && !options.allowFailure) {
+                try {
+                    // Capture a small logcat snippet for debugging
+                    const diag = await this._executeCommandDirect('adb logcat -d -t 50', 5000);
+                    if (diag.success && diag.output) {
+                        this.logger.error('Recent logcat (tail 50):');
+                        this.logger.error(diag.output.split('\n').slice(-50).join('\n'));
+                    }
+                } catch (_) {
+                    // ignore diagnostics failure
+                }
+                const errMsg = `ADB command failed: ${command} :: ${finalError.error || finalError.stderr || finalError.output || 'unknown error'}`;
+                throw new Error(errMsg);
+            }
+
+            return finalError;
         } catch (error) {
             const errorMsg = `${error.message}${error.stderr ? ` | stderr: ${error.stderr}` : ''}${error.stdout ? ` | stdout: ${error.stdout}` : ''}`;
             this.logger.error(`(${error.constructor.name}) Command execution failed: ${errorMsg}`);
+            if (command.startsWith('adb ') && !options.allowFailure) {
+                throw new Error(errorMsg);
+            }
             return { 
                 success: false, 
                 error: errorMsg, 

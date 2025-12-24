@@ -18,21 +18,44 @@ class APIConnectivityJourney extends BaseJourney {
             this.core.logger.info(`✅ Business Engine health check passed with status: ${health.status}`);
         }
 
-        // Skip vend-token for now since it requires authentication
-        // Use environment JWT or generate one for testing
-        let token;
+        const userId = 'mobile-automation';
         const envJwt = process.env.BE_USER_JWT;
+        const userJwt = envJwt || this.core.generateTestJWT(userId);
+        if (!userJwt) {
+            return { success: false, error: 'Failed to generate test JWT' };
+        }
         if (envJwt) {
-            token = envJwt;
             this.core.logger.info('Using BE_USER_JWT from environment');
-        } else {
-            // Generate a test JWT for API testing
-            token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb2JpbGUiLCJzY29wZSI6InR0dDp0cmFuc2NyaWJlIiwiaWF0IjoxNzYwOTg4MDU1LCJleHAiOjE3NjA5ODg5NTV9.test';
-            this.core.logger.info('Using generated test JWT');
+        }
+
+        // Vend service token
+        const vendPayload = { userId, clientRequestId: `req_${Date.now()}` };
+        const vendResponse = await this.core.httpPost(
+            `${beBase}/v1/vend-token`,
+            vendPayload,
+            { Authorization: `Bearer ${userJwt}` }
+        );
+        if (!vendResponse.success || vendResponse.status !== 200) {
+            return { success: false, error: `Token vending failed (${vendResponse.status || vendResponse.error})` };
+        }
+        let vendData = {};
+        try {
+            vendData = JSON.parse(vendResponse.body || '{}');
+        } catch (_) {
+            vendData = {};
+        }
+        const serviceToken = vendData.token || vendData.serviceToken || vendData.pollingToken;
+        if (!serviceToken) {
+            return { success: false, error: 'Vend-token did not return a service token' };
         }
 
         // Request TTTranscribe via Business Engine
-        const transcribe = await this.core.httpPost(`${beBase}/ttt/transcribe`, { url: this.core.config.url }, { Authorization: `Bearer ${token}` });
+        const testUrl = this.core.getActiveUrl();
+        const transcribe = await this.core.httpPost(
+            `${beBase}/ttt/transcribe`,
+            { url: testUrl, clientRequestId: `transcribe_${Date.now()}` },
+            { Authorization: `Bearer ${serviceToken}` }
+        );
         if (this.core.writeJsonArtifact) {
             this.core.writeJsonArtifact('be_transcribe.json', transcribe);
         }
@@ -75,5 +98,3 @@ function register(orchestrator) {
 }
 
 module.exports = { register };
-
-

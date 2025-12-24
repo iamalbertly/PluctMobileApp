@@ -35,7 +35,8 @@ class PluctTestResultsTracker {
                 
                 // Extract failed tests from previous runs
                 for (const [testName, results] of this.previousRunResults) {
-                    if (results.failed) {
+                    const isFailed = results.failed === true || results.success === false;
+                    if (isFailed) {
                         this.failedTests.add(testName);
                     } else {
                         this.passedTests.add(testName);

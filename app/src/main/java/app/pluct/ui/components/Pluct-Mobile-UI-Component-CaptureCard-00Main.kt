@@ -3,6 +3,7 @@ package app.pluct.ui.components
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,16 +22,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
-import app.pluct.core.error.PluctErrorUnifiedHandler
-import app.pluct.core.error.PluctErrorUnifiedHandler.ErrorSeverity
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreValidationInputSanitizer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -46,7 +47,11 @@ fun PluctUIComponent03CaptureCard(
     currentJobId: String? = null,
     preFilledUrl: String? = null,
     apiService: PluctCoreAPIUnifiedService? = null,
-    videoRepository: PluctVideoRepository? = null
+    videoRepository: PluctVideoRepository? = null,
+    ctaHelperMessage: String? = null,
+    onRequestCredits: (() -> Unit)? = null,
+    debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
+    onViewInLogs: (() -> Unit)? = null
 ) {
     var urlText by remember { mutableStateOf(preFilledUrl ?: "") }
     var hasFocus by remember { mutableStateOf(false) }
@@ -57,6 +62,14 @@ fun PluctUIComponent03CaptureCard(
     var processingMessage by remember { mutableStateOf<String?>(null) }
     var apiError by remember { mutableStateOf<String?>(null) }
     var isPrefilledUrl by remember { mutableStateOf(preFilledUrl != null && preFilledUrl.isNotBlank()) }
+    var timedOutOnce by remember { mutableStateOf(false) }
+    
+    // Auto-show low credit modal when credits are 0 or negative
+    LaunchedEffect(creditBalance, freeUsesRemaining) {
+        if (creditBalance <= 0 && freeUsesRemaining <= 0 && !showGetCoinsDialog) {
+            showGetCoinsDialog = true
+        }
+    }
 
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
     val sanitizer = remember { PluctCoreValidationInputSanitizer() }
@@ -71,7 +84,9 @@ fun PluctUIComponent03CaptureCard(
                 urlText = sanitizedUrl
                 isPrefilledUrl = true
                 validationError = null
-                apiService?.preWarmVideoProcessing(sanitizedUrl)
+                if (sanitizer.isTikTokUrl(sanitizedUrl)) {
+                    apiService?.preWarmVideoProcessing(sanitizedUrl)
+                }
             } else {
                 validationError = validationResult.errorMessage
             }
@@ -80,9 +95,13 @@ fun PluctUIComponent03CaptureCard(
 
     LaunchedEffect(urlText) {
         if (urlText.isNotBlank()) {
+            delay(500)
             val validationResult = sanitizer.validateUrl(urlText)
             if (validationResult.isValid) {
-                apiService?.preWarmVideoProcessing(validationResult.sanitizedValue)
+                val sanitizedUrl = validationResult.sanitizedValue
+                if (sanitizer.isTikTokUrl(sanitizedUrl)) {
+                    apiService?.preWarmVideoProcessing(sanitizedUrl)
+                }
             }
         }
     }
@@ -94,14 +113,8 @@ fun PluctUIComponent03CaptureCard(
         val validationResult = sanitizer.validateUrl(urlText)
         val normalizedUrl = if (validationResult.isValid) validationResult.sanitizedValue else urlText
         if (!validationResult.isValid) {
-            PluctErrorUnifiedHandler().handleError(
-                IllegalArgumentException(validationResult.errorMessage ?: "Invalid URL"),
-                context = "URL input",
-                severity = ErrorSeverity.LOW,
-                retryable = false
-            )
-            urlText = ""
             validationError = validationResult.errorMessage
+            urlText = ""
             isSubmitting = false
             return@submit
         }
@@ -111,16 +124,18 @@ fun PluctUIComponent03CaptureCard(
             urlText = ""
             validationError = null
             isSubmitting = false
+            timedOutOnce = false
         }
 
         val costLabel = if (freeUsesRemaining > 0) "Free (free uses left: $freeUsesRemaining)" else "Costs 1 credit (balance: $creditBalance)"
-        processingMessage = "Starting transcription… $costLabel"
+        processingMessage = "Starting transcription... $costLabel"
 
         if (apiService != null) {
             apiError = null
             PluctUIComponent03CaptureCardAPIFlow.handleCompleteAPIFlow(
                 normalizedUrl = normalizedUrl,
                 apiService = apiService,
+                debugLogManager = debugLogManager,
                 onSuccess = {
                     Log.d("CaptureCard", "API flow completed successfully")
                     onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
@@ -137,6 +152,19 @@ fun PluctUIComponent03CaptureCard(
             Log.d("CaptureCard", "No API service available, using fallback submit")
             onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
             onComplete()
+        }
+    }
+
+    // Safety net: if a start request stalls, release the button and surface a retry message.
+    LaunchedEffect(isSubmitting) {
+        if (isSubmitting) {
+            kotlinx.coroutines.delay(20000)
+            if (isSubmitting) {
+                apiError = "Still starting. Please check your connection and retry."
+                isSubmitting = false
+                processingMessage = null
+                timedOutOnce = true
+            }
         }
     }
 
@@ -170,11 +198,32 @@ fun PluctUIComponent03CaptureCard(
                     .semantics { testTag = "capture_component_label" }
             )
             Text(
-                text = "We’ll transcribe and auto-copy your results.",
+                text = "We'll transcribe and auto-copy your results.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
+
+            ctaHelperMessage?.let { helper ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = helper,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null) {
+                        TextButton(onClick = onRequestCredits) {
+                            Text("Request Credits")
+                        }
+                    }
+                }
+            }
             PluctURLInputField(
                 urlText = urlText,
                 onUrlTextChange = { newValue ->
@@ -204,11 +253,9 @@ fun PluctUIComponent03CaptureCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (isSubmitting || processingMessage != null) {
-                ProcessingIndicator(
-                    message = processingMessage ?: "Processing...",
-                    isVisible = isSubmitting || processingMessage != null
-                )
+            // Processing state is now handled within PluctChoiceEngine button
+            if (apiError == null && isSubmitting) {
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             val currentApiError = apiError
@@ -217,6 +264,17 @@ fun PluctUIComponent03CaptureCard(
                     message = currentApiError,
                     onDismiss = { apiError = null },
                     debugInfo = debugInfo,
+                    debugLogManager = debugLogManager,
+                    onViewInLogs = onViewInLogs,
+                    creditBalance = creditBalance,
+                    onAddCredits = { showGetCoinsDialog = true },
+                    onCheckConnection = {
+                        // Could open network settings or just retry
+                        apiError = null
+                        isSubmitting = true
+                        processingMessage = "Retrying..."
+                        submitExtract()
+                    },
                     onRetry = {
                         apiError = null
                         isSubmitting = true
@@ -226,12 +284,22 @@ fun PluctUIComponent03CaptureCard(
                 )
             }
 
-            if (isProcessing) {
-                PluctProcessingIndicator(
-                    currentJobId = currentJobId,
-                    debugInfo = debugInfo
-                )
-            } else {
+            val activeStep = debugInfo?.currentStep
+
+            // Keep the in-flight message aligned with the latest backend step so users see movement.
+            LaunchedEffect(activeStep, isSubmitting) {
+                if (isSubmitting && activeStep != null) {
+                    processingMessage = when (activeStep) {
+                        app.pluct.services.OperationStep.METADATA -> "Getting video details..."
+                        app.pluct.services.OperationStep.VEND_TOKEN -> "Confirming credits and access..."
+                        app.pluct.services.OperationStep.SUBMIT -> "Sending to Business Engine..."
+                        app.pluct.services.OperationStep.POLLING -> "Waiting for transcript..."
+                        else -> processingMessage
+                    }
+                }
+            }
+
+            if (!isProcessing) {
                 PluctChoiceEngine(
                     urlText = urlText,
                     freeUsesRemaining = freeUsesRemaining,
@@ -239,7 +307,15 @@ fun PluctUIComponent03CaptureCard(
                     isSubmitting = isSubmitting,
                     onTierSubmit = submitExtract,
                     onGetCoins = { showGetCoinsDialog = true },
-                    onInsightsClick = { showInsightsDialog = true }
+                    onInsightsClick = { showInsightsDialog = true },
+                    submittingLabel = when (activeStep) {
+                        app.pluct.services.OperationStep.METADATA -> "Getting video details..."
+                        app.pluct.services.OperationStep.VEND_TOKEN -> "Claiming credits..."
+                        app.pluct.services.OperationStep.SUBMIT -> "Submitting job..."
+                        app.pluct.services.OperationStep.POLLING -> "Waiting for transcript..."
+                        else -> "Starting..."
+                    },
+                    submittingHint = "Please wait"
                 )
 
                 if (isUrlValid && creditBalance < 2) {
@@ -251,9 +327,24 @@ fun PluctUIComponent03CaptureCard(
                             testTag = "get_coins_button"
                         }
                     ) {
-                        Text("Low credits — add more")
+                        Text("Low credits -- add more")
                     }
                 }
+            } else {
+                PluctProcessingIndicator(
+                    currentJobId = currentJobId,
+                    debugInfo = debugInfo
+                )
+            }
+
+            // Removed duplicate status text - button already shows status via submittingLabel
+            if (timedOutOnce && !isSubmitting && apiError == null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "If it stalls again, tap Request Credits to refresh access.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

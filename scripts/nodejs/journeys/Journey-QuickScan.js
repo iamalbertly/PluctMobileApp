@@ -19,7 +19,7 @@ class QuickScanJourney extends BaseJourney {
         await this.core.dumpUIHierarchy();
         const urlDump = this.core.readLastUIDump();
         
-        if (urlDump.includes('https://vm.tiktok.com/ZMAKpqkpN/')) {
+        if (urlDump.includes('https://vm.tiktok.com/ZMDRUGT2P/')) {
             this.core.logger.info('✅ URL is already pre-populated');
         } else {
             this.core.logger.info('📱 Step 2b: Entering TikTok URL...');

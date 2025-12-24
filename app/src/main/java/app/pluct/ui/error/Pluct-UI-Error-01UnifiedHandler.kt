@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -87,15 +88,27 @@ fun PluctBusinessEngineErrorHandler(
                 )
             }
             
-            // 502/500 Upstream Error
+            // 502/500 Upstream Error with retry guidance
             details.responseStatusCode in 500..599 -> {
+                val isRetryable = determineRetryability(error)
+                val retryDelay = if (isRetryable) "30 seconds" else "a few minutes"
+                
                 AlertDialog(
                     onDismissRequest = onDismiss,
-                    title = { Text("Service Unavailable") },
-                    text = { Text(error.userMessage) },
+                    title = { Text(if (isRetryable) "Temporary Issue" else "Service Error") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(error.userMessage)
+                            if (isRetryable) {
+                                Text("This appears to be a temporary issue. Waiting $retryDelay before retrying usually resolves it.")
+                            } else {
+                                Text("If this persists, the video URL may be invalid or the service may be experiencing issues.")
+                            }
+                        }
+                    },
                     confirmButton = {
                         TextButton(onClick = onRetry) {
-                            Text("Retry")
+                            Text(if (isRetryable) "Retry Now" else "Try Again")
                         }
                     },
                     dismissButton = {
@@ -108,15 +121,24 @@ fun PluctBusinessEngineErrorHandler(
             
             // Default Detailed Error
             else -> {
+                val hasUpstreamDetails = error.technicalDetails.responseBody.contains("upstream", ignoreCase = true) ||
+                                        error.technicalDetails.responseBody.contains("\"error\"", ignoreCase = true)
+                
                 AlertDialog(
                     onDismissRequest = onDismiss,
                     title = { Text("Error") },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(error.userMessage)
+                            if (hasUpstreamDetails && !showDetails) {
+                                Text(
+                                    text = "Technical details available. Tap 'Show Details' for more information.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
                             if (showDetails) {
                                 ErrorDetails(detailsText)
-                            } else {
+                            } else if (!hasUpstreamDetails) {
                                 Text("Tap \"Show Details\" to view what was sent/received for debugging.")
                             }
                         }
@@ -167,4 +189,13 @@ private fun ErrorDetails(details: String) {
         Text("Error Details:")
         Text(details)
     }
+}
+
+private fun determineRetryability(error: PluctCoreAPIDetailedError): Boolean {
+    val message = error.userMessage.lowercase()
+    return message.contains("timeout") || 
+           message.contains("temporarily") || 
+           message.contains("unavailable") ||
+           (error.technicalDetails.errorType == "UPSTREAM_ERROR" && 
+            error.technicalDetails.responseStatusCode in 502..504)
 }

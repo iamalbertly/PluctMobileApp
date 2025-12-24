@@ -30,10 +30,10 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
         }
         
         await this.core.clearEditText();
-        await this.core.inputText('https://vm.tiktok.com/ZMAKpqkpN/');
+        await this.core.inputText('https://vm.tiktok.com/ZMDRUGT2P/');
 
         // 4) Validate URL
-        const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMAKpqkpN/');
+        const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMDRUGT2P/');
         if (!normalized.valid) {
             return { success: false, error: 'Invalid TikTok URL' };
         }

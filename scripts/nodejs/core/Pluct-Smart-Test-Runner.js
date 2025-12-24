@@ -83,6 +83,10 @@ class PluctSmartTestRunner {
                 this.core.logger.info(`🎯 Running test: ${testName}`);
                 const testStartTime = Date.now();
                 
+                // Reset logcat noise and capture pre-flight telemetry for realtime validation
+                await this.core.clearLogcat();
+                await this.captureStageTelemetry(`${testName}-pre`);
+
                 try {
                     // Map file names to registered journey names
                     let journeyName = testName;
@@ -115,9 +119,11 @@ class PluctSmartTestRunner {
                     if (result.success) {
                         this.core.logger.info(`✅ ${testName} PASSED (${duration}ms)`);
                         results.push({ testName, success: true, duration });
+                        await this.captureStageTelemetry(`${testName}-post-success`);
                     } else {
                         this.core.logger.error(`❌ ${testName} FAILED (${duration}ms): ${result.error}`);
                         results.push({ testName, success: false, error: result.error, duration });
+                        await this.captureStageTelemetry(`${testName}-post-fail`);
                         hasFailures = true;
                         
                         // Generate detailed failure report
@@ -136,6 +142,7 @@ class PluctSmartTestRunner {
                     
                     this.core.logger.error(`❌ ${testName} FAILED WITH EXCEPTION (${duration}ms): ${error.message}`);
                     results.push({ testName, success: false, error: error.message, duration });
+                    await this.captureStageTelemetry(`${testName}-post-exception`);
                     hasFailures = true;
                     
                     // Generate detailed failure report
@@ -213,7 +220,7 @@ class PluctSmartTestRunner {
             
             // 2. Recent Logcat Errors
             this.core.logger.info('🔍 Checking recent logcat errors...');
-            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"');
+            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "pluct error exception crash fatal"', undefined, undefined, { allowFailure: true });
             if (logcatResult.success && logcatResult.output.trim()) {
                 this.core.logger.info('📱 Recent Logcat Errors:');
                 const lines = logcatResult.output.split('\n').slice(-20).join('\n');
@@ -228,7 +235,7 @@ class PluctSmartTestRunner {
             
             // 3. App Status
             this.core.logger.info('🔍 Checking app status...');
-            const appStatusResult = await this.core.executeCommand('adb shell dumpsys activity activities | findstr -i pluct');
+            const appStatusResult = await this.core.executeCommand('adb shell dumpsys activity activities | findstr -i pluct', undefined, undefined, { allowFailure: true });
             if (appStatusResult.success && appStatusResult.output.trim()) {
                 this.core.logger.info('📱 App Status:');
                 this.core.logger.info(appStatusResult.output);
@@ -246,7 +253,7 @@ class PluctSmartTestRunner {
             
             // 4. Device Information
             this.core.logger.info('🔍 Checking device information...');
-            const deviceInfoResult = await this.core.executeCommand('adb shell getprop ro.build.version.release');
+            const deviceInfoResult = await this.core.executeCommand('adb shell getprop ro.build.version.release', undefined, undefined, { allowFailure: true });
             if (deviceInfoResult.success) {
                 this.core.logger.info(`📱 Android Version: ${deviceInfoResult.output.trim()}`);
             } else {
@@ -256,7 +263,7 @@ class PluctSmartTestRunner {
             
             // 5. Network Status
             this.core.logger.info('🔍 Checking network status...');
-            const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i "active network"');
+            const networkResult = await this.core.executeCommand('adb shell dumpsys connectivity | findstr -i "active network"', undefined, undefined, { allowFailure: true });
             if (networkResult.success && networkResult.output.trim()) {
                 this.core.logger.info('📱 Network Status:');
                 this.core.logger.info(networkResult.output);
@@ -271,7 +278,7 @@ class PluctSmartTestRunner {
             
             // 6. Memory Status
             this.core.logger.info('🔍 Checking memory status...');
-            const memoryResult = await this.core.executeCommand('adb shell dumpsys meminfo app.pluct');
+            const memoryResult = await this.core.executeCommand('adb shell dumpsys meminfo app.pluct', undefined, undefined, { allowFailure: true });
             if (memoryResult.success && memoryResult.output.trim()) {
                 this.core.logger.info('📱 Memory Status:');
                 this.core.logger.info(memoryResult.output.substring(0, 500) + '...');
@@ -297,6 +304,35 @@ class PluctSmartTestRunner {
             
         } catch (error) {
             this.core.logger.error('❌ Failed to generate detailed failure report:', error.message);
+        }
+    }
+
+    /**
+     * Capture logcat + UI snapshots around a stage to validate realtime behavior.
+     */
+    async captureStageTelemetry(label) {
+        try {
+            this.core.logger.info(`dY"? Telemetry checkpoint: ${label}`);
+            
+            // Capture UI snapshot for runtime state validation
+            const uiResult = await this.core.dumpUIHierarchy();
+            if (uiResult.success) {
+                const uiDump = (this.core.readLastUIDump() || "").trim();
+                if (uiDump) {
+                    const preview = uiDump.substring(0, 800);
+                    this.core.logger.info(`dY"ñ UI snapshot (${label}): ${preview}${uiDump.length > 800 ? "..." : ""}`);
+                }
+            }
+            
+            // Capture recent logcat lines for auth/submit/poll visibility
+            const logcatResult = await this.core.executeCommand("adb logcat -d -t 200", undefined, undefined, { allowFailure: true });
+            if (logcatResult.success && logcatResult.output) {
+                const tail = logcatResult.output.split('\n').slice(-120).join('\n');
+                this.core.logger.info(`dY"ñ Logcat tail (${label}):`);
+                this.core.logger.info(tail);
+            }
+        } catch (error) {
+            this.core.logger.warn(`dY"¡ Telemetry capture skipped: ${error.message}`);
         }
     }
 

@@ -42,7 +42,7 @@ class PluctTestValidationErrorHandling extends BaseJourney {
                 return { success: false, error: 'Error recovery clear failed' };
             }
             
-            const validUrlResult = await this.core.inputText('url_input', 'https://vm.tiktok.com/ZMA730880/');
+            const validUrlResult = await this.core.inputText('url_input', 'https://vm.tiktok.com/ZMDRUGT2P/');
             if (!validUrlResult.success) {
                 return { success: false, error: 'Error recovery valid input failed' };
             }

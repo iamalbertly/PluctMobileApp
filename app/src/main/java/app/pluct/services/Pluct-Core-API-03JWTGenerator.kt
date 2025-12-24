@@ -33,20 +33,20 @@ class PluctCoreAPIJWTGenerator {
          */
         fun generateUserJWT(userId: String): String {
             Log.d(TAG, "Generating JWT token for user: $userId")
-            
+
+            // Use current epoch seconds for JWT timestamps, but ensure `iat` is safely in the past
+            // to satisfy Business Engine validation while staying within normal clock skew bounds.
             val now = System.currentTimeMillis() / 1000
-            // Add clock skew compensation (Android device is ~5.6 hours behind)
-            val clockSkewCompensation = 20150L // 5.6 hours in seconds
-            val adjustedNow = now + clockSkewCompensation
-            Log.d(TAG, "Current timestamp: $now")
-            Log.d(TAG, "Adjusted timestamp: $adjustedNow")
-            Log.d(TAG, "Expiration timestamp: ${adjustedNow + TOKEN_EXPIRY_SECONDS}")
-            
+            val issuedAt = now - 60 // 60 seconds in the past to avoid future-skew rejections
+            Log.d(TAG, "Current timestamp (now): $now")
+            Log.d(TAG, "Issued-at timestamp (iat): $issuedAt")
+            Log.d(TAG, "Expiration timestamp: ${issuedAt + TOKEN_EXPIRY_SECONDS}")
+
             val payload = buildJsonObject {
                 put("sub", JsonPrimitive(userId))
                 put("scope", JsonPrimitive("ttt:transcribe"))
-                put("iat", JsonPrimitive(adjustedNow))
-                put("exp", JsonPrimitive(adjustedNow + TOKEN_EXPIRY_SECONDS))
+                put("iat", JsonPrimitive(issuedAt))
+                put("exp", JsonPrimitive(issuedAt + TOKEN_EXPIRY_SECONDS))
             }
         
         val header = buildJsonObject {

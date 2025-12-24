@@ -69,11 +69,42 @@ class PluctCoreAPIHTTPClientImpl(
     private val responseParser = PluctCoreAPIHTTPClientResponseParser()
     private val apiLogger = PluctCoreAPIHTTPClientLogger()
     
+    private fun buildUserFacingErrorMessage(errorInfo: ErrorInfo, statusCode: Int): String {
+        // Priority 1: Upstream error (most specific)
+        if (errorInfo.upstreamError != null) {
+            return when {
+                errorInfo.upstreamError.contains("timeout", ignoreCase = true) ->
+                    "The video is taking too long to process. Try a shorter video or check your connection."
+                errorInfo.upstreamError.contains("invalid", ignoreCase = true) ||
+                errorInfo.upstreamError.contains("format", ignoreCase = true) ->
+                    "This video URL format isn't supported. Please use a standard TikTok link."
+                errorInfo.upstreamError.contains("unavailable", ignoreCase = true) ||
+                errorInfo.upstreamError.contains("down", ignoreCase = true) ->
+                    "The transcription service is temporarily unavailable. Please try again in a few moments."
+                errorInfo.upstreamError.contains("too long", ignoreCase = true) ->
+                    "This video is too long to transcribe. Please try a shorter video."
+                else -> "Transcription failed: ${errorInfo.upstreamError}. Please try again."
+            }
+        }
+        
+        // Priority 2: HTTP status code with context
+        return when (statusCode) {
+            500 -> "The transcription service encountered an error. Please try again in a moment."
+            502, 503 -> "The service is temporarily unavailable. Please try again shortly."
+            504 -> "The request timed out. Please check your connection and try again."
+            401 -> "Authentication failed. Tap refresh session and retry."
+            402 -> "Insufficient credits. Please add credits to continue."
+            429 -> "Too many requests. Please wait a moment before trying again."
+            else -> "Request failed ($statusCode). ${errorInfo.errorMessage}"
+        }
+    }
+    
     suspend fun executeRequest(
         method: String,
         endpoint: String,
         payload: Map<String, Any>? = null,
-        authToken: String? = null
+        authToken: String? = null,
+        timeoutOverrideMs: Long? = null
     ): Result<Any> {
         return withContext(Dispatchers.IO) {
             val requestId = "req_${System.currentTimeMillis()}"
@@ -85,7 +116,15 @@ class PluctCoreAPIHTTPClientImpl(
             apiLogger.logRequest(requestId, timestamp, method, fullUrl, endpoint, payload, authToken)
             
             val connection = try {
-                requestBuilder.buildConnection(method, endpoint, payload, authToken, requestId, userId)
+                requestBuilder.buildConnection(
+                    method = method,
+                    endpoint = endpoint,
+                    payload = payload,
+                    authToken = authToken,
+                    requestId = requestId,
+                    userId = userId,
+                    timeoutOverrideMs = timeoutOverrideMs
+                )
             } catch (e: Exception) {
                 apiLogger.logNetworkException(requestId, e, "Connection build failed")
                 return@withContext Result.failure(e)
@@ -108,11 +147,30 @@ class PluctCoreAPIHTTPClientImpl(
                     val errorBody = requestBuilder.readErrorBody(connection)
                     apiLogger.logError(requestId, responseCode, responseMessage, errorBody)
                     
+                    // NEW: Log full error details for debugging
+                    Log.e(TAG, "=== API ERROR DETAILS ===")
+                    Log.e(TAG, "Request: $method $endpoint")
+                    Log.e(TAG, "Status: $responseCode $responseMessage")
+                    Log.e(TAG, "Error Body: $errorBody")
+                    Log.e(TAG, "Request ID: $requestId")
+                    Log.e(TAG, "User ID: $userId")
+                    Log.e(TAG, "========================")
+                    
                     val errorInfo = responseParser.parseErrorResponse(
                         responseCode, responseMessage, errorBody, endpoint
                     )
+                    
+                    // Log parsed error details
+                    Log.e(TAG, "Parsed Error Code: ${errorInfo.errorCode}")
+                    Log.e(TAG, "Parsed Error Message: ${errorInfo.errorMessage}")
+                    Log.e(TAG, "Upstream Error: ${errorInfo.upstreamError ?: "none"}")
+                    Log.e(TAG, "Upstream Status: ${errorInfo.upstreamStatus ?: "none"}")
+                    
+                    // Build user-friendly error message with actionable guidance
+                    val userMessage = buildUserFacingErrorMessage(errorInfo, responseCode)
+                    
                     val detailedError = PluctCoreAPIDetailedError(
-                        userMessage = "Request failed ($responseCode). ${errorInfo.errorMessage}",
+                        userMessage = userMessage,
                         technicalDetails = TechnicalErrorDetails(
                             serviceName = "Business Engine (Cloudflare Workers)",
                             operation = "$method $endpoint",

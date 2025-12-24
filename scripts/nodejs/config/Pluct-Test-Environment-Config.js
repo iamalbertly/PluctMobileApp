@@ -119,7 +119,8 @@ class PluctTestEnvironmentConfig {
      */
     getTestDataConfig() {
         return {
-            testTikTokUrl: 'https://vm.tiktok.com/ZMAKpqkpN/',
+            testTikTokUrl: 'https://vm.tiktok.com/ZMDRUGT2P/',
+            testTikTokUrlLong: 'https://www.tiktok.com/@thesunnahguy/video/7493203244727012630',
             testVideoTitle: 'Test Video',
             testCreator: 'Test Creator',
             testDuration: 30,

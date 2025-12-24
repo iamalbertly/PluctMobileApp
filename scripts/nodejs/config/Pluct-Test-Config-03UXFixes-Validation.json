@@ -1,0 +1,99 @@
+{
+  "features": {
+    "credits-icon-universal": {
+      "description": "Universal currency icon instead of diamond",
+      "tests": [
+        "Journey-UX-01CreditsIcon-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-03Header.kt"
+      ]
+    },
+    "credits-loading-state": {
+      "description": "Loading spinner instead of showing 0 credits",
+      "tests": [
+        "Journey-UX-02CreditsLoading-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-03Header.kt"
+      ]
+    },
+    "credit-request-logging": {
+      "description": "Complete request/response logging for credit requests",
+      "tests": [
+        "Journey-UX-03CreditRequestLogging-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt"
+      ]
+    },
+    "error-persistence": {
+      "description": "Auto-persist errors to debug log",
+      "tests": [
+        "Journey-UX-04ErrorPersistence-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-03ErrorDisplay.kt"
+      ]
+    },
+    "redundant-visuals-removal": {
+      "description": "Remove duplicate processing status indicators",
+      "tests": [
+        "Journey-UX-05RedundantVisuals-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ]
+    },
+    "correlation-ids": {
+      "description": "Correlation IDs for upstream debugging",
+      "tests": [
+        "Journey-UX-06CorrelationIds-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-02DebugInfo-01DataModels.kt"
+      ]
+    },
+    "debug-logs-search": {
+      "description": "Search and filter in debug logs screen",
+      "tests": [
+        "Journey-UX-07DebugLogsSearch-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-DebugLog-Viewer.kt"
+      ]
+    },
+    "credit-request-feedback": {
+      "description": "Visual feedback during credit requests",
+      "tests": [
+        "Journey-UX-08CreditRequestFeedback-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen.kt"
+      ]
+    },
+    "error-recovery-actions": {
+      "description": "Actionable error recovery steps",
+      "tests": [
+        "Journey-UX-09ErrorRecoveryActions-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-03ErrorDisplay.kt"
+      ]
+    }
+  },
+  "testGroups": {
+    "all-ux-fixes": [
+      "credits-icon-universal",
+      "credits-loading-state",
+      "credit-request-logging",
+      "error-persistence",
+      "redundant-visuals-removal",
+      "correlation-ids",
+      "debug-logs-search",
+      "credit-request-feedback",
+      "error-recovery-actions"
+    ]
+  }
+}
+

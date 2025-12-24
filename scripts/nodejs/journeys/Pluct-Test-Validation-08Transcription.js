@@ -20,9 +20,10 @@ class PluctTestValidationTranscription extends BaseJourney {
             const jwtToken = this.core.generateTestJWT('mobile');
             
             // Vend a service token (use SSOT base URL)
+            const vendClientRequestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
             const vendResponse = await this.core.httpPost(
                 `${this.core.config.businessEngineUrl}/v1/vend-token`,
-                { userId: 'mobile' },
+                { userId: 'mobile', clientRequestId: vendClientRequestId },
                 { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' }
             );
             
@@ -31,36 +32,40 @@ class PluctTestValidationTranscription extends BaseJourney {
             }
             
             const vendData = JSON.parse(vendResponse.body);
-            const serviceToken = vendData.token;
-            
-            // Start transcription job (use SSOT config URL)
-            const testUrl = this.core.config.url;
-            const transcribeResponse = await this.core.httpPost(
-                `${this.core.config.businessEngineUrl}/ttt/transcribe`,
-                { url: testUrl },
-                { 'Authorization': `Bearer ${serviceToken}`, 'Content-Type': 'application/json' }
-            );
-            
-            if (!transcribeResponse.success || transcribeResponse.status !== 200) {
-                return { success: false, error: 'Transcription job creation failed' };
+            const serviceToken = vendData.token || vendData.serviceToken || vendData.pollingToken;
+            if (!serviceToken) {
+                return { success: false, error: 'Token vending returned empty service token' };
             }
-            
-            const transcribeData = JSON.parse(transcribeResponse.body);
-            const jobId = transcribeData.jobId;
-            
-            // Check job status (just verify it was created)
-            const statusResponse = await this.core.httpGet(
-                `${this.core.config.businessEngineUrl}/ttt/status/${jobId}`,
-                { 'Authorization': `Bearer ${serviceToken}` }
-            );
-            
-            if (!statusResponse.success || statusResponse.status !== 200) {
-                return { success: false, error: 'Job status check failed' };
+
+            const urlsToTest = this.core.getTestUrls();
+            for (const testUrl of urlsToTest) {
+                const clientRequestId = `transcribe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                const transcribeResponse = await this.core.httpPost(
+                    `${this.core.config.businessEngineUrl}/ttt/transcribe`,
+                    { url: testUrl, clientRequestId },
+                    { 'Authorization': `Bearer ${serviceToken}`, 'Content-Type': 'application/json' }
+                );
+
+                if (!transcribeResponse.success || transcribeResponse.status !== 200) {
+                    return { success: false, error: `Transcription job creation failed for ${testUrl}` };
+                }
+
+                const transcribeData = JSON.parse(transcribeResponse.body);
+                const jobId = transcribeData.jobId;
+
+                const statusResponse = await this.core.httpGet(
+                    `${this.core.config.businessEngineUrl}/ttt/status/${jobId}`,
+                    { 'Authorization': `Bearer ${serviceToken}` }
+                );
+
+                if (!statusResponse.success || statusResponse.status !== 200) {
+                    return { success: false, error: `Job status check failed for ${testUrl}` };
+                }
             }
-            
-            this.core.logger.info('✅ End-to-end transcription validation passed');
-            return { success: true, details: { jobId: jobId, status: 'created' } };
-            
+
+            this.core.logger.info('? End-to-end transcription validation passed');
+            return { success: true };
+
         } catch (error) {
             this.core.logger.error(`❌ End-to-end transcription validation failed: ${error.message}`);
             return { success: false, error: error.message };

@@ -9,7 +9,7 @@ const PluctCoreFoundation = require('../core/Pluct-Core-01Foundation');
 class E2ETranscriptCompleteFlow {
     constructor() {
         this.core = new PluctCoreFoundation();
-        this.testUrl = 'https://vm.tiktok.com/ZMAKpqkpN/';
+        this.testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
         this.testResults = {
             metadataExtraction: false,
             backgroundProcesses: false,

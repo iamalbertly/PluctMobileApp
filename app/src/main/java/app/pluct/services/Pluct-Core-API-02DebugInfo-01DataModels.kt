@@ -10,6 +10,7 @@ package app.pluct.services
  * Operation steps in the transcription flow
  */
 enum class OperationStep {
+    CANONICALIZE,
     METADATA,
     CHECK_BALANCE,
     VEND_TOKEN,
@@ -65,7 +66,12 @@ data class OperationTimelineEntry(
     val duration: Long?, // Duration in ms
     val request: RequestDebugDetails?,
     val response: ResponseDebugDetails?,
-    val error: String?
+    val error: String?,
+    val expected: String? = null,
+    val received: String? = null,
+    val nextAction: String? = null,
+    val correlationId: String? = null,
+    val retryCount: Int? = null
 )
 
 /**
@@ -81,7 +87,11 @@ data class TranscriptionDebugInfo(
     val pollingAttempt: Int?,
     val maxPollingAttempts: Int?,
     val flowStartTime: Long,
-    val totalDuration: Long? // Total duration in ms (null if still in progress)
+    val totalDuration: Long?, // Total duration in ms (null if still in progress)
+    val businessEngineRequestIds: Map<String, String> = emptyMap(), // endpoint -> requestId
+    val tttServiceJobId: String? = null, // From TTT service if available
+    val correlationIds: List<String> = emptyList(), // All correlation IDs from responses
+    val upstreamErrorCodes: Map<String, String> = emptyMap() // service -> error code
 ) {
     /**
      * Get formatted debug text for clipboard sharing
@@ -90,14 +100,40 @@ data class TranscriptionDebugInfo(
     fun getFormattedDebugText(): String {
         return buildString {
             appendLine("=== Pluct Transcription Debug Report ===")
-            appendLine("Generated: ${System.currentTimeMillis()}")
+            appendLine("Generated: ${java.time.Instant.ofEpochMilli(System.currentTimeMillis())}")
+            appendLine()
+            appendLine("=== Correlation IDs (for upstream log search) ===")
+            appendLine("Flow Request ID: $flowRequestId")
+            appendLine("Client Request ID: $clientRequestId")
+            correlationIds.forEach { id ->
+                appendLine("Correlation ID: $id")
+            }
+            appendLine()
+            appendLine("=== Business Engine Request IDs ===")
+            if (businessEngineRequestIds.isEmpty()) {
+                appendLine("(No Business Engine request IDs captured)")
+            } else {
+                businessEngineRequestIds.forEach { (endpoint, requestId) ->
+                    appendLine("$endpoint: $requestId")
+                }
+            }
+            appendLine()
+            appendLine("=== TTT Service IDs ===")
+            tttServiceJobId?.let { appendLine("TTT Job ID: $it") }
+            jobId?.let { appendLine("Business Engine Job ID: $it") }
+            appendLine()
+            appendLine("=== Upstream Error Codes ===")
+            if (upstreamErrorCodes.isEmpty()) {
+                appendLine("(No upstream error codes)")
+            } else {
+                upstreamErrorCodes.forEach { (service, code) ->
+                    appendLine("$service: $code")
+                }
+            }
             appendLine()
             appendLine("=== Request Summary ===")
             appendLine("URL: $url")
-            appendLine("Flow ID: $flowRequestId")
-            appendLine("Client Request ID: $clientRequestId")
             appendLine("Current Step: $currentStep")
-            jobId?.let { appendLine("Job ID: $it") }
             pollingAttempt?.let { appendLine("Polling Progress: $it/$maxPollingAttempts") }
             totalDuration?.let { appendLine("Total Duration: ${it}ms (${it/1000.0}s)") }
             appendLine()
@@ -130,6 +166,29 @@ data class TranscriptionDebugInfo(
                         appendLine("      ${it.replace("\n", "\n      ")}")
                     }
                 }
+
+                entry.expected?.let {
+                    appendLine("    \n    EXPECTED:")
+                    appendLine("      ${it.replace("\n", "\n      ")}")
+                }
+
+                entry.received?.let {
+                    appendLine("    \n    RECEIVED:")
+                    appendLine("      ${it.replace("\n", "\n      ")}")
+                }
+
+                entry.nextAction?.let {
+                    appendLine("    \n    NEXT ACTION:")
+                    appendLine("      ${it.replace("\n", "\n      ")}")
+                }
+
+                entry.correlationId?.let {
+                    appendLine("    \n    CORRELATION ID: $it")
+                }
+
+                entry.retryCount?.let {
+                    appendLine("    RETRY COUNT: $it")
+                }
                 
                 entry.error?.let { 
                     appendLine("    \n    ERROR:")
@@ -160,6 +219,7 @@ data class TranscriptionDebugInfo(
             }
             OperationStep.COMPLETED -> "Transcription completed"
             OperationStep.FAILED -> "Transcription failed"
+            OperationStep.CANONICALIZE -> "Resolving and normalizing TikTok link..."
         }
     }
     

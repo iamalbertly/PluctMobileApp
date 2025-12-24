@@ -17,7 +17,7 @@ class PluctTestValidationUIState extends BaseJourney {
             this.core.logger.info('🔍 Validating UI state management...');
             
             // Test URL input field interaction
-            const inputResult = await this.core.inputText('url_input', 'https://vm.tiktok.com/ZMA730880/');
+            const inputResult = await this.core.inputText('url_input', 'https://vm.tiktok.com/ZMDRUGT2P/');
             if (!inputResult.success) {
                 return { success: false, error: 'URL input field interaction failed' };
             }

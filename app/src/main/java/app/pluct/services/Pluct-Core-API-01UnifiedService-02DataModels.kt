@@ -49,6 +49,9 @@ data class EstimateResponse(
 data class VendTokenResponse(
     val ok: Boolean = true,
     val token: String,
+    // Some backends may return alternative field names; keep both to avoid blank auth tokens.
+    val serviceToken: String? = null,
+    val pollingToken: String? = null,
     val expiresIn: Int,
     val balanceAfter: Int,
     val requestId: String,
@@ -73,6 +76,8 @@ data class MetadataResponse(
 data class TranscriptionResponse(
     val ok: Boolean = true,
     val jobId: String,
+    // Optional status URL for direct polling if provided by BE
+    val statusUrl: String? = null,
     val status: String,
     val estimatedTime: Int? = null,
     val url: String,
@@ -104,7 +109,6 @@ data class TranscriptionResult(
 enum class HealthStatus {
     HEALTHY, UNHEALTHY, DEGRADED
 }
-
 
 
 

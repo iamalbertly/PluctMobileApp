@@ -38,7 +38,7 @@ class MetadataValidationJourney {
             }
             
             // Step 4: Input test URL
-            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMAKpqkpN/';
+            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMDRUGT2P/';
             await this.core.inputText(testUrl);
             await this.core.sleep(500);
             

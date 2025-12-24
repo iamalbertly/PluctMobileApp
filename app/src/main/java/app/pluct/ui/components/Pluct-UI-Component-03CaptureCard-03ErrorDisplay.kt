@@ -40,8 +40,84 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.pluct.core.error.PluctCoreError05RetryManager
+import androidx.compose.runtime.LaunchedEffect
+import app.pluct.core.retry.PluctCoreRetryUnifiedHandler
+import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.services.TranscriptionDebugInfo
+
+/**
+ * Error recovery action data class
+ */
+data class ErrorRecoveryAction(
+    val label: String,
+    val action: () -> Unit,
+    val priority: Int // 1 = primary, 2 = secondary
+)
+
+/**
+ * Get recovery actions based on error type
+ */
+fun getRecoveryActions(
+    error: Throwable?,
+    message: String,
+    creditBalance: Int,
+    onAddCredits: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+    onCheckConnection: (() -> Unit)? = null
+): List<ErrorRecoveryAction> {
+    val actions = mutableListOf<ErrorRecoveryAction>()
+    
+    when {
+        message.contains("insufficient", ignoreCase = true) ||
+        message.contains("credits", ignoreCase = true) && creditBalance <= 0 -> {
+            onAddCredits?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Add Credits",
+                    action = it,
+                    priority = 1
+                ))
+            }
+        }
+        message.contains("network", ignoreCase = true) ||
+        message.contains("connection", ignoreCase = true) -> {
+            onCheckConnection?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Check Connection",
+                    action = it,
+                    priority = 1
+                ))
+            }
+            onRetry?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Retry",
+                    action = it,
+                    priority = 2
+                ))
+            }
+        }
+        message.contains("timeout", ignoreCase = true) -> {
+            onRetry?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Retry",
+                    action = it,
+                    priority = 1
+                ))
+            }
+        }
+        else -> {
+            // Default: offer retry if available
+            onRetry?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Retry",
+                    action = it,
+                    priority = 1
+                ))
+            }
+        }
+    }
+    
+    return actions.sortedBy { it.priority }
+}
 
 /**
  * Pluct-UI-Component-03CaptureCard-03ErrorDisplay - Error display component.
@@ -52,14 +128,31 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
     onDismiss: () -> Unit,
     onRetry: (() -> Unit)? = null,
     error: Throwable? = null,
-    debugInfo: TranscriptionDebugInfo? = null
+    debugInfo: TranscriptionDebugInfo? = null,
+    debugLogManager: PluctCoreDebug01LogManager? = null,
+    onViewInLogs: (() -> Unit)? = null,
+    creditBalance: Int = 0,
+    onAddCredits: (() -> Unit)? = null,
+    onCheckConnection: (() -> Unit)? = null
 ) {
+    // Auto-persist error on first render
+    LaunchedEffect(message, error) {
+        debugLogManager?.logError(
+            category = "USER_FACING_ERROR",
+            operation = "captureCardError",
+            message = message,
+            exception = error,
+            requestUrl = debugInfo?.url ?: "",
+            requestPayload = debugInfo?.getFormattedDebugText() ?: ""
+        )
+    }
     var isExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
+    val retryHandler = remember { PluctCoreRetryUnifiedHandler() }
     val isRetryable = remember(error, message) {
         if (error != null) {
-            PluctCoreError05RetryManager.isRetryable(error)
+            retryHandler.isRetryable(error)
         } else {
             val msg = message.lowercase()
             msg.contains("timeout") ||
@@ -176,22 +269,58 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
-                if (onRetry != null && isRetryable) {
+                // Get recovery actions
+                val recoveryActions = remember(error, message, creditBalance) {
+                    getRecoveryActions(
+                        error = error,
+                        message = message,
+                        creditBalance = creditBalance,
+                        onAddCredits = onAddCredits,
+                        onRetry = onRetry,
+                        onCheckConnection = onCheckConnection
+                    )
+                }
+                
+                // Display recovery action buttons
+                recoveryActions.forEach { action ->
                     TextButton(
-                        onClick = onRetry,
+                        onClick = action.action,
                         modifier = Modifier.semantics {
-                            contentDescription = "Retry operation"
-                            testTag = "error_retry_button"
+                            contentDescription = "Recovery action: ${action.label}"
+                            testTag = "error_recovery_${action.label.lowercase().replace(" ", "_")}"
                         }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Retry",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        if (action.label == "Retry") {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Retry",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
                         Text(
-                            text = "Retry",
+                            text = action.label,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (action.priority == 1) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                
+                // View in Logs button
+                if (onViewInLogs != null && debugLogManager != null) {
+                    TextButton(
+                        onClick = {
+                            onDismiss()
+                            onViewInLogs()
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = "View error in debug logs"
+                            testTag = "error_view_logs_button"
+                        }
+                    ) {
+                        Text(
+                            text = "View in Logs",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

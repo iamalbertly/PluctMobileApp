@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,46 +56,71 @@ fun PluctHeader(
                             contentDescription = "Credit balance display showing $creditBalance credits"
                         }
                 ) {
-                    Text(
-                        text = "💎",
-                        fontSize = 18.sp,
-                        modifier = Modifier.semantics {
-                            contentDescription = "Diamond icon representing credits"
-                        }
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = "Credit balance",
+                        modifier = Modifier
+                            .size(18.dp)
+                            .semantics {
+                                contentDescription = "Credit balance icon"
+                            },
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     
                     Spacer(modifier = Modifier.width(4.dp))
                     
                     if (isCreditBalanceLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .semantics {
+                                        contentDescription = "Loading credit balance"
+                                    },
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Loading...",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.semantics {
                                     contentDescription = "Loading credit balance"
                                 }
-                        )
+                            )
+                        }
                     } else if (creditBalanceError != null) {
-                        Text(
-                            text = "Error",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 14.sp,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance error: $creditBalanceError"
-                            }
-                        )
-                    } else {
-                        Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .semantics {
+                                        contentDescription = "Credit balance error: $creditBalanceError"
+                                    },
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Credits: $creditBalance",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = "Error",
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 14.sp,
                                 modifier = Modifier.semantics {
-                                    contentDescription = "Credit balance: $creditBalance credits"
+                                    contentDescription = "Credit balance error: $creditBalanceError"
                                 }
                             )
-                            // Note: Credit holds will be shown here when backend supports it
-                            // Format: "($available available, $held pending)"
                         }
+                    } else {
+                        Text(
+                            text = "$creditBalance",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Credit balance: $creditBalance credits"
+                            }
+                        )
                     }
                 }
             }
@@ -157,46 +184,71 @@ fun PluctHeaderWithRefreshableBalance(
                             contentDescription = "Credit balance display showing $creditBalance credits - tap to refresh"
                         }
                 ) {
-                    Text(
-                        text = "💎",
-                        fontSize = 18.sp,
-                        modifier = Modifier.semantics {
-                            contentDescription = "Diamond icon representing credits"
-                        }
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = "Credit balance",
+                        modifier = Modifier
+                            .size(18.dp)
+                            .semantics {
+                                contentDescription = "Credit balance icon"
+                            },
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     
                     Spacer(modifier = Modifier.width(4.dp))
                     
                     if (isCreditBalanceLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .semantics {
+                                        contentDescription = "Loading credit balance"
+                                    },
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Loading...",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.semantics {
                                     contentDescription = "Loading credit balance"
                                 }
-                        )
+                            )
+                        }
                     } else if (creditBalanceError != null) {
-                        Text(
-                            text = "Error",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 14.sp,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance error: $creditBalanceError"
-                            }
-                        )
-                    } else {
-                        Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .semantics {
+                                        contentDescription = "Credit balance error: $creditBalanceError"
+                                    },
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Credits: $creditBalance",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = "Error",
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 14.sp,
                                 modifier = Modifier.semantics {
-                                    contentDescription = "Credit balance: $creditBalance credits"
+                                    contentDescription = "Credit balance error: $creditBalanceError"
                                 }
                             )
-                            // Note: Credit holds will be shown here when backend supports it
-                            // Format: "($available available, $held pending)"
                         }
+                    } else {
+                        Text(
+                            text = "$creditBalance",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Credit balance: $creditBalance credits"
+                            }
+                        )
                     }
                 }
             }

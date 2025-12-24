@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import app.pluct.data.dao.PluctVideoDao
+import app.pluct.data.dao.PluctDebugLogDAO
 import javax.inject.Singleton
 
 /**
@@ -26,7 +27,7 @@ object PluctDatabaseModule {
             PluctDatabase::class.java,
             PluctDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration() // For version 1, allow destructive migration
+            .fallbackToDestructiveMigration() // For version 2, allow destructive migration
             .build()
     }
     
@@ -34,5 +35,11 @@ object PluctDatabaseModule {
     @Singleton
     fun provideVideoDao(database: PluctDatabase): PluctVideoDao {
         return database.videoDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDebugLogDao(database: PluctDatabase): PluctDebugLogDAO {
+        return database.debugLogDao()
     }
 }

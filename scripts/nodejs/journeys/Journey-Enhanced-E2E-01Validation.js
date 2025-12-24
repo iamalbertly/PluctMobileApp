@@ -428,7 +428,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
                 const client = url.protocol === 'https:' ? https : http;
 
                 const postData = JSON.stringify({
-                    url: "https://vm.tiktok.com/ZMAKpqkpN/"
+                    url: "https://vm.tiktok.com/ZMDRUGT2P/"
                 });
 
                 const options = {

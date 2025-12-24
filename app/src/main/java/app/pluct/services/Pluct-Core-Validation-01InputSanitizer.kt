@@ -6,6 +6,9 @@ import javax.inject.Singleton
 import app.pluct.architecture.PluctComponent
 import java.net.URL
 import java.util.regex.Pattern
+import java.net.HttpURLConnection
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Pluct-Core-Validation-01InputSanitizer - Input validation and sanitization service
@@ -52,6 +55,7 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
         private const val MAX_TITLE_LENGTH = 500
         private const val MAX_DESCRIPTION_LENGTH = 2000
         private const val MAX_AUTHOR_LENGTH = 100
+        private const val REDIRECT_HOPS = 3
         
         /**
          * Sanitize TikTok URL by extracting video ID and creating clean URL
@@ -85,6 +89,13 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
     override fun cleanup() {
         Log.d(TAG, "Cleaning up PluctCoreValidationInputSanitizer")
     }
+
+    fun isTikTokUrl(url: String): Boolean {
+        val trimmedUrl = url.trim()
+        return TIKTOK_URL_PATTERN.matcher(trimmedUrl).matches()
+    }
+
+    fun isTikTokShortLink(url: String): Boolean = url.contains("vm.tiktok.com", ignoreCase = true)
     
     /**
      * Validate and sanitize URL
@@ -148,6 +159,64 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
             sanitizedValue = sanitizedUrl,
             warnings = warnings
         )
+    }
+
+    /**
+     * Resolve TikTok shortlink redirects to canonical URL.
+     * Best-effort; runs on IO to avoid blocking the UI thread.
+     */
+    suspend fun resolveTikTokRedirect(url: String, maxHops: Int = REDIRECT_HOPS): UrlResolutionResult {
+        if (!isTikTokShortLink(url)) return UrlResolutionResult(originalUrl = url)
+
+        return withContext(Dispatchers.IO) {
+            var current = url
+            val chain = mutableListOf(current)
+            repeat(maxHops) {
+                try {
+                    val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+                        instanceFollowRedirects = false
+                        requestMethod = "GET"
+                        connectTimeout = 5000
+                        readTimeout = 5000
+                        setRequestProperty("User-Agent", "PluctMobile/1.0")
+                    }
+                    connection.connect()
+                    val location = connection.getHeaderField("Location")
+                    if (location.isNullOrBlank()) {
+                        return@withContext UrlResolutionResult(
+                            originalUrl = url,
+                            resolvedUrl = current,
+                            redirectChain = chain.toList(),
+                            error = null
+                        )
+                    }
+                    val next = if (location.startsWith("http")) location else "https://www.tiktok.com$location"
+                    chain.add(next)
+                    if (!isTikTokShortLink(next)) {
+                        return@withContext UrlResolutionResult(
+                            originalUrl = url,
+                            resolvedUrl = sanitizeTikTokUrl(next),
+                            redirectChain = chain.toList(),
+                            error = null
+                        )
+                    }
+                    current = next
+                } catch (e: Exception) {
+                    return@withContext UrlResolutionResult(
+                        originalUrl = url,
+                        resolvedUrl = null,
+                        redirectChain = chain.toList(),
+                        error = e.message
+                    )
+                }
+            }
+            UrlResolutionResult(
+                originalUrl = url,
+                resolvedUrl = sanitizeTikTokUrl(current),
+                redirectChain = chain.toList(),
+                error = "Max redirect depth reached"
+            )
+        }
     }
     
     /**
@@ -284,4 +353,11 @@ data class ValidationResult(
     val sanitizedValue: String = "",
     val errorMessage: String? = null,
     val warnings: List<String> = emptyList()
+)
+
+data class UrlResolutionResult(
+    val originalUrl: String,
+    val resolvedUrl: String? = null,
+    val redirectChain: List<String> = emptyList(),
+    val error: String? = null
 )
