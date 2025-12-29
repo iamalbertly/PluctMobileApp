@@ -18,7 +18,7 @@ class ChildSubmitTranscription {
             await this.core.sleep(1000);
 
             // 2) Send SHARE intent with the configured URL (same SSOT as Kotlin app)
-            const intentCommand = `adb shell am start -a android.intent.action.SEND -t "text/plain" --es android.intent.extra.TEXT '${this.core.config.url}' app.pluct/.MainActivity`;
+            const intentCommand = `adb shell am start -a android.intent.action.SEND -t "text/plain" --es android.intent.extra.TEXT '${this.core.config.url}' app.pluct/.PluctUIScreen01MainActivity`;
             await this.core.executeCommand(intentCommand);
             await this.core.sleep(2000);
 
@@ -55,5 +55,4 @@ function register(orchestrator) {
 }
 
 module.exports = { ChildSubmitTranscription, register };
-
 

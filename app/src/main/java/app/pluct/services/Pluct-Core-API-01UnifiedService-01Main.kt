@@ -2,10 +2,11 @@ package app.pluct.services
 
 import android.content.Context
 import android.util.Log
-import app.pluct.architecture.PluctComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.jvm.Volatile
 import javax.inject.Inject
 import javax.inject.Singleton
 import app.pluct.core.debug.PluctCoreDebug01LogManager
@@ -37,13 +39,15 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     private val rateLimitTracker: PluctCoreRateLimitTracker,
     private val debugLogManager: PluctCoreDebug01LogManager,
     @ApplicationContext private val context: Context
-) : PluctComponent {
+) {
 
     companion object {
         private const val TAG = "PluctCoreAPIUnified"
         private const val BASE_URL = "https://pluct-business-engine.romeo-lya2.workers.dev"
-        private const val POLL_INTERVAL_MS = 2000L
-        private const val MAX_POLL_ATTEMPTS = 20
+        private const val POLL_INTERVAL_MS_FAST = 1500L // Faster polling for first 10 attempts
+        private const val POLL_INTERVAL_MS_SLOW = 3000L // Slower polling after 10 attempts
+        private const val FAST_POLL_ATTEMPTS = 10 // Use fast polling for quick jobs
+        private const val MAX_POLL_ATTEMPTS = 30 // Increased from 20 to 30 for longer jobs
         private const val PREWARM_THROTTLE_MS = 60000L
     }
 
@@ -53,6 +57,12 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     private val metrics = PluctCoreAPIUnifiedServiceMetrics()
     private val jwtGenerator = PluctCoreAPIJWTGenerator()
     private val tokenCache = PluctCoreAPIUnifiedServiceTokenCache(context)
+    private val tokenRefreshManager = PluctCoreAPI01UnifiedService02TokenRefresh01Manager(
+        jwtGenerator = jwtGenerator,
+        userIdentification = userIdentification
+    )
+    private val requestDeduplicationHandler = PluctCoreAPI01UnifiedService03RequestDeduplication01Handler()
+    @Volatile private var vendTokenBlockedUntil = 0L
 
     private val _healthStatus = MutableStateFlow<Map<String, HealthStatus>>(emptyMap())
     val healthStatus: StateFlow<Map<String, HealthStatus>> = _healthStatus.asStateFlow()
@@ -65,69 +75,142 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     private val transcriptionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prewarmTimestamps = ConcurrentHashMap<String, Long>()
 
-    override val componentId: String = "pluct-core-api-unified-service"
-    override val dependencies: List<String> = listOf(
-        "pluct-core-logging-structured-logger",
-        "pluct-core-validation-input-sanitizer",
-        "pluct-core-user-identification",
-        "pluct-core-api-rate-limit-tracker"
-    )
-
-    override fun initialize() {
+    init {
         startHealthMonitoring()
     }
 
-    override fun cleanup() {}
-
     suspend fun checkUserBalance(): Result<CreditBalanceResponse> {
-        val userToken = jwtGenerator.generateUserJWT(userIdentification.userId)
-        return execute("GET", "/v1/credits/balance", authToken = userToken)
+        var userToken = jwtGenerator.generateUserJWT(userIdentification.userId)
+        // Check if token should be refreshed proactively
+        val refreshedToken = tokenRefreshManager.refreshTokenIfNeeded(userToken)
+        if (refreshedToken != null) {
+            userToken = refreshedToken
+        }
+        return execute<CreditBalanceResponse>("GET", "/v1/credits/balance", authToken = userToken)
     }
 
     suspend fun getEstimate(url: String): Result<EstimateResponse> {
         val userToken = jwtGenerator.generateUserJWT(userIdentification.userId)
         val encodedUrl = URLEncoder.encode(url, "UTF-8")
-        return execute("GET", "/estimate?url=$encodedUrl", authToken = userToken)
+        return execute<EstimateResponse>("GET", "/estimate?url=$encodedUrl", authToken = userToken)
     }
 
     suspend fun vendToken(clientRequestId: String = "req_${System.currentTimeMillis()}"): Result<VendTokenResponse> {
+        // Check for cached response (idempotency)
+        val cachedResponse = requestDeduplicationHandler.getCachedResponse(clientRequestId)
+        if (cachedResponse != null && cachedResponse is VendTokenResponse) {
+            Log.d(TAG, "Returning cached vendToken response for requestId: $clientRequestId")
+            return Result.success(cachedResponse)
+        }
+        
+        // Check if request is in progress
+        if (requestDeduplicationHandler.isRequestInProgress(clientRequestId)) {
+            Log.d(TAG, "Request already in progress for requestId: $clientRequestId")
+            // Wait a bit and check cache again
+            kotlinx.coroutines.delay(100)
+            val retryCached = requestDeduplicationHandler.getCachedResponse(clientRequestId)
+            if (retryCached != null && retryCached is VendTokenResponse) {
+                return Result.success(retryCached)
+            }
+            return Result.failure(Exception("Request already in progress"))
+        }
+        
         val userToken = jwtGenerator.generateUserJWT(userIdentification.userId)
         val payload = mapOf(
             "userId" to userIdentification.userId,
             "clientRequestId" to clientRequestId
         )
-        return execute("POST", "/v1/vend-token", payload, userToken)
+        val result = execute<VendTokenResponse>("POST", "/v1/vend-token", payload, userToken)
+        
+        // Cache successful response for idempotency
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            requestDeduplicationHandler.cacheResponse(clientRequestId, response, ttlSeconds = 300)
+            requestDeduplicationHandler.markRequestCompleted(clientRequestId)
+        } else {
+            // Mark as completed even on failure to allow retry
+            requestDeduplicationHandler.markRequestCompleted(clientRequestId)
+        }
+        
+        return result
     }
 
 
     suspend fun getMetadata(url: String, timeoutMs: Long? = null): Result<MetadataResponse> {
         val encodedUrl = URLEncoder.encode(url, "UTF-8")
         val userToken = jwtGenerator.generateUserJWT(userIdentification.userId)
-        return execute("GET", "/meta?url=$encodedUrl", authToken = userToken, timeoutMs = timeoutMs)
+        return execute<MetadataResponse>("GET", "/meta?url=$encodedUrl", authToken = userToken, timeoutMs = timeoutMs)
     }
 
     suspend fun submitTranscriptionJob(url: String, serviceToken: String, clientRequestId: String): Result<TranscriptionResponse> {
         val payload = mapOf("url" to url, "clientRequestId" to clientRequestId)
-        return execute("POST", "/ttt/transcribe", payload, serviceToken)
+        return execute<TranscriptionResponse>("POST", "/ttt/transcribe", payload, serviceToken)
     }
 
     suspend fun checkTranscriptionStatus(jobId: String, serviceToken: String): Result<TranscriptionStatusResponse> {
-        return execute("GET", "/ttt/status/$jobId", authToken = serviceToken)
+        // Check if token should be refreshed before status check
+        var token = serviceToken
+        val refreshedToken = tokenRefreshManager.refreshTokenIfNeeded(token)
+        if (refreshedToken != null) {
+            token = refreshedToken
+        }
+        
+        val result = execute<TranscriptionStatusResponse>("GET", "/ttt/status/$jobId", authToken = token)
+        
+        // Handle 401 errors with token refresh
+        if (result.isFailure) {
+            val error = result.exceptionOrNull()
+            if (error?.message?.contains("401", true) == true || 
+                error?.message?.contains("Unauthorized", true) == true) {
+                return tokenRefreshManager.handle401Error { newToken ->
+                    execute<TranscriptionStatusResponse>("GET", "/ttt/status/$jobId", authToken = newToken)
+                } as Result<TranscriptionStatusResponse>
+            }
+        }
+        
+        return result
     }
 
-    fun preWarmVideoProcessing(url: String) {
-        val validation = validator.validateUrl(url)
-        if (!validation.isValid) return
-        val sanitizedUrl = validation.sanitizedValue
-        if (!validator.isTikTokUrl(sanitizedUrl)) return
-        val now = System.currentTimeMillis()
-        val lastPrewarm = prewarmTimestamps[sanitizedUrl]
-        if (lastPrewarm != null && now - lastPrewarm < PREWARM_THROTTLE_MS) return
-        prewarmTimestamps[sanitizedUrl] = now
-        transcriptionScope.launch {
-            Log.d(TAG, "Triggering background pre-warming for URL: $sanitizedUrl")
-            getMetadata(sanitizedUrl, timeoutMs = 5000L)
+    /**
+     * Poll transcription status using the new /ttt/poll/:id endpoint
+     * This endpoint accepts user JWT (long-lived, 1 hour) instead of service token (15 min)
+     * Recommended for long-running transcriptions that may exceed 15 minutes
+     */
+    suspend fun pollTranscriptionStatus(jobId: String, userJWT: String): Result<TranscriptionStatusResponse> {
+        // Check if token should be refreshed before polling
+        var token = userJWT
+        val refreshedToken = tokenRefreshManager.refreshTokenIfNeeded(token)
+        if (refreshedToken != null) {
+            token = refreshedToken
+            Log.d(TAG, "Token refreshed proactively before polling")
         }
+        
+        val result = execute<TranscriptionStatusResponse>("GET", "/ttt/poll/$jobId", authToken = token)
+        
+        // Handle 401 errors with token refresh
+        if (result.isFailure) {
+            val error = result.exceptionOrNull()
+            if (error?.message?.contains("401", true) == true || 
+                error?.message?.contains("Unauthorized", true) == true) {
+                return tokenRefreshManager.handle401Error<TranscriptionStatusResponse> { newToken ->
+                    execute<TranscriptionStatusResponse>("GET", "/ttt/poll/$jobId", authToken = newToken)
+                }
+            }
+        }
+        
+        return result
+    }
+
+    /**
+     * Pre-warming removed for simplicity.
+     * The Business Engine API is fast enough that pre-warming provides minimal benefit
+     * while adding complexity and potential rate limit issues.
+     * Metadata and token vending happen on-demand when user submits the URL.
+     */
+    @Deprecated("Pre-warming removed - API is fast enough for on-demand requests")
+    fun preWarmVideoProcessing(url: String) {
+        // No-op: Pre-warming removed to simplify codebase
+        // Metadata and token vending happen on-demand when user submits
     }
 
     suspend fun processTikTokVideo(url: String, isBackground: Boolean = false): Result<TranscriptionStatusResponse> {
@@ -135,7 +218,9 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         if (!validation.isValid) return Result.failure(IllegalArgumentException(validation.errorMessage ?: "Invalid URL"))
         var sanitizedUrl = validation.sanitizedValue
         val flowRequestId = "flow_${System.currentTimeMillis()}"
-        val clientRequestId = "client_${System.currentTimeMillis()}"
+        
+        // Generate or get existing request ID for URL (deduplication)
+        val clientRequestId = requestDeduplicationHandler.generateOrGetRequestId(sanitizedUrl)
 
         val timeline = mutableListOf<OperationTimelineEntry>()
         fun updateDebug(
@@ -192,6 +277,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         }
 
         suspend fun vendAndLog(label: String, jobId: String? = null, force: Boolean = false): Result<String> {
+            val now = System.currentTimeMillis()
             if (!force) {
                 val cached = tokenCache.getValidToken()
                 if (cached != null) {
@@ -205,6 +291,32 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                     return Result.success(cached)
                 }
             }
+
+            val blockedForMs = (vendTokenBlockedUntil - now).coerceAtLeast(0)
+            if (blockedForMs > 0) {
+                val msg = "Token vending temporarily paused to respect rate limits. Retry after ${blockedForMs / 1000}s."
+                debugLogManager.logWarning(
+                    category = "TOKEN_MANAGEMENT",
+                    operation = "token_vend_blocked",
+                    message = msg,
+                    details = "Label: $label; JobId: $jobId"
+                )
+                return Result.failure(Exception(msg))
+            }
+
+            if (!rateLimitTracker.canMakeRequest()) {
+                val waitMs = rateLimitTracker.getTimeToReset().coerceAtLeast(10_000L)
+                vendTokenBlockedUntil = now + waitMs
+                val msg = "Token vending throttled locally; retry after ${waitMs / 1000}s"
+                debugLogManager.logWarning(
+                    category = "TOKEN_MANAGEMENT",
+                    operation = "token_vend_local_throttle",
+                    message = msg,
+                    details = "Label: $label; JobId: $jobId; waitMs=$waitMs"
+                )
+                return Result.failure(Exception(msg))
+            }
+            rateLimitTracker.recordRequest()
             
             // Only vend if cache miss or forced
             val vendStart = System.currentTimeMillis()
@@ -257,10 +369,37 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                     nextAction = "Cache token and continue",
                     correlationId = flowRequestId
                 )
-            )
-            tokenCache.cacheToken(token, vendResponse.expiresIn)
-            return Result.success(token)
-        } else {
+                )
+                tokenCache.cacheToken(token, vendResponse.expiresIn)
+                return Result.success(token)
+            }
+
+            val vendError = vendResult.exceptionOrNull()
+            val detailed = vendError as? PluctCoreAPIDetailedError
+            val isRateLimited = detailed?.technicalDetails?.responseStatusCode == 429
+            if (isRateLimited) {
+                val retryAfterSeconds = detailed?.technicalDetails?.responseBody?.let {
+                    Regex("\"retryAfterSeconds\"\\s*:\\s*(\\d+)").find(it)?.groupValues?.getOrNull(1)?.toLongOrNull()
+                }
+                val backoffMs = ((retryAfterSeconds ?: 60L) * 1000L).coerceAtLeast(60_000L)
+                vendTokenBlockedUntil = System.currentTimeMillis() + backoffMs
+                debugLogManager.logWarning(
+                    category = "TOKEN_MANAGEMENT",
+                    operation = "token_vend_rate_limited",
+                    message = detailed?.userMessage ?: "Token vending rate limited",
+                    details = "BackoffMs=$backoffMs; Label=$label; JobId=$jobId"
+                )
+            } else if (detailed != null) {
+                debugLogManager.logAPIError(detailed, "TRANSCRIPTION")
+            } else {
+                debugLogManager.logError(
+                    category = "TOKEN_MANAGEMENT",
+                    operation = "token_vend_failed",
+                    message = vendError?.message ?: "Token vending failed",
+                    exception = vendError
+                )
+            }
+
             updateDebug(
                 OperationStep.FAILED,
                 newEntry = OperationTimelineEntry(
@@ -270,16 +409,15 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                     null,
                     null,
                     null,
-                    vendResult.exceptionOrNull()?.message,
+                    vendError?.message,
                     expected = "200 OK with token",
                     received = "Vend failed",
                     nextAction = "Stop flow; surface auth guidance",
                     correlationId = flowRequestId
                 )
             )
-            return Result.failure(vendResult.exceptionOrNull() ?: Exception("Token vending failed"))
+            return Result.failure(vendError ?: Exception("Token vending failed"))
         }
-    }
 
         // Canonicalize short TikTok links before hitting metadata to avoid upstream ambiguity
         val canonicalizeStart = System.currentTimeMillis()
@@ -359,25 +497,37 @@ class PluctCoreAPIUnifiedService @Inject constructor(
             )
         }
 
-        // Metadata
-        val metadataStart = System.currentTimeMillis()
+        // SPEED IMPROVEMENT: Parallel metadata fetch and token vending
+        val parallelStart = System.currentTimeMillis()
         updateDebug(OperationStep.METADATA)
-        val metadataResult = getMetadata(sanitizedUrl, timeoutMs = 8000L)
+        
+        // Launch both operations in parallel using coroutines
+        val (metadataResult, tokenResult) = coroutineScope {
+            val metadataDeferred = async { getMetadata(sanitizedUrl, timeoutMs = 8000L) }
+            val tokenDeferred = async { 
+                vendAndLog("Token Issued (Parallel)", force = false)
+            }
+            
+            // Wait for both to complete
+            Pair(metadataDeferred.await(), tokenDeferred.await())
+        }
+        
+        // Process metadata result
         if (metadataResult.isSuccess) {
             val metadata = metadataResult.getOrNull()!!
             updateDebug(
                 OperationStep.METADATA,
                 newEntry = OperationTimelineEntry(
                     step = OperationStep.METADATA,
-                    startTime = metadataStart,
+                    startTime = parallelStart,
                     endTime = System.currentTimeMillis(),
-                    duration = System.currentTimeMillis() - metadataStart,
-                    request = RequestDebugDetails("GET", "$BASE_URL/meta", "/meta", "None", null, metadataStart),
-                    response = ResponseDebugDetails(200, "OK", "Title=${metadata.title}; Author=${metadata.author}", System.currentTimeMillis(), System.currentTimeMillis() - metadataStart),
+                    duration = System.currentTimeMillis() - parallelStart,
+                    request = RequestDebugDetails("GET", "$BASE_URL/meta", "/meta", "None", null, parallelStart),
+                    response = ResponseDebugDetails(200, "OK", "Title=${metadata.title}; Author=${metadata.author}", System.currentTimeMillis(), System.currentTimeMillis() - parallelStart),
                     error = null,
                     expected = "200 OK with metadata (title, author, duration)",
-                    received = "title=${metadata.title}; author=${metadata.author}; duration=${metadata.duration ?: "n/a"}",
-                    nextAction = "Proceed to vend token",
+                    received = "title=${metadata.title}; author=${metadata.author}; duration=${metadata.duration}",
+                    nextAction = "Proceed to submit (token already vended in parallel)",
                     correlationId = flowRequestId
                 )
             )
@@ -389,24 +539,25 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                 OperationStep.METADATA,
                 newEntry = OperationTimelineEntry(
                     step = OperationStep.METADATA,
-                    startTime = metadataStart,
+                    startTime = parallelStart,
                     endTime = System.currentTimeMillis(),
-                    duration = System.currentTimeMillis() - metadataStart,
-                    request = RequestDebugDetails("GET", "$BASE_URL/meta", "/meta", "None", null, metadataStart),
+                    duration = System.currentTimeMillis() - parallelStart,
+                    request = RequestDebugDetails("GET", "$BASE_URL/meta", "/meta", "None", null, parallelStart),
                     response = null,
                     error = message,
                     expected = "200 OK metadata response",
                     received = "Metadata failed; proceeding without metadata",
-                    nextAction = "Proceed to vend token even without metadata",
+                    nextAction = "Proceed to submit (token already vended in parallel)",
                     correlationId = flowRequestId
                 )
             )
         }
 
-        // Vend token
-        val initialToken = vendAndLog("Token Issued")
-        if (initialToken.isFailure) return initialToken.map { throw Exception("unreachable") }
-        var vendToken = initialToken.getOrNull()!!
+        // Process token result
+        if (tokenResult.isFailure) {
+            return tokenResult.map { throw Exception("unreachable") }
+        }
+        var vendToken = tokenResult.getOrNull()!!
         var hasRefreshedAuth = false
         var recoveredJobId: String? = null
 
@@ -528,15 +679,25 @@ class PluctCoreAPIUnifiedService @Inject constructor(
             )
         }
 
-        // Token from initial vend (line 345) is valid for 15 minutes.
-        // Polling takes max 40 seconds (20 attempts * 2s), so no need to vend again.
-        // Continue using the same token from initial vend.
+        // Use /ttt/poll/:id endpoint with user JWT (long-lived, 1 hour) instead of service token
+        // This allows transcriptions that take > 15 minutes to complete without token expiry issues
+        // Business Engine's /ttt/poll/:id accepts user JWT and is rate-limited to 30 polls/min
+        var pollAuthToken = jwtGenerator.generateUserJWT(userIdentification.userId)
 
-        val pollInterval = if (isBackground) POLL_INTERVAL_MS * 2 else POLL_INTERVAL_MS
+        // Adaptive polling: fast for first attempts (quick jobs), slower after
+        val getPollInterval = { attempt: Int ->
+            if (isBackground) {
+                POLL_INTERVAL_MS_SLOW * 2
+            } else {
+                if (attempt <= FAST_POLL_ATTEMPTS) POLL_INTERVAL_MS_FAST else POLL_INTERVAL_MS_SLOW
+            }
+        }
 
-        // Poll for completion
+        // Poll for completion using user JWT (not service token)
         repeat(MAX_POLL_ATTEMPTS) { attempt ->
             val pollingAttempt = attempt + 1
+            val currentPollInterval = getPollInterval(pollingAttempt)
+
             if (circuitBreaker.isOpen()) {
                 debugLogManager.logWarning(
                     category = "TRANSCRIPTION",
@@ -544,12 +705,13 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                     message = "Circuit breaker open during polling; waiting to retry",
                     details = "Attempt $pollingAttempt of $MAX_POLL_ATTEMPTS"
                 )
-                delay(pollInterval)
+                delay(currentPollInterval)
                 return@repeat
             }
             updateDebug(OperationStep.POLLING, jobId = jobId, pollingAttempt = pollingAttempt, maxPolling = MAX_POLL_ATTEMPTS)
-            delay(pollInterval)
-            val statusResult = checkTranscriptionStatus(jobId, vendToken)
+            delay(currentPollInterval)
+            // Use /ttt/poll/:id endpoint with long-lived user JWT to avoid additional vend-token calls
+            val statusResult = pollTranscriptionStatus(jobId, pollAuthToken)
             if (statusResult.isFailure) {
                 val cause = statusResult.exceptionOrNull()
                 val authError = cause?.message?.contains("401", ignoreCase = true) == true ||
@@ -557,27 +719,17 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                     (cause?.message?.contains("500", ignoreCase = true) == true && cause.message?.contains("authentication", ignoreCase = true) == true)
 
                 if (authError) {
-                    // Only vend ONCE if auth fails, not multiple times
+                    // If JWT expired during polling, regenerate once instead of vending new service tokens
                     if (!hasRefreshedAuth) {
-                        tokenCache.clearToken()
-                        val inlineVend = vendAndLog("Auth Retry Token", jobId, force = true)
-                        if (inlineVend.isSuccess) {
-                            vendToken = inlineVend.getOrNull()!!
-                            hasRefreshedAuth = true
-                            val retryStatus = checkTranscriptionStatus(jobId, vendToken)
-                            if (retryStatus.isSuccess) {
-                                val status = retryStatus.getOrNull()!!
-                                if (status.status.equals("completed", ignoreCase = true) || status.transcript != null) {
-                                    updateDebug(OperationStep.COMPLETED, jobId = jobId, newEntry = OperationTimelineEntry(OperationStep.POLLING, System.currentTimeMillis(), System.currentTimeMillis(), null, null, null, null))
-                                    return Result.success(status)
-                                }
-                                if (status.status.equals("failed", ignoreCase = true)) {
-                                    updateDebug(OperationStep.FAILED, jobId = jobId, newEntry = OperationTimelineEntry(OperationStep.POLLING, System.currentTimeMillis(), System.currentTimeMillis(), null, null, null, "Remote status failed"))
-                                    return Result.failure(Exception("Transcription failed remotely"))
-                                }
-                            }
-                        }
-                        // If retry fails, continue to next poll attempt (don't vend again)
+                        debugLogManager.logWarning(
+                            category = "TRANSCRIPTION",
+                            operation = "polling_auth_refresh",
+                            message = "Polling auth expired; regenerating user JWT",
+                            details = "JobId=$jobId; Attempt=$pollingAttempt"
+                        )
+                        pollAuthToken = jwtGenerator.generateUserJWT(userIdentification.userId)
+                        hasRefreshedAuth = true
+                        // Try next poll attempt with fresh JWT
                         return@repeat
                     }
                     // If already refreshed once, don't vend again - just continue polling
@@ -614,16 +766,74 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                 )
                 return Result.failure(cause ?: Exception("Status check failed"))
             }
-            val status = statusResult.getOrNull()!!
-            // Check multiple possible transcript fields
-            val transcript = status.transcript 
+            // EDGE CASE FIX #1: Safe extraction with detailed logging
+            val status = statusResult.getOrNull()
+            if (status == null) {
+                debugLogManager.logError(
+                    category = "TRANSCRIPTION",
+                    operation = "polling_null_status",
+                    message = "Status result was null despite successful HTTP response - JobId=$jobId; Attempt=$pollingAttempt"
+                )
+                return@repeat // Try next poll
+            }
+
+            // Log raw status for debugging
+            debugLogManager.logInfo(
+                category = "TRANSCRIPTION",
+                operation = "polling_status_received",
+                message = "Received status from server",
+                details = "JobId=$jobId; Status=${status.status}; Progress=${status.progress}; " +
+                    "HasTranscript=${status.transcript != null}; " +
+                    "HasResult=${status.result != null}; " +
+                    "HasResultTranscription=${status.result?.transcription != null}"
+            )
+
+            // EDGE CASE FIX #2: Check multiple possible transcript fields and normalize
+            // TTTranscribe may return transcript in different locations:
+            // - status.transcript (direct field)
+            // - status.result.transcription (nested in result object)
+            // - status.text (alternative field name)
+            val transcript = status.transcript
                 ?: status.result?.transcription
-                ?: null
-            
-            if (status.status.equals("completed", ignoreCase = true) || transcript != null) {
+                ?: status.text
+
+            if (transcript != null) {
+                debugLogManager.logInfo(
+                    category = "TRANSCRIPTION",
+                    operation = "transcript_found",
+                    message = "Transcript extracted successfully",
+                    details = "JobId=$jobId; Length=${transcript.length}; Source=${
+                        when {
+                            status.transcript != null -> "status.transcript"
+                            status.result?.transcription != null -> "status.result.transcription"
+                            status.text != null -> "status.text"
+                            else -> "unknown"
+                        }
+                    }"
+                )
+            }
+
+            // Check if job is completed (either explicit status or presence of transcript)
+            val isCompleted = status.status.equals("completed", ignoreCase = true)
+                || status.status.equals("done", ignoreCase = true)
+                || transcript != null
+                || status._cacheHit == true // Job already completed and cached
+
+            if (isCompleted) {
+                // Log cache hit detection for faster UX
+                if (status._cacheHit == true) {
+                    debugLogManager.logInfo(
+                        category = "TRANSCRIPTION",
+                        operation = "cache_hit_detected",
+                        message = "Job already completed and cached (instant result)",
+                        details = "JobId=$jobId; Attempt=$pollingAttempt; TranscriptLength=${transcript?.length ?: 0}"
+                    )
+                }
+
                 // Return response with normalized transcript field
                 val normalizedStatus = status.copy(
-                    transcript = transcript ?: status.transcript
+                    transcript = transcript ?: status.transcript,
+                    status = "completed" // Normalize status to "completed"
                 )
                 updateDebug(
                     OperationStep.COMPLETED,
@@ -637,7 +847,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                         null,
                         null,
                         expected = "status=completed with transcript",
-                        received = "status=${status.status}",
+                        received = "status=${status.status}; hasTranscript=${transcript != null}; cacheHit=${status._cacheHit}",
                         nextAction = "Render transcript",
                         correlationId = flowRequestId,
                         retryCount = pollingAttempt
@@ -679,7 +889,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                 null,
                 null,
                 "Polling timeout",
-                expected = "status=completed within ${MAX_POLL_ATTEMPTS * pollInterval}ms",
+                expected = "status=completed within ${MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS_SLOW}ms",
                 received = "Timed out at attempt ${MAX_POLL_ATTEMPTS}",
                 nextAction = "Stop; ask user to retry",
                 correlationId = flowRequestId,

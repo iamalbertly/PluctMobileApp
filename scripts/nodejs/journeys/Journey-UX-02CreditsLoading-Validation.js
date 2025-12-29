@@ -93,3 +93,17 @@ class JourneyUX02CreditsLoadingValidation extends BaseJourney {
 
 module.exports = JourneyUX02CreditsLoadingValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

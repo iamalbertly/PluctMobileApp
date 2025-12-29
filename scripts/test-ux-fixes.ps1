@@ -102,3 +102,17 @@ Write-Host "Test reports saved to: scripts/nodejs/artifacts/" -ForegroundColor C
 
 exit 0
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

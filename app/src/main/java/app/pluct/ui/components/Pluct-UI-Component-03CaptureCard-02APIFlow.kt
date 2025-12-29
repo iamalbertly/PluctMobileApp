@@ -1,10 +1,22 @@
 package app.pluct.ui.components
 
+import android.app.Activity
+import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreAPIDetailedError
 import app.pluct.services.PluctCoreAPIUnifiedServiceErrorCache
 import app.pluct.core.debug.PluctCoreDebug01LogManager
+import app.pluct.notification.PluctNotificationHelper
+import app.pluct.services.PluctCoreBackground01TranscriptionWorker
+import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.KEY_URL
+import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.NOTIFICATION_ID_PROGRESS
+import app.pluct.services.PluctCoreBackground01TranscriptionWorkerJobDeduplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,7 +36,9 @@ object PluctUIComponent03CaptureCardAPIFlow {
         apiService: PluctCoreAPIUnifiedService,
         debugLogManager: PluctCoreDebug01LogManager?,
         onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        context: Context? = null,
+        shouldMinimize: Boolean = false
     ) {
         val tag = "CaptureCard"
         Log.d(tag, "Starting complete Business Engine API flow for URL: $normalizedUrl")
@@ -34,6 +48,72 @@ object PluctUIComponent03CaptureCardAPIFlow {
             message = "Flow started",
             details = "URL: $normalizedUrl"
         )
+
+        // If should minimize, start background worker and return early
+        if (shouldMinimize && context != null) {
+            Log.d(tag, "Starting background transcription for URL: $normalizedUrl")
+            
+            // Check for existing job before creating new one
+            val existingJobId = PluctCoreBackground01TranscriptionWorkerJobDeduplication.checkExistingJob(
+                context = context,
+                url = normalizedUrl
+            )
+            
+            if (existingJobId != null) {
+                Log.d(tag, "Existing job found for URL: $normalizedUrl, jobId: $existingJobId")
+                // Merge notifications if needed
+                PluctCoreBackground01TranscriptionWorkerJobDeduplication.mergeNotifications(
+                    context = context,
+                    jobId = existingJobId,
+                    url = normalizedUrl
+                )
+                return // Don't create duplicate job
+            }
+            
+            // Generate unique notification ID based on URL hash
+            val notificationId = normalizedUrl.hashCode().and(0x7FFFFFFF) // Ensure positive
+            
+            // Create or get job (with deduplication)
+            val jobId = PluctCoreBackground01TranscriptionWorkerJobDeduplication.createOrGetJob(
+                context = context,
+                url = normalizedUrl
+            ) {
+                // Create new job with unique notification ID
+                val workRequest = OneTimeWorkRequestBuilder<PluctCoreBackground01TranscriptionWorker>()
+                    .setInputData(workDataOf(
+                        KEY_URL to normalizedUrl,
+                        PluctCoreBackground01TranscriptionWorker.KEY_NOTIFICATION_ID to notificationId
+                    ))
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .addTag("transcription")
+                    .build()
+                
+                WorkManager.getInstance(context).enqueue(workRequest)
+                workRequest.id.toString()
+            }
+            
+            Log.d(tag, "Background worker job created/enqueued: $jobId, notificationId: $notificationId")
+            
+            // Show immediate notification with unique ID
+            PluctNotificationHelper.showTranscriptionProgressNotification(
+                context = context,
+                url = normalizedUrl,
+                progress = 0,
+                message = "Starting transcription...",
+                notificationId = notificationId
+            )
+            
+            // Minimize app (move to background)
+            if (context is Activity) {
+                (context as Activity).moveTaskToBack(true)
+            }
+            
+            return // Don't continue with foreground processing
+        }
 
         val cachedError = PluctCoreAPIUnifiedServiceErrorCache.getCachedError(normalizedUrl)
         if (cachedError != null) {

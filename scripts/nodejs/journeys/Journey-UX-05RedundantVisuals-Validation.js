@@ -151,3 +151,17 @@ class JourneyUX05RedundantVisualsValidation extends BaseJourney {
 
 module.exports = JourneyUX05RedundantVisualsValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

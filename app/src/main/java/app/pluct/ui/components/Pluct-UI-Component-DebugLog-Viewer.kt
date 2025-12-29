@@ -84,8 +84,8 @@ fun PluctDebugLogViewer(
                         IconButton(
                             onClick = {
                                 scope.launch {
-                                    // Clear all logs
-                                    logs.forEach { debugLogManager.deleteLog(it) }
+                                    // Clear all logs using efficient batch delete
+                                    debugLogManager.clearAllLogs()
                                 }
                             }
                         ) {

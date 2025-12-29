@@ -24,6 +24,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import app.pluct.services.PluctCoreAPIDetailedError
 import app.pluct.ui.components.PluctInsufficientCreditsDialog
+import app.pluct.ui.components.PluctInsufficientCreditsDialogWithQueue
 import app.pluct.ui.components.PluctRateLimitDialog
 
 /**
@@ -36,7 +37,10 @@ fun PluctBusinessEngineErrorHandler(
     error: Throwable?,
     onDismiss: () -> Unit,
     onPurchaseCredits: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    url: String? = null,
+    queuedCount: Int = 0,
+    onQueueForLater: (() -> Unit)? = null
 ) {
     if (error == null) return
     val clipboard = LocalClipboardManager.current
@@ -70,12 +74,26 @@ fun PluctBusinessEngineErrorHandler(
                     details.responseBody.substringAfter("Balance: ").trim().toIntOrNull() ?: 0
                 } catch (e: Exception) { 0 }
                 
-                PluctInsufficientCreditsDialog(
-                    currentBalance = currentBalance,
-                    requiredCredits = 1, // Default cost
-                    onPurchase = onPurchaseCredits,
-                    onDismiss = onDismiss
-                )
+                // Use enhanced dialog with queue option if URL is available
+                if (url != null && onQueueForLater != null) {
+                    PluctInsufficientCreditsDialogWithQueue(
+                        currentBalance = currentBalance,
+                        requiredCredits = 1, // Default cost
+                        url = url,
+                        queuedCount = queuedCount,
+                        onPurchase = onPurchaseCredits,
+                        onQueueForLater = onQueueForLater,
+                        onDismiss = onDismiss
+                    )
+                } else {
+                    // Fallback to original dialog
+                    PluctInsufficientCreditsDialog(
+                        currentBalance = currentBalance,
+                        requiredCredits = 1, // Default cost
+                        onPurchase = onPurchaseCredits,
+                        onDismiss = onDismiss
+                    )
+                }
             }
             
             // 429 Rate Limit

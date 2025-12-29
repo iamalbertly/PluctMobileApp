@@ -1,12 +1,10 @@
 package app.pluct.services
 
 import android.util.Log
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import java.security.MessageDigest
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -17,37 +15,42 @@ import javax.crypto.spec.SecretKeySpec
  * Implements JWT token generation according to Business Engine documentation
  */
 class PluctCoreAPIJWTGenerator {
-    
+
     companion object {
         private const val TAG = "PluctCoreAPIJWTGenerator"
         private const val JWT_SECRET = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
         private const val ALGORITHM = "HS256"
-        private const val TOKEN_EXPIRY_SECONDS = 900L // 15 minutes
+        private const val TOKEN_EXPIRY_SECONDS = 3600L // 1 hour (for long-lived user JWT used in polling)
+        private const val AUDIENCE = "pluct-business-engine"
     }
-    
-    private val json = Json { ignoreUnknownKeys = true }
-    
-        /**
-         * Generate user JWT token for Business Engine authentication
-         * According to documentation: Algorithm HS256, 15-minute expiration, scope: ttt:transcribe
-         */
-        fun generateUserJWT(userId: String): String {
-            Log.d(TAG, "Generating JWT token for user: $userId")
 
-            // Use current epoch seconds for JWT timestamps, but ensure `iat` is safely in the past
-            // to satisfy Business Engine validation while staying within normal clock skew bounds.
-            val now = System.currentTimeMillis() / 1000
-            val issuedAt = now - 60 // 60 seconds in the past to avoid future-skew rejections
-            Log.d(TAG, "Current timestamp (now): $now")
-            Log.d(TAG, "Issued-at timestamp (iat): $issuedAt")
-            Log.d(TAG, "Expiration timestamp: ${issuedAt + TOKEN_EXPIRY_SECONDS}")
+    /**
+     * Generate user JWT token for Business Engine authentication
+     * According to Business Engine documentation:
+     * - Algorithm: HS256
+     * - Expiration: 1 hour (3600 seconds) for long-lived polling
+     * - Scope: ttt:transcribe (required for /ttt/ endpoints)
+     * - Audience: pluct-business-engine (required for validation)
+     */
+    fun generateUserJWT(userId: String): String {
+        val json = Json { ignoreUnknownKeys = true }
+        Log.d(TAG, "Generating JWT token for user: $userId")
 
-            val payload = buildJsonObject {
-                put("sub", JsonPrimitive(userId))
-                put("scope", JsonPrimitive("ttt:transcribe"))
-                put("iat", JsonPrimitive(issuedAt))
-                put("exp", JsonPrimitive(issuedAt + TOKEN_EXPIRY_SECONDS))
-            }
+        // Use current epoch seconds for JWT timestamps, but ensure `iat` is safely in the past
+        // to satisfy Business Engine validation while staying within normal clock skew bounds.
+        val now = System.currentTimeMillis() / 1000
+        val issuedAt = now - 60 // 60 seconds in the past to avoid future-skew rejections
+        Log.d(TAG, "Current timestamp (now): $now")
+        Log.d(TAG, "Issued-at timestamp (iat): $issuedAt")
+        Log.d(TAG, "Expiration timestamp: ${issuedAt + TOKEN_EXPIRY_SECONDS}")
+
+        val payload = buildJsonObject {
+            put("sub", JsonPrimitive(userId))
+            put("aud", JsonPrimitive(AUDIENCE)) // Required by Business Engine
+            put("scope", JsonPrimitive("ttt:transcribe")) // Required for /ttt/ endpoints
+            put("iat", JsonPrimitive(issuedAt))
+            put("exp", JsonPrimitive(issuedAt + TOKEN_EXPIRY_SECONDS))
+        }
         
         val header = buildJsonObject {
             put("alg", JsonPrimitive(ALGORITHM))
@@ -108,6 +111,7 @@ class PluctCoreAPIJWTGenerator {
      */
     fun extractUserId(token: String): String? {
         return try {
+            val json = Json { ignoreUnknownKeys = true }
             val parts = token.split(".")
             if (parts.size != 3) return null
             

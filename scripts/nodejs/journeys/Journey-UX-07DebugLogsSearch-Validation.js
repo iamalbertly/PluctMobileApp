@@ -188,3 +188,17 @@ class JourneyUX07DebugLogsSearchValidation extends BaseJourney {
 
 module.exports = JourneyUX07DebugLogsSearchValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

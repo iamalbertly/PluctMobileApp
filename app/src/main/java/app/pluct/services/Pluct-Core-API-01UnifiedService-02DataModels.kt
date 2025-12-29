@@ -90,12 +90,31 @@ data class TranscriptionStatusResponse(
     val status: String,
     val progress: Int,
     val transcript: String? = null,
+    val text: String? = null, // Alternative field name for transcript
     val confidence: Double? = null,
     val language: String? = null,
     val duration: Int? = null,
     val ok: Boolean? = null,
     val result: TranscriptionResult? = null,
-    val build: BuildInfo? = null
+    val metadata: TranscriptionMetadata? = null, // EDGE CASE FIX: Metadata from production responses
+    val build: BuildInfo? = null,
+    val _cacheHit: Boolean? = null, // Indicates job was retrieved from cache (instant result)
+    val _polled: Boolean? = null, // Indicates response came from poll endpoint
+    val _cachedAt: String? = null, // Timestamp when result was cached
+    val message: String? = null, // Status message from server
+    val note: String? = null, // Additional notes or guidance
+    val error: String? = null, // Error message if job failed
+    val url: String? = null, // Original request URL
+    val requestId: String? = null, // Request ID
+    val request_id: String? = null, // Alternative field for requestId
+    val webhookUrl: String? = null, // Webhook URL if configured
+    val statusUrl: String? = null, // Status polling URL
+    val statusPollUrl: String? = null, // Alternative status URL
+    val estimatedCredits: Int? = null, // Estimated credit cost
+    val estimatedProcessingTime: Int? = null, // Estimated processing time in seconds
+    val submittedAt: String? = null, // Timestamp when job was submitted
+    val completedAt: String? = null, // Timestamp when job completed
+    val guidance: String? = null // Usage guidance from server
 )
 
 @Serializable
@@ -103,7 +122,19 @@ data class TranscriptionResult(
     val transcription: String? = null,
     val confidence: Double? = null,
     val language: String? = null,
-    val duration: Int? = null
+    val duration: Double? = null, // Changed to Double to match production (50.48)
+    val wordCount: Int? = null,
+    val speakerCount: Int? = null,
+    val audioQuality: String? = null,
+    val processingTime: Int? = null
+)
+
+@Serializable
+data class TranscriptionMetadata(
+    val transcriptLength: Int? = null,
+    val hasMetadata: Boolean? = null,
+    val processingTime: Int? = null,
+    val cacheHit: Boolean? = null
 )
 
 enum class HealthStatus {

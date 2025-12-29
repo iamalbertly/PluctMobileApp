@@ -25,8 +25,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,22 +32,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
+import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
-import app.pluct.ui.components.PluctDebugLogViewer
-import androidx.compose.ui.text.font.FontWeight
+import app.pluct.ui.components.error.log.PluctErrorLogSection
+import app.pluct.ui.screens.PluctQueueSection
+import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.entity.LogLevel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Pluct-UI-Screen-01HomeScreen - Main home screen with video list and capture interface.
@@ -73,7 +77,8 @@ fun PluctHomeScreen(
     snackbarHostState: SnackbarHostState,
     videoRepository: PluctVideoRepository? = null,
     ctaHelperMessage: String? = null,
-    debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null
+    debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
+    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
@@ -93,6 +98,9 @@ fun PluctHomeScreen(
 
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
     val debugLogs by (debugLogManager?.getRecentLogs(100) ?: MutableStateFlow(emptyList())).collectAsState(initial = emptyList())
+    val errorLogs = remember(debugLogs) {
+        debugLogs.filter { it.level == LogLevel.ERROR }.take(3)
+    }
 
     Scaffold(
         snackbarHost = {
@@ -128,7 +136,9 @@ fun PluctHomeScreen(
             ctaHelperMessage = ctaHelperMessage,
             onRequestCreditsClick = { showSettingsDialog = true },
             debugLogManager = debugLogManager,
-            onViewDebugLogs = { showDebugLogs = true }
+            onViewDebugLogs = { showDebugLogs = true },
+            errorLogs = errorLogs,
+            onQueueForLater = onQueueForLater
         )
     }
 
@@ -176,8 +186,13 @@ private fun HomeContent(
     onRequestCreditsClick: () -> Unit,
     onDemoLinkClick: () -> Unit = {},
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
-    onViewDebugLogs: () -> Unit = {}
+    onViewDebugLogs: () -> Unit = {},
+    errorLogs: List<app.pluct.data.entity.DebugLogEntry> = emptyList(),
+    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null
 ) {
+    // Filter queued videos
+    val queuedVideos = uniqueVideos.filter { it.status == ProcessingStatus.QUEUED }
+    
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -196,8 +211,35 @@ private fun HomeContent(
                 ctaHelperMessage = ctaHelperMessage,
                 onRequestCredits = onRequestCreditsClick,
                 debugLogManager = debugLogManager,
-                onViewInLogs = onViewDebugLogs
+                onViewInLogs = onViewDebugLogs,
+                onQueueForLater = onQueueForLater
             )
+        }
+        
+        // Error Log Section
+        if (errorLogs.isNotEmpty()) {
+            item {
+                PluctErrorLogSection(
+                    errorLogs = errorLogs,
+                    onCopyError = { error ->
+                        debugLogManager?.let { manager ->
+                            val errorText = manager.formatLogForClipboard(error)
+                            // Copy is handled in the component
+                        }
+                    }
+                )
+            }
+        }
+        
+        // Queue Section
+        if (queuedVideos.isNotEmpty()) {
+            item {
+                PluctQueueSection(
+                    queuedVideos = queuedVideos,
+                    onRetryVideo = onRetryVideo,
+                    onDeleteVideo = onDeleteVideo
+                )
+            }
         }
 
         if (uniqueVideos.isNotEmpty()) {
@@ -210,7 +252,8 @@ private fun HomeContent(
                     onClick = { onVideoClick(video) },
                     onRetry = { onRetryVideo(video) },
                     onDelete = { onDeleteVideo(video) },
-                    debugInfo = if (video.status == app.pluct.data.entity.ProcessingStatus.PROCESSING && debugInfo?.url == video.url) debugInfo else null
+                    debugInfo = if (video.status == app.pluct.data.entity.ProcessingStatus.PROCESSING && debugInfo?.url == video.url) debugInfo else null,
+                    snackbarHostState = snackbarHostState
                 )
             }
         } else {

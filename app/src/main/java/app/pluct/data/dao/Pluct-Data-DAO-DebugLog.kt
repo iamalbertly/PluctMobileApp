@@ -40,4 +40,13 @@ interface PluctDebugLogDAO {
     
     @Query("SELECT COUNT(*) FROM debug_logs")
     suspend fun getLogCount(): Int
+    
+    @Query("SELECT * FROM debug_logs WHERE category = :category AND operation = :operation AND message = :message AND timestamp > :sinceTimestamp ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun findSimilarLogs(category: String, operation: String, message: String, sinceTimestamp: Long, limit: Int = 5): List<DebugLogEntry>
+    
+    @Query("DELETE FROM debug_logs WHERE id IN (SELECT id FROM debug_logs WHERE timestamp < :beforeTimestamp ORDER BY timestamp ASC LIMIT :maxDelete)")
+    suspend fun deleteOldLogsBatch(beforeTimestamp: Long, maxDelete: Int = 1000): Int
+    
+    @Query("DELETE FROM debug_logs WHERE category = :category AND operation = :operation AND message = :message AND timestamp < :beforeTimestamp")
+    suspend fun deleteDuplicateLogs(category: String, operation: String, message: String, beforeTimestamp: Long): Int
 }

@@ -11,6 +11,12 @@
     "test:transcription": "node scripts/nodejs/test-all-transcription.js",
     "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:failed": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:ux-fixes": "node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",
+    "test:ux-fixes:dev": "cross-env DEV_MODE=1 node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",
+    "test:trust-fixes": "node scripts/nodejs/Pluct-Test-Focused-02TrustFixes-01Runner.js",
+    "test:trust-fixes:dev": "cross-env DEV_MODE=1 node scripts/nodejs/Pluct-Test-Focused-02TrustFixes-01Runner.js",
+    "test:edge-cases": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --tests Journey-EdgeCase",
+    "test:trust-fixes:all": "npm run test:trust-fixes && npm run test:edge-cases",
     "test:clear-history": "node scripts/nodejs/Pluct-Test-History-Manager.js clear",
     "test:history-stats": "node scripts/nodejs/Pluct-Test-History-Manager.js stats",
     "test:history-failed": "node scripts/nodejs/Pluct-Test-History-Manager.js failed"

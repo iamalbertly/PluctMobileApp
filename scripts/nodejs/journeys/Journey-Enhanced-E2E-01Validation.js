@@ -259,6 +259,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
         const logcatOutput = logcatResult.stdout || logcatResult.output || '';
         
         const hasUIStateLogs = logcatOutput.includes('app.pluct') ||
+                              logcatOutput.includes('PluctUIScreen01MainActivity') ||
                               logcatOutput.includes('MainActivity') ||
                               logcatOutput.includes('ComposeView');
         

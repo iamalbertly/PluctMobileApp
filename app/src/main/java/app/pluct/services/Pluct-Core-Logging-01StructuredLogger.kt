@@ -6,15 +6,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
-import app.pluct.architecture.PluctComponent
-
 /**
  * Pluct-Core-Logging-01StructuredLogger - Centralized structured logging service
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation of Concern][CoreResponsibility]
  * Provides structured logging with different levels and contextual information
  */
 @Singleton
-class PluctCoreLoggingStructuredLogger @Inject constructor() : PluctComponent {
+class PluctCoreLoggingStructuredLogger @Inject constructor() {
     
     companion object {
         private const val TAG = "PluctStructuredLogger"
@@ -25,17 +23,6 @@ class PluctCoreLoggingStructuredLogger @Inject constructor() : PluctComponent {
     val logEntries: StateFlow<List<LogEntry>> = _logEntries.asStateFlow()
     
     private val json = Json { ignoreUnknownKeys = true }
-    
-    override val componentId: String = "pluct-core-logging-structured-logger"
-    override val dependencies: List<String> = emptyList()
-    
-    override fun initialize() {
-        Log.d(TAG, "Initializing PluctCoreLoggingStructuredLogger")
-    }
-    
-    override fun cleanup() {
-        Log.d(TAG, "Cleaning up PluctCoreLoggingStructuredLogger")
-    }
     
     @Serializable
     data class LogEntry(

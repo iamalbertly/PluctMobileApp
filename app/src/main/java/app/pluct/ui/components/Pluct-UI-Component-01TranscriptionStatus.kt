@@ -1,6 +1,9 @@
 package app.pluct.ui.components
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -9,12 +12,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import app.pluct.ui.models.TranscriptionPhase
 
 /**
  * Pluct-UI-Component-01TranscriptionStatus - Real-time transcription status display
@@ -58,12 +65,18 @@ fun PluctTranscriptionStatusCard(
             // Status Content
             PluctTranscriptionStatusContent(status = status)
             
-            // Progress Bar (if processing)
+            // Multi-Phase Progress Indicator (if processing)
             if (status.currentStatus == TranscriptionStatusType.PROCESSING) {
                 Spacer(modifier = Modifier.height(12.dp))
+                PluctTranscriptionMultiPhaseIndicator(
+                    phase = status.phase,
+                    progress = status.progress
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 PluctTranscriptionProgressBar(
                     progress = status.progress,
-                    estimatedTime = status.estimatedTime
+                    estimatedTime = status.estimatedTime,
+                    currentOperation = status.currentOperation
                 )
             }
             
@@ -90,21 +103,24 @@ private fun PluctTranscriptionStatusHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = when (status.currentStatus) {
-                    TranscriptionStatusType.COMPLETED -> Icons.Default.CheckCircle
-                    TranscriptionStatusType.FAILED -> Icons.Default.Error
-                    TranscriptionStatusType.PROCESSING -> Icons.Default.Refresh
-                    else -> Icons.Default.Refresh
-                },
-                contentDescription = "Status icon",
-                tint = when (status.currentStatus) {
-                    TranscriptionStatusType.COMPLETED -> MaterialTheme.colorScheme.primary
-                    TranscriptionStatusType.FAILED -> MaterialTheme.colorScheme.error
-                    TranscriptionStatusType.PROCESSING -> MaterialTheme.colorScheme.secondary
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-            )
+            // Animated icon for processing state
+            if (status.currentStatus == TranscriptionStatusType.PROCESSING) {
+                PluctAnimatedProcessingIcon()
+            } else {
+                Icon(
+                    imageVector = when (status.currentStatus) {
+                        TranscriptionStatusType.COMPLETED -> Icons.Default.CheckCircle
+                        TranscriptionStatusType.FAILED -> Icons.Default.Error
+                        else -> Icons.Default.Refresh
+                    },
+                    contentDescription = "Status icon",
+                    tint = when (status.currentStatus) {
+                        TranscriptionStatusType.COMPLETED -> MaterialTheme.colorScheme.primary
+                        TranscriptionStatusType.FAILED -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
             
             Spacer(modifier = Modifier.width(8.dp))
             
@@ -112,7 +128,7 @@ private fun PluctTranscriptionStatusHeader(
                 text = when (status.currentStatus) {
                     TranscriptionStatusType.COMPLETED -> "Transcription Complete"
                     TranscriptionStatusType.FAILED -> "Transcription Failed"
-                    TranscriptionStatusType.PROCESSING -> "Processing..."
+                    TranscriptionStatusType.PROCESSING -> status.currentOperation.takeIf { it.isNotEmpty() } ?: "Processing..."
                     else -> "Unknown Status"
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -192,21 +208,134 @@ private fun PluctTranscriptionStatusContent(status: TranscriptionStatus) {
     }
 }
 
+/**
+ * Animated processing icon with rotation
+ */
+@Composable
+private fun PluctAnimatedProcessingIcon() {
+    val infiniteTransition = rememberInfiniteTransition(label = "processing_icon")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
+    Icon(
+        imageVector = Icons.Default.Refresh,
+        contentDescription = "Processing",
+        tint = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.rotate(rotation)
+    )
+}
+
+/**
+ * Multi-phase progress indicator showing current phase
+ */
+@Composable
+private fun PluctTranscriptionMultiPhaseIndicator(
+    phase: TranscriptionPhase,
+    progress: Int
+) {
+    val phases = listOf(
+        TranscriptionPhase.PREPARING,
+        TranscriptionPhase.DOWNLOADING,
+        TranscriptionPhase.EXTRACTING,
+        TranscriptionPhase.TRANSCRIBING,
+        TranscriptionPhase.FINALIZING
+    )
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        phases.forEachIndexed { index, p ->
+            val isActive = phases.indexOf(phase) >= index
+            val isCurrent = phase == p
+            
+            // Phase indicator dot
+            Box(
+                modifier = Modifier
+                    .size(if (isCurrent) 12.dp else 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isCurrent) {
+                    // Pulsing animation for current phase
+                    val infiniteTransition = rememberInfiniteTransition(label = "phase_pulse")
+                    val scale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.3f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "scale"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .scale(scale)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape
+                            )
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = if (isActive) 
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PluctTranscriptionProgressBar(
     progress: Int,
-    estimatedTime: Int?
+    estimatedTime: Int?,
+    currentOperation: String = ""
 ) {
+    // Animated progress value for smooth transitions
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress / 100f,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "progress_animation"
+    )
+    
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Progress: $progress%",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                if (currentOperation.isNotEmpty()) {
+                    Text(
+                        text = currentOperation,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Text(
+                    text = "Progress: $progress%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             
             if (estimatedTime != null) {
                 Text(
@@ -217,16 +346,18 @@ private fun PluctTranscriptionProgressBar(
             }
         }
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
         LinearProgressIndicator(
-            progress = progress / 100f,
+            progress = animatedProgress,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
+                .height(6.dp)
                 .semantics {
                     contentDescription = "Transcription progress: $progress percent"
-                }
+                },
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -260,7 +391,7 @@ private fun PluctTranscriptionErrorDetails(errorMessage: String) {
 }
 
 /**
- * Transcription status data class
+ * Transcription status data class with enhanced fields
  */
 data class TranscriptionStatus(
     val jobId: String,
@@ -269,7 +400,9 @@ data class TranscriptionStatus(
     val transcript: String = "",
     val url: String = "",
     val errorMessage: String? = null,
-    val estimatedTime: Int? = null
+    val estimatedTime: Int? = null,
+    val currentOperation: String = "",
+    val phase: TranscriptionPhase = TranscriptionPhase.PREPARING
 )
 
 /**

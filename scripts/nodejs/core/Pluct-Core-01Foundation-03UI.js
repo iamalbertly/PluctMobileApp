@@ -409,34 +409,35 @@ class PluctCoreFoundationUI {
      * Automatically uses clipboard method for URLs or if direct input fails
      */
     async inputText(rawText) {
-        try {
-            // For URLs or text with special characters, use clipboard method directly
-            if (rawText.includes('://') || rawText.includes('/') || rawText.includes('?')) {
-                this.logger.info('Using clipboard method for URL/special characters');
-                return await this.inputTextViaClipboard(rawText);
-            }
+        const escapeForAdb = (text) =>
+            text
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/\$/g, '\\$')
+                .replace(/`/g, '\\`')
+                .replace(/!/g, '\\!');
 
-            // Try direct input first for simple text
+        try {
+            // Always try direct input first (works better for BasicTextField), then fall back to clipboard.
             try {
                 // Clear existing text first
-                await this.executeCommand('adb shell input keyevent KEYCODE_A');
-                await this.sleep(100);
-                await this.executeCommand('adb shell input keyevent KEYCODE_DEL');
+                await this.executeCommand('adb shell input keyevent KEYCODE_MOVE_END', undefined, undefined, { allowFailure: true });
+                await this.executeCommand('adb shell input keyevent KEYCODE_DEL', undefined, undefined, { allowFailure: true });
                 await this.sleep(100);
 
-                // Input new text - escape properly for shell
-                const escapedText = rawText.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
-                const result = await this.executeCommand(`adb shell input text "${escapedText}"`);
+                const escapedText = escapeForAdb(rawText);
+                const directResult = await this.executeCommand(`adb shell input text "${escapedText}"`);
                 await this.sleep(500);
-                
-                if (result.success) {
-                    return result;
+
+                if (directResult && directResult.success) {
+                    return directResult;
                 }
+                this.logger.warn('Direct text input did not report success, falling back to clipboard');
             } catch (directError) {
                 this.logger.warn(`Direct input failed: ${directError.message}, falling back to clipboard`);
             }
 
-            // Fall back to clipboard method if direct input fails
+            // Clipboard fallback handles URLs and any special characters safely.
             return await this.inputTextViaClipboard(rawText);
         } catch (error) {
             this.logger.error(`Input text failed: ${error.message}`);
@@ -581,7 +582,8 @@ class PluctCoreFoundationUI {
                 'paste_button': 'Paste from clipboard',
                 'url_history_button': 'Show URL history',
                 'error_retry_button': 'Retry operation',
-                'extract_script_button': 'Extract Script option'
+                'extract_script_button': 'Extract Script option',
+                'url_input_field': 'Video URL input field'
             };
             
             const contentDesc = contentDescMap[testTag];

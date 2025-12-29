@@ -3,7 +3,6 @@ package app.pluct.services
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
-import app.pluct.architecture.PluctComponent
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,7 +17,7 @@ import java.util.UUID
 @Singleton
 class PluctCoreUserIdentification @Inject constructor(
     @ApplicationContext private val context: Context
-) : PluctComponent {
+) {
 
     companion object {
         private const val TAG = "PluctUserIdentification"
@@ -29,17 +28,9 @@ class PluctCoreUserIdentification @Inject constructor(
     val userId: String
         get() = _userId ?: generateUserId()
 
-    override val componentId: String = "pluct-core-user-identification"
-    override val dependencies: List<String> = emptyList()
-
-    override fun initialize() {
-        Log.d(TAG, "Initializing PluctCoreUserIdentification")
+    init {
         _userId = generateUserId()
         Log.d(TAG, "Generated user ID: $userId")
-    }
-
-    override fun cleanup() {
-        Log.d(TAG, "Cleaning up PluctCoreUserIdentification")
     }
 
     /**

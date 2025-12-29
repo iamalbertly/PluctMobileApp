@@ -93,3 +93,17 @@ class JourneyUX01CreditsIconValidation extends BaseJourney {
 
 module.exports = JourneyUX01CreditsIconValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,22 @@
+{
+  "queueSystem": {
+    "testUrls": [
+      "https://vm.tiktok.com/ZMDRUGT2P/",
+      "https://vm.tiktok.com/ZMDRUGT3P/",
+      "https://vm.tiktok.com/ZMDRUGT4P/"
+    ],
+    "timeouts": {
+      "queueOperation": 5000,
+      "autoRetry": 10000,
+      "backgroundProcessor": 960000
+    },
+    "expectedLogPatterns": {
+      "queued": "(QueueReason|Video queued|QUEUED)",
+      "processing": "(Processing queued|Auto-processing|QUEUE.*PROCESSING)",
+      "notification": "(Notification.*queue|Queue.*notification)"
+    }
+  }
+}
+
+
+

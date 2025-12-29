@@ -173,3 +173,17 @@ class JourneyUX08CreditRequestFeedbackValidation extends BaseJourney {
 
 module.exports = JourneyUX08CreditRequestFeedbackValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

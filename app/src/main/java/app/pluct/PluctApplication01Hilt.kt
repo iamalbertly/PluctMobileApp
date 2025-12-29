@@ -1,12 +1,12 @@
 package app.pluct
 
 import android.app.Application
-import app.pluct.architecture.PluctComponentLifecycleManager
-import app.pluct.core.optimization.PluctMemoryManager
+import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreLoggingStructuredLogger
 import app.pluct.services.PluctCoreValidationInputSanitizer
 import app.pluct.services.PluctCoreUserIdentification
+import app.pluct.services.PluctQueueProcessorWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -24,10 +24,15 @@ class PluctApplication01Hilt : Application() {
     // @Inject lateinit var structuredLogger: PluctCoreLoggingStructuredLogger
     // @Inject lateinit var validator: PluctCoreValidationInputSanitizer
     // @Inject lateinit var userIdentification: PluctCoreUserIdentification
-    // @Inject lateinit var componentLifecycleManager: PluctComponentLifecycleManager
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize notification channels for background transcription
+        PluctNotificationHelper.createNotificationChannels(this)
+        
+        // Schedule periodic queue processing
+        PluctQueueProcessorWorker.scheduleQueueProcessing(this)
 
         // Initialize reliability enhancement components
         // initializeReliabilityComponents()

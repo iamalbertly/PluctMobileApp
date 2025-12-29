@@ -32,6 +32,18 @@ npm run test:all
 # Force full test run (ignores previous results)
 npm run test:all:full
 
+# Trust fixes focused testing
+npm run test:trust-fixes
+
+# Trust fixes focused testing (dev mode - terminates on first error)
+npm run test:trust-fixes:dev
+
+# Edge case testing
+npm run test:edge-cases
+
+# All trust fixes and edge cases
+npm run test:trust-fixes:all
+
 # Show test history statistics
 npm run test:history-stats
 

@@ -27,7 +27,11 @@ object PluctDatabaseModule {
             PluctDatabase::class.java,
             PluctDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration() // For version 2, allow destructive migration
+            .addMigrations(
+                PluctDatabaseMigration.MIGRATION_2_3,
+                PluctDatabaseMigration.MIGRATION_3_4
+            )
+            .fallbackToDestructiveMigration() // Fallback for other migrations
             .build()
     }
     

@@ -181,3 +181,17 @@ class JourneyUX03CreditRequestLoggingValidation extends BaseJourney {
 
 module.exports = JourneyUX03CreditRequestLoggingValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

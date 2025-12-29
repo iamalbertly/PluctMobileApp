@@ -40,7 +40,45 @@ class PluctJourneyOrchestrator {
             'Journey-UX-06CorrelationIds-Validation.js',
             'Journey-UX-07DebugLogsSearch-Validation.js',
             'Journey-UX-08CreditRequestFeedback-Validation.js',
-            'Journey-UX-09ErrorRecoveryActions-Validation.js'
+            'Journey-UX-09ErrorRecoveryActions-Validation.js',
+            // New UX Critical Fixes Validation Journeys
+            'Journey-UX-10ErrorPersistence-Validation.js',
+            'Journey-UX-11OneTapCopy-Validation.js',
+            'Journey-UX-12QueueNotification-Validation.js',
+            'Journey-UX-13PreValidationQueue-Validation.js',
+            // Queue System Validation Journeys
+            'Journey-Queue-01NetworkConnectivity-Validation.js',
+            'Journey-Queue-02InsufficientCredits-Validation.js',
+            'Journey-Queue-03MultipleUrls-Validation.js',
+            'Journey-Queue-04NotificationPersistence-Validation.js',
+            'Journey-Queue-05BackgroundProcessor-Validation.js',
+            'Journey-Queue-06UISection-Validation.js',
+            'Journey-Queue-07AutoRetryCredits-Validation.js',
+            'Journey-Queue-08AutoRetryNetwork-Validation.js',
+            // Trust Fixes Validation Journeys
+            'Journey-Trust-01TimeoutLogic-Validation.js',
+            'Journey-Trust-02ErrorDeduplication-Validation.js',
+            'Journey-Trust-03ADBDetection-Validation.js',
+            'Journey-UX-11AutoSubmitIntent-Validation.js',
+            'Journey-UX-12BackgroundProcessing-Validation.js',
+            'Journey-UX-13NotificationNavigation-Validation.js',
+            'Journey-UX-14CreditQueueFlow-Validation.js',
+            // Edge Case Validation Journeys
+            'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
+            'Journey-EdgeCase-02CreditDepletion-Validation.js',
+            'Journey-EdgeCase-03NetworkLoss-Validation.js',
+            'Journey-EdgeCase-04MultipleNotifications-Validation.js',
+            'Journey-EdgeCase-05JWTExpiration-Validation.js',
+            'Journey-EdgeCase-06ConcurrentVending-Validation.js',
+            'Journey-EdgeCase-07TokenExpirationPolling-Validation.js',
+            'Journey-EdgeCase-08NetworkInterruption-Validation.js',
+            // Refactoring Validation Journeys
+            'Journey-Refactor-01VideoProcessorRename-Validation.js',
+            'Journey-Refactor-02ProcessingTierCleanup-Validation.js',
+            'Journey-Refactor-03DeadCodeRemoval-Validation.js',
+            'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js',
+            'Journey-Refactor-05NamingConsistency-Validation.js',
+            'Journey-Refactor-06PreWarmingOptimization-Validation.js'
             // Add other journeys here in the desired order
         ];
         
@@ -75,7 +113,45 @@ class PluctJourneyOrchestrator {
             'Journey-UX-06CorrelationIds-Validation.js': 'Journey-UX-06CorrelationIds-Validation',
             'Journey-UX-07DebugLogsSearch-Validation.js': 'Journey-UX-07DebugLogsSearch-Validation',
             'Journey-UX-08CreditRequestFeedback-Validation.js': 'Journey-UX-08CreditRequestFeedback-Validation',
-            'Journey-UX-09ErrorRecoveryActions-Validation.js': 'Journey-UX-09ErrorRecoveryActions-Validation'
+            'Journey-UX-09ErrorRecoveryActions-Validation.js': 'Journey-UX-09ErrorRecoveryActions-Validation',
+            // New UX Critical Fixes Validation Journey Mappings
+            'Journey-UX-10ErrorPersistence-Validation.js': 'UX-10ErrorPersistence-Validation',
+            'Journey-UX-11OneTapCopy-Validation.js': 'UX-11OneTapCopy-Validation',
+            'Journey-UX-12QueueNotification-Validation.js': 'UX-12QueueNotification-Validation',
+            'Journey-UX-13PreValidationQueue-Validation.js': 'UX-13PreValidationQueue-Validation',
+            // Queue System Validation Journey Mappings
+            'Journey-Queue-01NetworkConnectivity-Validation.js': 'Queue-01NetworkConnectivity',
+            'Journey-Queue-02InsufficientCredits-Validation.js': 'Queue-02InsufficientCredits',
+            'Journey-Queue-03MultipleUrls-Validation.js': 'Queue-03MultipleUrls',
+            'Journey-Queue-04NotificationPersistence-Validation.js': 'Queue-04NotificationPersistence',
+            'Journey-Queue-05BackgroundProcessor-Validation.js': 'Queue-05BackgroundProcessor',
+            'Journey-Queue-06UISection-Validation.js': 'Queue-06UISection',
+            'Journey-Queue-07AutoRetryCredits-Validation.js': 'Queue-07AutoRetryCredits',
+            'Journey-Queue-08AutoRetryNetwork-Validation.js': 'Queue-08AutoRetryNetwork',
+            // Trust Fixes Validation Journey Mappings
+            'Journey-Trust-01TimeoutLogic-Validation.js': 'Trust-01TimeoutLogic-Validation',
+            'Journey-Trust-02ErrorDeduplication-Validation.js': 'Trust-02ErrorDeduplication-Validation',
+            'Journey-Trust-03ADBDetection-Validation.js': 'Trust-03ADBDetection-Validation',
+            'Journey-UX-11AutoSubmitIntent-Validation.js': 'UX-11AutoSubmitIntent-Validation',
+            'Journey-UX-12BackgroundProcessing-Validation.js': 'UX-12BackgroundProcessing-Validation',
+            'Journey-UX-13NotificationNavigation-Validation.js': 'UX-13NotificationNavigation-Validation',
+            'Journey-UX-14CreditQueueFlow-Validation.js': 'UX-14CreditQueueFlow-Validation',
+            // Edge Case Validation Journey Mappings
+            'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
+            'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
+            'Journey-EdgeCase-03NetworkLoss-Validation.js': 'EdgeCase-03NetworkLoss-Validation',
+            'Journey-EdgeCase-04MultipleNotifications-Validation.js': 'EdgeCase-04MultipleNotifications-Validation',
+            'Journey-EdgeCase-05JWTExpiration-Validation.js': 'EdgeCase-05JWTExpiration-Validation',
+            'Journey-EdgeCase-06ConcurrentVending-Validation.js': 'EdgeCase-06ConcurrentVending-Validation',
+            'Journey-EdgeCase-07TokenExpirationPolling-Validation.js': 'EdgeCase-07TokenExpirationPolling-Validation',
+            'Journey-EdgeCase-08NetworkInterruption-Validation.js': 'EdgeCase-08NetworkInterruption-Validation',
+            // Refactoring Validation Journey Mappings
+            'Journey-Refactor-01VideoProcessorRename-Validation.js': 'Refactor-01VideoProcessorRename-Validation',
+            'Journey-Refactor-02ProcessingTierCleanup-Validation.js': 'Refactor-02ProcessingTierCleanup-Validation',
+            'Journey-Refactor-03DeadCodeRemoval-Validation.js': 'Refactor-03DeadCodeRemoval-Validation',
+            'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js': 'Refactor-04ComingSoonDialogRemoval-Validation',
+            'Journey-Refactor-05NamingConsistency-Validation.js': 'Refactor-05NamingConsistency-Validation',
+            'Journey-Refactor-06PreWarmingOptimization-Validation.js': 'Refactor-06PreWarmingOptimization-Validation'
         };
     }
 

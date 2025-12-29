@@ -35,6 +35,9 @@ class PluctCoreFoundationValidation {
                 return { success: false, error: 'App installation check failed' };
             }
 
+            // Stop noisy foreground apps that interfere with UI automation (observed overlays from com.expensphere).
+            await this.commands.executeCommand('adb shell am force-stop com.expensphere', undefined, undefined, { allowFailure: true });
+
             this.logger.info('Environment validation passed');
             return {
                 success: true,
@@ -88,15 +91,42 @@ class PluctCoreFoundationValidation {
 
     /**
      * Check app installation
+     * Uses alternative method if package listing fails due to permissions
      */
     async checkAppInstallation() {
         try {
+            // Try package listing first
             const result = await this.commands.executeCommand('adb shell pm list packages | findstr pluct');
-            if (result.success && result.output.includes('app.pluct')) {
+            if (result.success && result.output && result.output.includes('app.pluct')) {
                 return { success: true, message: 'App installed' };
             }
-            return { success: false, error: 'App not installed' };
+            
+            // If package listing fails, try to launch the app as a test
+            // This works even if package listing has permission issues
+            try {
+                const launchResult = await this.commands.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
+                if (launchResult.success) {
+                    // App can be launched, so it's installed
+                    // Close it immediately to avoid interfering with tests
+                    await this.commands.executeCommand('adb shell am force-stop app.pluct');
+                    return { success: true, message: 'App installed (verified via launch)' };
+                }
+            } catch (launchError) {
+                // Launch failed, app might not be installed
+            }
+            
+            return { success: false, error: 'App not installed or cannot be accessed' };
         } catch (error) {
+            // If all checks fail, try launch as fallback
+            try {
+                const launchResult = await this.commands.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
+                if (launchResult.success) {
+                    await this.commands.executeCommand('adb shell am force-stop app.pluct');
+                    return { success: true, message: 'App installed (verified via launch fallback)' };
+                }
+            } catch (launchError) {
+                // Launch also failed
+            }
             return { success: false, error: error.message };
         }
     }
@@ -138,4 +168,3 @@ class PluctCoreFoundationValidation {
 }
 
 module.exports = PluctCoreFoundationValidation;
-

@@ -21,17 +21,33 @@ class PluctCoreDebug01LogManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
     
+    // Deduplication: prevent logging the same error within 5 minutes
+    private val DEDUP_WINDOW_MS = 5 * 60 * 1000L // 5 minutes
+    private val MAX_LOGS = 10000 // Maximum logs to keep
+    private val AUTO_CLEANUP_AGE_DAYS = 3 // Auto-delete logs older than 3 days
+    
     /**
-     * Log an API error with full details
+     * Log an API error with full details (with deduplication)
      */
     fun logAPIError(error: PluctCoreAPIDetailedError, category: String = "API_CALL") {
         scope.launch {
             try {
+                val operation = error.technicalDetails.operation
+                val message = error.userMessage
+                val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
+                
+                // Check for similar recent logs
+                val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
+                if (similarLogs.isNotEmpty()) {
+                    Log.d("DebugLogManager", "Skipping duplicate API error log: $category - $operation")
+                    return@launch
+                }
+                
                 val logEntry = DebugLogEntry(
                     level = LogLevel.ERROR,
                     category = category,
-                    operation = error.technicalDetails.operation,
-                    message = error.userMessage,
+                    operation = operation,
+                    message = message,
                     requestMethod = error.technicalDetails.requestMethod,
                     requestUrl = error.technicalDetails.requestUrl,
                     requestPayload = error.technicalDetails.requestPayload,
@@ -44,7 +60,10 @@ class PluctCoreDebug01LogManager @Inject constructor(
                     stackTrace = error.stackTraceToString()
                 )
                 debugLogDAO.insertLog(logEntry)
-                Log.d("DebugLogManager", "Logged API error: ${error.technicalDetails.operation}")
+                Log.d("DebugLogManager", "Logged API error: $operation")
+                
+                // Auto-cleanup if needed
+                performAutoCleanupIfNeeded()
             } catch (e: Exception) {
                 Log.e("DebugLogManager", "Failed to log API error: ${e.message}", e)
             }
@@ -52,7 +71,7 @@ class PluctCoreDebug01LogManager @Inject constructor(
     }
     
     /**
-     * Log a general error
+     * Log a general error (with deduplication)
      */
     fun logError(
         category: String,
@@ -65,6 +84,15 @@ class PluctCoreDebug01LogManager @Inject constructor(
     ) {
         scope.launch {
             try {
+                val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
+                
+                // Check for similar recent logs
+                val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
+                if (similarLogs.isNotEmpty()) {
+                    Log.d("DebugLogManager", "Skipping duplicate error log: $category - $operation")
+                    return@launch
+                }
+                
                 val logEntry = DebugLogEntry(
                     level = LogLevel.ERROR,
                     category = category,
@@ -77,6 +105,9 @@ class PluctCoreDebug01LogManager @Inject constructor(
                 )
                 debugLogDAO.insertLog(logEntry)
                 Log.d("DebugLogManager", "Logged error: $category - $operation")
+                
+                // Auto-cleanup if needed
+                performAutoCleanupIfNeeded()
             } catch (e: Exception) {
                 Log.e("DebugLogManager", "Failed to log error: ${e.message}", e)
             }
@@ -94,6 +125,13 @@ class PluctCoreDebug01LogManager @Inject constructor(
     ) {
         scope.launch {
             try {
+                val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
+                val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
+                if (similarLogs.isNotEmpty()) {
+                    Log.d("DebugLogManager", "Skipping duplicate warning log: $category - $operation")
+                    return@launch
+                }
+
                 val logEntry = DebugLogEntry(
                     level = LogLevel.WARNING,
                     category = category,
@@ -123,6 +161,13 @@ class PluctCoreDebug01LogManager @Inject constructor(
     ) {
         scope.launch {
             try {
+                val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
+                val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
+                if (similarLogs.isNotEmpty()) {
+                    Log.d("DebugLogManager", "Skipping duplicate info log: $category - $operation")
+                    return@launch
+                }
+
                 val logEntry = DebugLogEntry(
                     level = LogLevel.INFO,
                     category = category,
@@ -148,15 +193,65 @@ class PluctCoreDebug01LogManager @Inject constructor(
     }
     
     /**
-     * Clear old logs (older than 7 days)
+     * Clear old logs (older than specified days, default 7)
      */
-    suspend fun clearOldLogs() {
+    suspend fun clearOldLogs(days: Int = 7) {
         try {
-            val sevenDaysAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)
-            val deleted = debugLogDAO.deleteOldLogs(sevenDaysAgo)
-            Log.d("DebugLogManager", "Cleared $deleted old log entries")
+            val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+            val deleted = debugLogDAO.deleteOldLogs(cutoffTime)
+            Log.d("DebugLogManager", "Cleared $deleted old log entries (older than $days days)")
         } catch (e: Exception) {
             Log.e("DebugLogManager", "Failed to clear old logs: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Auto-cleanup: Remove old logs and limit total count
+     */
+    private suspend fun performAutoCleanupIfNeeded() {
+        try {
+            val logCount = debugLogDAO.getLogCount()
+            
+            // If we have too many logs, clean up old ones
+            if (logCount > MAX_LOGS) {
+                val cutoffTime = System.currentTimeMillis() - (AUTO_CLEANUP_AGE_DAYS * 24 * 60 * 60 * 1000L)
+                val deleted = debugLogDAO.deleteOldLogsBatch(cutoffTime, maxDelete = logCount - MAX_LOGS / 2)
+                Log.d("DebugLogManager", "Auto-cleaned $deleted old log entries (total was $logCount)")
+            }
+        } catch (e: Exception) {
+            Log.e("DebugLogManager", "Failed to perform auto-cleanup: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Initialize: Clean up old logs on app startup
+     */
+    fun initialize() {
+        scope.launch {
+            try {
+                clearOldLogs(AUTO_CLEANUP_AGE_DAYS)
+                val logCount = debugLogDAO.getLogCount()
+                Log.d("DebugLogManager", "Initialized. Current log count: $logCount")
+            } catch (e: Exception) {
+                Log.e("DebugLogManager", "Failed to initialize: ${e.message}", e)
+            }
+        }
+    }
+    
+    /**
+     * Check for duplicate logs and optionally remove them
+     */
+    suspend fun findAndRemoveDuplicates(category: String, operation: String, message: String, keepNewest: Boolean = true): Int {
+        try {
+            val cutoffTime = System.currentTimeMillis() - (24 * 60 * 60 * 1000L) // Last 24 hours
+            val deleted = debugLogDAO.deleteDuplicateLogs(category, operation, message, cutoffTime)
+            if (deleted > 0) {
+                Log.d("DebugLogManager", "Removed $deleted duplicate logs: $category - $operation")
+            }
+            return deleted
+        } catch (e: Exception) {
+            Log.e("DebugLogManager", "Failed to remove duplicates: ${e.message}", e)
+            return 0
         }
     }
     
@@ -169,6 +264,18 @@ class PluctCoreDebug01LogManager @Inject constructor(
             Log.d("DebugLogManager", "Deleted log entry: ${log.category} - ${log.operation}")
         } catch (e: Exception) {
             Log.e("DebugLogManager", "Failed to delete log: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Clear all debug logs
+     */
+    suspend fun clearAllLogs() {
+        try {
+            val deleted = debugLogDAO.clearAllLogs()
+            Log.d("DebugLogManager", "Cleared all $deleted log entries")
+        } catch (e: Exception) {
+            Log.e("DebugLogManager", "Failed to clear all logs: ${e.message}", e)
         }
     }
     

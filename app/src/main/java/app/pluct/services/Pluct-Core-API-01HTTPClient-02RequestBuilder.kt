@@ -32,7 +32,12 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         userId: String? = null,
         timeoutOverrideMs: Long? = null
     ): HttpURLConnection {
-        val fullUrl = "$BASE_URL$endpoint"
+        val normalizedEndpoint = if (endpoint.startsWith("/vend-token")) {
+            "/v1$endpoint"
+        } else {
+            endpoint
+        }
+        val fullUrl = "$BASE_URL$normalizedEndpoint"
         val url = URL(fullUrl)
         val connection = url.openConnection() as HttpURLConnection
 

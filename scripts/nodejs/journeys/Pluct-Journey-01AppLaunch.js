@@ -35,7 +35,7 @@ class PluctJourney01AppLaunch {
             
             // Step 3: Launch app
             this.core.logger.info('📋 Step 3: Launch app');
-            const launchResult = await this.core.executeCommand('adb shell am start -n app.pluct/.MainActivity');
+            const launchResult = await this.core.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
             if (!launchResult.success) {
                 return { success: false, error: 'App launch failed' };
             }
@@ -75,7 +75,7 @@ class PluctJourney01AppLaunch {
         const maxAttempts = 3;
         for (let i = 0; i < maxAttempts; i++) {
             try {
-                await this.core.executeCommand('adb shell am start -n app.pluct/.MainActivity');
+                await this.core.executeCommand('adb shell am start -n app.pluct/.PluctUIScreen01MainActivity');
                 await this.core.sleep(1000);
                 
                 const focusResult = await this.core.executeCommand('adb shell dumpsys window windows');

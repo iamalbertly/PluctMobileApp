@@ -1,0 +1,178 @@
+{
+  "features": {
+    "timeout-logic-fix": {
+      "description": "Intelligent timeout that tracks API progress instead of blind 20s timeout",
+      "tests": [
+        "Journey-Trust-01TimeoutLogic-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ]
+    },
+    "error-deduplication": {
+      "description": "Unified error state management to prevent duplicate error messages",
+      "tests": [
+        "Journey-Trust-02ErrorDeduplication-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt",
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt"
+      ]
+    },
+    "adb-false-positive-fix": {
+      "description": "ADB connection detection to prevent false timeout errors",
+      "tests": [
+        "Journey-Trust-03ADBDetection-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/core/debug/Pluct-Core-Debug-02ADBDetection.kt",
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ]
+    },
+    "auto-submit-intent": {
+      "description": "Automatic transcription start when intent received with sufficient credits",
+      "tests": [
+        "Journey-UX-11AutoSubmitIntent-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt",
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-01IntentHandler.kt"
+      ]
+    },
+    "background-processing": {
+      "description": "App minimizes and shows notification during background transcription",
+      "tests": [
+        "Journey-UX-12BackgroundProcessing-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-02APIFlow.kt",
+        "app/src/main/java/app/pluct/services/Pluct-Core-Background-01TranscriptionWorker.kt"
+      ]
+    },
+    "notification-navigation": {
+      "description": "Notification tap navigates directly to transcribed video detail",
+      "tests": [
+        "Journey-UX-13NotificationNavigation-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/notification/Pluct-Notification-Helper.kt",
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt"
+      ]
+    },
+    "credit-queue-flow": {
+      "description": "Auto-queue video when credits insufficient, prompt to add credits",
+      "tests": [
+        "Journey-UX-14CreditQueueFlow-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ]
+    },
+    "rapid-intent-receipt": {
+      "description": "Handle rapid intent receipt by queueing when processing active",
+      "tests": ["Journey-EdgeCase-01RapidIntentReceipt-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-01IntentHandler-02QueueManager.kt"
+      ]
+    },
+    "credit-depletion-edge-case": {
+      "description": "Auto-queue when credits deplete during auto-submit",
+      "tests": ["Journey-EdgeCase-02CreditDepletion-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/core/credit/Pluct-Core-Credit-01AtomicReservation-01Service.kt"
+      ]
+    },
+    "network-loss-background": {
+      "description": "Handle network loss during background processing",
+      "tests": ["Journey-EdgeCase-03NetworkLoss-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-Background-01TranscriptionWorker-02NetworkMonitor.kt"
+      ]
+    },
+    "multiple-notifications-prevention": {
+      "description": "Prevent duplicate notifications for same video",
+      "tests": ["Journey-EdgeCase-04MultipleNotifications-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-Background-01TranscriptionWorker-03JobDeduplication.kt"
+      ]
+    },
+    "jwt-token-expiration": {
+      "description": "Handle JWT token expiration during polling",
+      "tests": ["Journey-EdgeCase-05JWTExpiration-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-02TokenRefresh-01Manager.kt"
+      ]
+    },
+    "concurrent-token-vending": {
+      "description": "Prevent concurrent token vending requests",
+      "tests": ["Journey-EdgeCase-06ConcurrentVending-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-03RequestDeduplication-01Handler.kt"
+      ]
+    },
+    "token-expiration-polling": {
+      "description": "Refresh token when expired during polling",
+      "tests": ["Journey-EdgeCase-07TokenExpirationPolling-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-02TokenRefresh-01Manager.kt"
+      ]
+    },
+    "network-interruption-vending": {
+      "description": "Handle network interruption during token vending with idempotency",
+      "tests": ["Journey-EdgeCase-08NetworkInterruption-Validation.js"],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-03RequestDeduplication-01Handler.kt"
+      ]
+    }
+  },
+  "testGroups": {
+    "all-trust-fixes": [
+      "timeout-logic-fix",
+      "error-deduplication",
+      "adb-false-positive-fix"
+    ],
+    "all-auto-submit": [
+      "auto-submit-intent",
+      "background-processing",
+      "notification-navigation",
+      "credit-queue-flow"
+    ],
+    "all-ux-improvements": [
+      "timeout-logic-fix",
+      "error-deduplication",
+      "adb-false-positive-fix",
+      "auto-submit-intent",
+      "background-processing",
+      "notification-navigation",
+      "credit-queue-flow"
+    ],
+    "all-edge-cases": [
+      "rapid-intent-receipt",
+      "credit-depletion-edge-case",
+      "network-loss-background",
+      "multiple-notifications-prevention",
+      "jwt-token-expiration",
+      "concurrent-token-vending",
+      "token-expiration-polling",
+      "network-interruption-vending"
+    ],
+    "all-trust-fixes-complete": [
+      "timeout-logic-fix",
+      "error-deduplication",
+      "adb-false-positive-fix",
+      "auto-submit-intent",
+      "background-processing",
+      "notification-navigation",
+      "credit-queue-flow",
+      "rapid-intent-receipt",
+      "credit-depletion-edge-case",
+      "network-loss-background",
+      "multiple-notifications-prevention",
+      "jwt-token-expiration",
+      "concurrent-token-vending",
+      "token-expiration-polling",
+      "network-interruption-vending"
+    ]
+  }
+}
+

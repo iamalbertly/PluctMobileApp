@@ -31,16 +31,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,6 +54,7 @@ import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
 import app.pluct.ui.components.PluctOfflineBadge
 import app.pluct.ui.components.PluctProcessingIndicator
+import kotlinx.coroutines.launch
 
 /**
  * Pluct-UI-Screen-01HomeScreen-03VideoList-01Components
@@ -61,9 +67,11 @@ fun PluctVideoItemCard(
     onClick: () -> Unit,
     onRetry: () -> Unit,
     onDelete: () -> Unit,
-    debugInfo: TranscriptionDebugInfo? = null
+    debugInfo: TranscriptionDebugInfo? = null,
+    snackbarHostState: SnackbarHostState? = null
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showQuickActions by remember { mutableStateOf(false) }
 
     Card(
@@ -109,6 +117,23 @@ fun PluctVideoItemCard(
                         contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onClick,
+                    modifier = Modifier.semantics {
+                        contentDescription = "View Details"
+                        testTag = "view_details_button"
+                    }
+                ) {
+                    Text("View Details")
                 }
             }
 
@@ -159,7 +184,49 @@ fun PluctVideoItemCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                     lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.3f
                 )
+                
+                // One-tap copy button
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            video.transcript?.let { transcript ->
+                                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clipData = ClipData.newPlainText("Pluct Transcript", transcript)
+                                clipboardManager.setPrimaryClip(clipData)
+                                // Show confirmation via snackbar
+                                snackbarHostState?.let { snackbar ->
+                                    scope.launch {
+                                        snackbar.showSnackbar(
+                                            message = "Transcript copied to clipboard",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Copy transcript to clipboard"
+                            testTag = "copy_transcript_button"
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (video.status == ProcessingStatus.FAILED) {
                 Spacer(modifier = Modifier.height(12.dp))

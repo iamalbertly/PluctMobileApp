@@ -3,7 +3,6 @@ package app.pluct.services
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
-import app.pluct.architecture.PluctComponent
 import java.net.URL
 import java.util.regex.Pattern
 import java.net.HttpURLConnection
@@ -16,7 +15,7 @@ import kotlinx.coroutines.withContext
  * Provides comprehensive input validation for URLs, user inputs, and API responses
  */
 @Singleton
-class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
+class PluctCoreValidationInputSanitizer @Inject constructor() {
     
     companion object {
         private const val TAG = "PluctInputSanitizer"
@@ -77,17 +76,6 @@ class PluctCoreValidationInputSanitizer @Inject constructor() : PluctComponent {
             }
             return url
         }
-    }
-    
-    override val componentId: String = "pluct-core-validation-input-sanitizer"
-    override val dependencies: List<String> = emptyList()
-    
-    override fun initialize() {
-        Log.d(TAG, "Initializing PluctCoreValidationInputSanitizer")
-    }
-    
-    override fun cleanup() {
-        Log.d(TAG, "Cleaning up PluctCoreValidationInputSanitizer")
     }
 
     fun isTikTokUrl(url: String): Boolean {

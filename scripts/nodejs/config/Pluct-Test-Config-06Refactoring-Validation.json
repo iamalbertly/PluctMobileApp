@@ -1,0 +1,74 @@
+{
+  "features": {
+    "video-processor-rename": {
+      "description": "VideoProcessor renamed to TranscriptionOrchestrator",
+      "tests": [
+        "Journey-Refactor-01VideoProcessorRename-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-02TranscriptionOrchestrator.kt"
+      ]
+    },
+    "processing-tier-cleanup": {
+      "description": "Removed unused ProcessingTier enum values",
+      "tests": [
+        "Journey-Refactor-02ProcessingTierCleanup-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/data/entity/ProcessingTier.kt",
+        "app/src/main/java/app/pluct/data/database/PluctDatabaseConverters.kt"
+      ]
+    },
+    "dead-code-removal": {
+      "description": "Removed unused memory management and enhancement scripts",
+      "tests": [
+        "Journey-Refactor-03DeadCodeRemoval-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/core/optimization/",
+        "app/src/main/java/app/pluct/architecture/",
+        "app/src/main/java/app/pluct/scraper/"
+      ]
+    },
+    "coming-soon-dialog-removal": {
+      "description": "Removed or replaced Coming Soon dialogs",
+      "tests": [
+        "Journey-Refactor-04ComingSoonDialogRemoval-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-03Dialogs.kt",
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt"
+      ]
+    },
+    "naming-consistency": {
+      "description": "Standardized file and class naming conventions",
+      "tests": [
+        "Journey-Refactor-05NamingConsistency-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/"
+      ]
+    },
+    "pre-warming-optimization": {
+      "description": "Optimized or removed pre-warming logic",
+      "tests": [
+        "Journey-Refactor-06PreWarmingOptimization-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-01Main.kt",
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ]
+    }
+  },
+  "testGroups": {
+    "all-refactoring-tests": [
+      "video-processor-rename",
+      "processing-tier-cleanup",
+      "dead-code-removal",
+      "coming-soon-dialog-removal",
+      "naming-consistency",
+      "pre-warming-optimization"
+    ]
+  }
+}
+

@@ -1,7 +1,7 @@
 {
   "url": "https://vm.tiktok.com/ZMDRUGT2P/",
   "package": "app.pluct",
-  "activity": "app.pluct/.MainActivity",
+  "activity": "app.pluct/.PluctUIScreen01MainActivity",
   "selectors": {
     "navigation": {
       "resourceIdSuffix": "/navigation",

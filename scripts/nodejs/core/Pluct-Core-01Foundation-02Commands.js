@@ -399,15 +399,23 @@ class PluctCoreFoundationCommands {
      */
     async clearAppCache() {
         try {
-            this.logger.info('Clearing app cache...');
-            const result = await this.executeCommand('adb shell pm clear app.pluct');
-            
-            if (result.success) {
-                this.logger.info('App cache cleared successfully');
-                await this.sleep(2000); // Wait for cache clear to complete
-            }
-            
-            return result;
+            this.logger.info('Clearing app cache (non-destructive)...');
+            // Prefer non-destructive cache wipe to preserve tokens/credits
+            await this.executeCommand(
+                'adb shell run-as app.pluct rm -rf /data/data/app.pluct/cache/*',
+                this.config.timeouts.default,
+                0,
+                { allowFailure: true }
+            );
+            await this.executeCommand(
+                'adb shell rm -rf /sdcard/Android/data/app.pluct/cache/*',
+                this.config.timeouts.default,
+                0,
+                { allowFailure: true }
+            );
+            this.logger.info('App cache cleared (app data preserved)');
+            await this.sleep(500);
+            return { success: true };
         } catch (error) {
             this.logger.error(`Cache clear failed: ${error.message}`);
             return { success: false, error: error.message };

@@ -15,7 +15,7 @@ import app.pluct.data.dao.PluctDebugLogDAO
  */
 @Database(
     entities = [VideoItem::class, DebugLogEntry::class],
-    version = 2,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(PluctDatabaseConverters::class)

@@ -26,9 +26,9 @@ import androidx.compose.ui.unit.dp
 fun PluctCaptureCardGetCoinsDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Coming Soon") },
+        title = { Text("Upgrade to Premium") },
         text = {
-            Text("Premium AI analysis will be available for purchase shortly. We're working hard to bring this feature to you!")
+            Text("To access premium AI analysis features, please contact us at support@pluct.app. We'll help you get set up!")
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {

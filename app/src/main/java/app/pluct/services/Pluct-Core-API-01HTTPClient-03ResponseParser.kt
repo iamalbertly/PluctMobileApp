@@ -16,7 +16,11 @@ class PluctCoreAPIHTTPClientResponseParser {
         private const val TAG = "PluctCoreAPIHTTPClient"
     }
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
     fun parseErrorResponse(
         statusCode: Int,
@@ -84,7 +88,7 @@ class PluctCoreAPIHTTPClientResponseParser {
                 endpoint.contains("/vend-token") -> json.decodeFromString<VendTokenResponse>(responseBody)
                 endpoint.contains("/meta") -> json.decodeFromString<MetadataResponse>(responseBody)
                 endpoint.contains("/ttt/transcribe") -> json.decodeFromString<TranscriptionResponse>(responseBody)
-                endpoint.contains("/ttt/status") -> parseTranscriptionStatusResponse(responseBody, endpoint)
+                endpoint.contains("/ttt/status") || endpoint.contains("/ttt/poll") -> parseTranscriptionStatusResponse(responseBody, endpoint)
                 else -> responseBody
             }
             Result.success(result)
@@ -96,8 +100,12 @@ class PluctCoreAPIHTTPClientResponseParser {
 
     private fun parseTranscriptionStatusResponse(responseBody: String, endpoint: String): TranscriptionStatusResponse {
         return try {
-            json.decodeFromString(responseBody)
+            Log.d(TAG, "Attempting to parse TranscriptionStatusResponse: ${responseBody.take(200)}...")
+            val response: TranscriptionStatusResponse = json.decodeFromString(responseBody)
+            Log.d(TAG, "Successfully parsed TranscriptionStatusResponse: jobId=${response.jobId}, status=${response.status}")
+            response
         } catch (e: Exception) {
+            Log.e(TAG, "Primary parsing failed: ${e.message}. Trying fallback manual parsing...")
             // Try alternate shape with nested result
             try {
                 val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
@@ -118,7 +126,7 @@ class PluctCoreAPIHTTPClientResponseParser {
                                 transcription = transcription,
                                 confidence = it["confidence"]?.jsonPrimitive?.content?.toDoubleOrNull(),
                                 language = it["language"]?.jsonPrimitive?.content,
-                                duration = it["duration"]?.jsonPrimitive?.content?.toIntOrNull()
+                                duration = it["duration"]?.jsonPrimitive?.content?.toDoubleOrNull()
                             )
                         }
                     )

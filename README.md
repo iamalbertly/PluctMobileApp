@@ -72,7 +72,7 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 - ADB (Android Debug Bridge)
 - Node.js 16+ (for testing)
 
-### **Installation**
+### **Quick Start**
 
 1. **Clone the Repository**
    ```bash
@@ -95,6 +95,9 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
    npm install
    npm run test:all
    ```
+
+### **Integration Guide**
+For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
@@ -262,17 +265,28 @@ Base URL: https://pluct-business-engine.romeo-lya2.workers.dev
 
 ## 📚 **Documentation**
 
-### **API Documentation**
-- **Business Engine**: Complete API reference
-- **TTTranscribe**: Transcription service documentation
-- **Authentication**: JWT token implementation
-- **Error Handling**: Comprehensive error reference
+### **Primary Integration Guide**
+- **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**: Complete, production-verified API integration guide
+  - Complete API reference for Business Engine
+  - TTTranscribe service documentation
+  - Authentication flow (JWT tokens)
+  - Error handling and edge cases
+  - Code examples and best practices
+  - Testing and debugging guide
 
 ### **Development Guides**
-- **Architecture**: System design and patterns
-- **Testing**: Test framework usage
+- **Architecture**: System design and patterns (see Integration Guide)
+- **Testing**: Test framework usage (see `scripts/nodejs/README-Smart-Testing.md`)
 - **Deployment**: Build and release process
-- **Troubleshooting**: Common issues and solutions
+- **Troubleshooting**: Common issues and solutions (see Integration Guide)
+
+### **Speed & Performance Features**
+- **Optimistic UI**: Immediate progress feedback with smooth animations
+- **Intelligent Polling**: Adaptive polling intervals (2s → 3s → 5s → 10s) based on job duration
+- **Parallel Operations**: Metadata and token vending run simultaneously
+- **Background Processing**: Process transcriptions in background with progress notifications
+- **Enhanced Pre-warming**: Automatic metadata and token pre-warming when URL detected
+- **Progressive Status Messages**: Phase-specific messages (Preparing → Downloading → Extracting → Transcribing → Finalizing)
 
 ## 🤝 **Contributing**
 

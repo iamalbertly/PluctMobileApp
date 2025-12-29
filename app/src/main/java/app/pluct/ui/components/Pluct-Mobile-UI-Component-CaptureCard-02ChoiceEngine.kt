@@ -57,9 +57,12 @@ fun PluctChoiceEngine(
         // Primary Unified Action Button
         Button(
             onClick = {
+                android.util.Log.d("ChoiceEngine", "Extract Script button clicked: freeUses=$freeUsesRemaining, credits=$creditBalance, urlText='$urlText'")
                 if (freeUsesRemaining == 0 && creditBalance == 0) {
+                    android.util.Log.d("ChoiceEngine", "No credits, calling onGetCoins")
                     onGetCoins()
                 } else {
+                    android.util.Log.d("ChoiceEngine", "Has credits, calling onTierSubmit")
                     onTierSubmit()
                 }
             },

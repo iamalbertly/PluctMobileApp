@@ -55,17 +55,26 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         await this.core.dumpUIHierarchy();
         const uiAfterTap = this.core.readLastUIDump() || '';
         if (!uiAfterTap.includes('focused="true"')) {
-            this.logger.warn('⚠️ Input field may not be focused');
+            this.logger.warn('ƒsÿ‹,? Input field may not be focused');
         }
         
-        await this.core.inputText('https://vm.tiktok.com/ZMDRUGT2P/');
+        const testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
+        await this.core.inputText(testUrl);
         
-        // Validate text was entered
-        await this.core.sleep(500);
+        // Validate text was entered; retry with explicit clipboard paste if needed
+        await this.core.sleep(700);
         await this.core.dumpUIHierarchy();
-        const uiAfterInput = this.core.readLastUIDump() || '';
+        let uiAfterInput = this.core.readLastUIDump() || '';
         if (!uiAfterInput.includes('ZMDRUGT2P')) {
-            this.logger.warn('⚠️ URL text not visible in UI dump after paste; continuing with submission');
+            this.logger.warn('ƒsÿ‹,? URL text not visible after direct input, retrying with clipboard paste');
+            await this.core.inputTextViaClipboard(testUrl);
+            await this.core.tapByContentDesc('Paste from clipboard');
+            await this.core.sleep(700);
+            await this.core.dumpUIHierarchy();
+            uiAfterInput = this.core.readLastUIDump() || '';
+        }
+        if (!uiAfterInput.includes('ZMDRUGT2P')) {
+            return { success: false, error: 'URL field did not capture the TikTok link after retry' };
         }
 
         // Step 2: Tap Extract with validation
@@ -92,7 +101,7 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         const apiLogsAfter = await this.core.captureAPILogs(500);
         const apiErrors = await this.core.checkRecentAPIErrors(500);
         if (apiErrors.hasErrors) {
-            this.logger.error('❌ API errors detected during transcription:');
+            this.logger.error('ƒ?O API errors detected during transcription:');
             apiErrors.errors.forEach(err => this.logger.error(`   ${err}`));
             return { success: false, error: `API errors: ${apiErrors.errors.join('; ')}` };
         }
@@ -103,9 +112,10 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
 
         // Step 5: Validate transcript UI appears
         await this.log('Step 5: Validating transcript UI');
-        const finalUI = await this.core.dumpUIHierarchy();
+        await this.core.dumpUIHierarchy();
+        const finalUI = this.core.readLastUIDump() || '';
         if (!finalUI.includes('transcript') && !finalUI.includes('Transcription')) {
-            this.logger.warn('⚠️ Transcript UI not found, but API reported success');
+            this.logger.warn('ƒsÿ‹,? Transcript UI not found, but API reported success');
         }
 
         await this.log('Journey Complete: Transcription Successful');

@@ -180,3 +180,17 @@ class JourneyUX06CorrelationIdsValidation extends BaseJourney {
 
 module.exports = JourneyUX06CorrelationIdsValidation;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
