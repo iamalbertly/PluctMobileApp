@@ -9,6 +9,7 @@ class PluctCoreFoundationCommands {
         this.logger = logger;
         this._adbConnectionChecked = false;
         this._adbConnected = false;
+        this._lastAdbReset = 0;
     }
 
     /**
@@ -31,8 +32,28 @@ class PluctCoreFoundationCommands {
                     this.logger.error(`   ADB stdout: ${result.output}`);
                 }
                 this._adbConnected = false;
+        this._lastAdbReset = 0;
                 this._adbConnectionChecked = true;
                 return false;
+            }
+
+            const offlineLines = (result.output || '').split('\n').filter(line => {
+                const trimmed = line.trim();
+                return trimmed && trimmed.endsWith('offline');
+            });
+
+            if (offlineLines.length > 0) {
+                this.logger.warn('ADB device offline, attempting reconnect...');
+                try {
+                    await this._executeCommandDirect('adb reconnect offline', timeout);
+                    await this.sleep(2000);
+                } catch (_) {
+                    // Ignore reconnect failures, will fall through to validation
+                }
+                const retryDevices = await this._executeCommandDirect('adb devices', timeout);
+                if (retryDevices.success) {
+                    result = retryDevices;
+                }
             }
 
             // Parse device list
@@ -49,6 +70,7 @@ class PluctCoreFoundationCommands {
                 this.logger.error(`   ADB output: ${result.output || 'empty'}`);
                 this.logger.error(`   Full output: ${result.fullOutput || 'empty'}`);
                 this._adbConnected = false;
+        this._lastAdbReset = 0;
                 this._adbConnectionChecked = true;
                 return false;
             }
@@ -65,12 +87,37 @@ class PluctCoreFoundationCommands {
                 this.logger.error(`   Stack: ${error.stack}`);
             }
             this._adbConnected = false;
+        this._lastAdbReset = 0;
             this._adbConnectionChecked = true;
             return false;
         }
     }
 
-    /**
+        /**
+     * Reset ADB server when commands are repeatedly terminated
+     */
+    async _resetAdbServer() {
+        const now = Date.now();
+        if (now - this._lastAdbReset < 15000) {
+            return false;
+        }
+        this._lastAdbReset = now;
+        this.logger.warn('Resetting ADB server after repeated failures...');
+        try {
+            await this._executeCommandDirect('adb kill-server', 5000);
+            await this.sleep(1000);
+            await this._executeCommandDirect('adb start-server', 5000);
+            await this.sleep(1000);
+            this._adbConnectionChecked = false;
+            this._adbConnected = false;
+            return true;
+        } catch (error) {
+            this.logger.warn(`ADB reset failed: ${error.message}`);
+            return false;
+        }
+    }
+
+/**
      * Execute command with error handling and retry logic
      * Auto-selects first device if multiple devices are connected
      */
@@ -161,7 +208,8 @@ class PluctCoreFoundationCommands {
                 const isKillProcessError = result.errorCode === 137 || 
                                           errorText.includes('killprocess') ||
                                           errorText.includes('call killprocess');
-                const isRetryable = isKillProcessError ||
+                const isSigterm = result.errorSignal === 'SIGTERM' || result.errorCode === 'SIGTERM';
+                const isRetryable = isKillProcessError || isSigterm ||
                                    errorText.includes('timeout') || 
                                    errorText.includes('connection') ||
                                    errorText.includes('device offline') ||
@@ -178,6 +226,10 @@ class PluctCoreFoundationCommands {
                     } catch (e) {
                         // Ignore cleanup errors
                     }
+                }
+
+                if (isSigterm && attempt < maxRetries) {
+                    await this._resetAdbServer();
                 }
 
                 if (!isRetryable || attempt >= maxRetries) {
@@ -269,6 +321,8 @@ class PluctCoreFoundationCommands {
             const errorMessage = (error.message || '').toString();
             const errorCode = error.code || error.signal || '';
             const errorSignal = error.signal || '';
+            const isSearchCommand = command.includes('findstr') || command.includes('grep') || command.includes('find');
+            const isSigterm = errorSignal === 'SIGTERM' || errorCode === 'SIGTERM';
             
             // CRITICAL: Check if the command actually succeeded despite the error
             // Some ADB commands return "Success" in stdout/stderr even when exec throws
@@ -282,9 +336,18 @@ class PluctCoreFoundationCommands {
                     fullOutput: (errorStdout || '') + (errorStderr || '')
                 };
             }
+
+            if (command.startsWith('adb shell am start') && errorStdout.includes('Starting: Intent')) {
+                return {
+                    success: true,
+                    output: errorStdout,
+                    error: errorStderr,
+                    fullOutput: (errorStdout || '') + (errorStderr || '')
+                };
+            }
             
             // Debug: Log the full error structure for troubleshooting
-            if (command.startsWith('adb ') && !errorStderr && !errorStdout) {
+            if (command.startsWith('adb ') && !errorStderr && !errorStdout && !(isSearchCommand && errorCode === 1) && this.logger.isVerbose && this.logger.isVerbose()) {
                 this.logger.warn(`⚠️ ADB command failed but no stderr/stdout captured. Error structure: ${JSON.stringify({
                     message: errorMessage,
                     code: errorCode,
@@ -312,7 +375,6 @@ class PluctCoreFoundationCommands {
             
             // CRITICAL: Handle findstr/grep commands that return exit code 1 when no matches found
             // This is normal behavior - exit code 1 means "no matches", not an error
-            const isSearchCommand = command.includes('findstr') || command.includes('grep') || command.includes('find');
             if (isSearchCommand && errorCode === 1 && !errorStderr && !errorStdout) {
                 // No matches found, but this is not an error - return success with empty output
                 this.logger.info(`Search command returned no matches (exit code 1): ${command}`);
@@ -359,7 +421,7 @@ class PluctCoreFoundationCommands {
             }
             
             // Log detailed error for debugging
-            if (command.startsWith('adb ')) {
+            if (command.startsWith('adb ') && !(isSigterm && !errorStderr && !errorStdout)) {
                 this.logger.error(`❌ ADB Command Failed: ${command}`);
                 this.logger.error(`   Error Code: ${errorCode || 'N/A'}`);
                 if (errorSignal) this.logger.error(`   Signal: ${errorSignal}`);
@@ -433,7 +495,12 @@ class PluctCoreFoundationCommands {
             
             if (result.success && result.output && result.output.toLowerCase().includes('pluct')) {
                 this.logger.info('WorkManager tasks found, clearing...');
-                await this.executeCommand('adb shell cmd jobscheduler cancel-all app.pluct');
+                await this.executeCommand(
+                    'adb shell cmd jobscheduler cancel --user 0 app.pluct',
+                    this.config.timeouts.default,
+                    0,
+                    { allowFailure: true }
+                );
                 this.logger.info('WorkManager tasks cleared successfully');
             } else {
                 this.logger.info('No WorkManager tasks found (this is normal)');

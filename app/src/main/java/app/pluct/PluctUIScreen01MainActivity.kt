@@ -27,6 +27,9 @@ import app.pluct.ui.screens.PluctHomeScreen
 import app.pluct.ui.screens.PluctUIScreen01MainActivityIntentHandler
 import app.pluct.ui.screens.PluctUIScreen01MainActivityTranscriptionOrchestrator
 import app.pluct.ui.screens.PluctUIScreen01MainActivityIntentHandlerQueueManager
+import app.pluct.ui.screens.PluctUIScreen01MainActivity04EffectsHandler
+import app.pluct.ui.screens.PluctUIScreen01MainActivity05CreditManager
+import app.pluct.ui.screens.PluctUIScreen01MainActivity06EventHandlers
 import app.pluct.ui.screens.PluctVideoDetailScreen
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import app.pluct.ui.components.PluctDebugLogViewer
@@ -40,6 +43,10 @@ import app.pluct.services.PluctQueueManager
 import app.pluct.services.background.status.PluctStatusResumer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.pluct.core.permission.PluctCorePermission01Manager
+import app.pluct.ui.components.PluctUIComponent06Permission01Onboarding01Dialog
+import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
+import androidx.activity.result.contract.ActivityResultContracts
 
 /**
  * Pluct-Main-01Activity - Simplified main activity for core UI testing
@@ -57,13 +64,23 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
 
     // Drives recomposition when new intents provide a prefilled URL.
     private val prefilledUrlState = mutableStateOf<String?>(null)
+    private val isLoadingCreditBalanceState = mutableStateOf(true) // Start as loading
+    
+    // Permission request launchers
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        PluctCorePermission01Manager.invalidateCache()
+        Log.d("MainActivity", "Notification permission result: $isGranted")
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Permission request results are handled in onRequestPermissionsResult and onActivityResult
+        
         // Initialize debug log manager (cleanup old logs on startup)
         debugLogManager.initialize()
-        super.onCreate(savedInstanceState)
         
         // Handle notification navigation
         if (intent.getStringExtra("action") == "view_transcript") {
@@ -82,27 +99,14 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
         
         // Handle TikTok intent
         PluctUIScreen01MainActivityIntentHandler.handleTikTokIntent(intent, this, validator)
-
-        // Seed any prefilled URL immediately so Compose can render it without waiting for effects.
-        if (prefilledUrlState.value == null) {
+        
+        // Immediately retrieve and set prefilled URL from intent to ensure it's available for Compose
+        // This handles the case where activity is created from intent (not just resumed)
+        if (intent.action == Intent.ACTION_SEND || (intent.data != null && intent.data?.scheme == "pluct")) {
             val url = PluctUserPreferences.getAndClearPrefilledUrl(this)
             if (url != null) {
-                // Check if processing is active and queue if needed
-                lifecycleScope.launch {
-                    val wasQueued = PluctUIScreen01MainActivityIntentHandlerQueueManager.queueIntentIfProcessing(
-                        url = url,
-                        context = this@PluctUIScreen01MainActivity,
-                        videoRepository = videoRepository,
-                        queueManager = queueManager
-                    )
-                    if (!wasQueued) {
-                        // Not queued, can proceed with auto-submit
-                        prefilledUrlState.value = url
-                    } else {
-                        // Queued, don't set prefilled URL (will process later)
-                        Log.d("MainActivity", "Intent queued due to active processing")
-                    }
-                }
+                Log.d("MainActivity", "Setting prefilled URL from onCreate intent: $url")
+                prefilledUrlState.value = url
             }
         }
         
@@ -119,11 +123,36 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                         prefilledUrlExternal = prefilledUrlState.value,
                         onPrefilledUrlConsumed = { prefilledUrlState.value = null },
                         debugLogManager = debugLogManager,
-                        queueManager = queueManager
+                        queueManager = queueManager,
+                        isLoadingCreditBalance = isLoadingCreditBalanceState.value,
+                        onLoadingCreditBalanceChange = { isLoadingCreditBalanceState.value = it }
                     )
                 }
             }
         }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_NOTIFICATION) {
+            PluctCorePermission01Manager.handlePermissionResult(requestCode, permissions, grantResults)
+        }
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_OVERLAY) {
+            PluctCorePermission01Manager.handleActivityResult(requestCode, this)
+        }
+    }
+    
+    companion object {
+        const val REQUEST_CODE_NOTIFICATION = 1001
+        const val REQUEST_CODE_OVERLAY = 1002
     }
     
     override fun onNewIntent(intent: Intent?) {
@@ -146,10 +175,15 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                     )
                     if (!wasQueued) {
                         // Not queued, can proceed with auto-submit
+                        // Small delay to ensure Compose state propagation completes
+                        delay(100)
                         prefilledUrlState.value = url
+                        Log.d("MainActivity", "Prefilled URL state set after delay: $url")
                     } else {
                         // Queued, don't set prefilled URL (will process later)
                         Log.d("MainActivity", "Intent queued due to active processing")
+                        // Show user-friendly message that video is queued
+                        // Note: Queue notification will be shown by queue manager
                     }
                 }
             }
@@ -168,7 +202,9 @@ fun PluctMainContent(
     prefilledUrlExternal: String?,
     onPrefilledUrlConsumed: () -> Unit = {},
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager,
-    queueManager: app.pluct.services.PluctQueueManager
+    queueManager: app.pluct.services.PluctQueueManager,
+    isLoadingCreditBalance: Boolean = false,
+    onLoadingCreditBalanceChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -189,6 +225,7 @@ fun PluctMainContent(
     var creditRequestLog by remember { mutableStateOf<String?>(null) }
     var ctaHelperMessage by remember { mutableStateOf<String?>(null) }
     var hasVendTokenAttempted by remember { mutableStateOf(false) }
+    var showPermissionOnboarding by remember { mutableStateOf(false) }
     
     // Track queued and processing videos for notifications
     val queuedVideos = videoRepository.getVideosByStatus(ProcessingStatus.QUEUED)
@@ -198,274 +235,60 @@ fun PluctMainContent(
     val queuedCount = queuedVideos.value.size
     val processingCount = processingVideos.value.size
     
-    // Resume incomplete transcriptions on app start
-    LaunchedEffect(Unit) {
-        scope.launch {
-            val resumer = PluctStatusResumer(videoRepository, apiService, context)
-            resumer.resumeIncompleteTranscriptions()
+    // Use extracted effects handler
+    PluctUIScreen01MainActivity04EffectsHandler(
+        scope = scope,
+        apiService = apiService,
+        videoRepository = videoRepository,
+        context = context,
+        queuedVideos = queuedVideos,
+        processingVideos = processingVideos,
+        queuedCount = queuedCount,
+        processingCount = processingCount,
+        creditBalance = creditBalance,
+        freeUsesRemaining = freeUsesRemaining,
+        queueManager = queueManager,
+        snackbarHostState = snackbarHostState,
+        clipboardManager = clipboardManager,
+        debugLogManager = debugLogManager,
+        onBalanceUpdate = { newBalance, newFreeUses ->
+            creditBalance = newBalance
+            freeUsesRemaining = newFreeUses
+        },
+        onQueueProcessed = { count ->
+            Log.d("MainActivity", "Auto-processed $count queued video(s)")
         }
-    }
-    
-    // Monitor and update progress for processing videos when app is in foreground
-    LaunchedEffect(processingVideos.value) {
-        if (processingVideos.value.isNotEmpty()) {
-            scope.launch {
-                processingVideos.value.forEach { video ->
-                    if (video.jobId != null && video.jobId.isNotBlank()) {
-                        // Poll status for this video periodically and update progress
-                        launch {
-                            var shouldContinue = true
-                            while (shouldContinue) {
-                                try {
-                                    // Get service token for status check
-                                    val vendResult = apiService.vendToken("status_check_${System.currentTimeMillis()}")
-                                    if (vendResult.isSuccess) {
-                                        val serviceToken = vendResult.getOrNull()?.token ?: vendResult.getOrNull()?.serviceToken
-                                        if (serviceToken != null) {
-                                            val statusResult = apiService.checkTranscriptionStatus(video.jobId, serviceToken)
-                                            if (statusResult.isSuccess) {
-                                                val status = statusResult.getOrNull()!!
-                                                val progress = status.progress ?: video.progress
-                                                val transcript = status.transcript ?: status.result?.transcription
-                                                
-                                                // Update video in database
-                                                val updatedVideo = when {
-                                                    status.status == "completed" && transcript != null -> {
-                                                        video.copy(
-                                                            status = ProcessingStatus.COMPLETED,
-                                                            progress = 100,
-                                                            transcript = transcript
-                                                        )
-                                                    }
-                                                    status.status == "failed" -> {
-                                                        video.copy(
-                                                            status = ProcessingStatus.FAILED,
-                                                            failureReason = status.error ?: "Transcription failed"
-                                                        )
-                                                    }
-                                                    else -> {
-                                                        video.copy(progress = progress)
-                                                    }
-                                                }
-                                                videoRepository.insertVideo(updatedVideo)
-                                                Log.d("MainActivity", "Updated progress for video ${video.url}: $progress%")
-                                                
-                                                // Stop polling if completed or failed
-                                                if (status.status == "completed" || status.status == "failed") {
-                                                    shouldContinue = false
-                                                    break
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.w("MainActivity", "Failed to check status for video ${video.url}: ${e.message}")
-                                }
-                                
-                                // Poll every 5 seconds
-                                delay(5000)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Update queue notification when counts change
-    LaunchedEffect(queuedCount, processingCount) {
-        val queueReasons = queuedVideos.value.associate { it.url to it.queueReason }
-        PluctQueueNotificationManager.updateQueueNotification(
-            context = context,
-            queuedCount = queuedCount,
-            processingCount = processingCount,
-            queueReasons = queueReasons
-        )
-    }
-    
-    // Auto-retry: Process queued videos when credits become available
-    LaunchedEffect(creditBalance) {
-        if (creditBalance > 0 && queuedCount > 0) {
-            scope.launch {
-                val processedCount = queueManager.processQueuedVideos(
-                    apiService = apiService,
-                    currentBalance = creditBalance,
-                    currentFreeUses = freeUsesRemaining,
-                    isNetworkAvailable = PluctNetworkConnectivityChecker.isNetworkAvailable(context),
-                    onProcess = { video ->
-                        // Process the video
-                        PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(
-                            apiService, video.url, video.tier, creditBalance, freeUsesRemaining,
-                            videoRepository, clipboardManager, debugLogManager, context
-                        ) { success, newBalance, newFreeUses, errorMessage, error ->
-                            creditBalance = newBalance
-                            freeUsesRemaining = newFreeUses
-                            if (success) {
-                                PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                                    scope, snackbarHostState, "Processing queued video..."
-                                )
-                            }
-                        }
-                    }
-                )
-                if (processedCount > 0) {
-                    Log.d("MainActivity", "Auto-processed $processedCount queued video(s) after credits added")
-                }
-            }
-        }
-    }
-    
-    // Auto-retry: Process queued videos when network becomes available
-    LaunchedEffect(Unit) {
-        var wasNetworkAvailable = PluctNetworkConnectivityChecker.isNetworkAvailable(context)
-        
-        while (true) {
-            delay(2000) // Check every 2 seconds
-            val isNetworkAvailable = PluctNetworkConnectivityChecker.isNetworkAvailable(context)
-            
-            if (isNetworkAvailable && !wasNetworkAvailable && queuedCount > 0) {
-                // Network just became available, process queued videos
-                scope.launch {
-                    val processedCount = queueManager.processQueuedVideos(
-                        apiService = apiService,
-                        currentBalance = creditBalance,
-                        currentFreeUses = freeUsesRemaining,
-                        isNetworkAvailable = true,
-                        onProcess = { video ->
-                            // Process the video
-                            PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(
-                                apiService, video.url, video.tier, creditBalance, freeUsesRemaining,
-                                videoRepository, clipboardManager, debugLogManager, context
-                            ) { success, newBalance, newFreeUses, errorMessage, error ->
-                                creditBalance = newBalance
-                                freeUsesRemaining = newFreeUses
-                                if (success) {
-                                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                                        scope, snackbarHostState, "Processing queued video..."
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    if (processedCount > 0) {
-                        Log.d("MainActivity", "Auto-processed $processedCount queued video(s) after network restored")
-                        PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                            scope, snackbarHostState, "Processing $processedCount queued video(s)..."
-                        )
-                    }
-                }
-            }
-            
-            wasNetworkAvailable = isNetworkAvailable
-        }
+    )
+
+    // Use extracted credit manager
+    val creditManager = remember {
+        PluctUIScreen01MainActivity05CreditManager(apiService, userIdentification, debugLogManager)
     }
 
     suspend fun fetchCreditBalance() {
-        PluctUIScreen01MainActivityTranscriptionOrchestrator.loadInitialData(apiService, userIdentification, debugLogManager) { balance, freeUses ->
+        creditManager.fetchCreditBalance { balance, freeUses ->
             creditBalance = balance
             freeUsesRemaining = freeUses
         }
     }
 
     suspend fun vendTokenWithBalanceUpdate(reason: String) {
-        // Skip vending when free uses are available or balance is zero to avoid noisy 402s
-        if (freeUsesRemaining > 0) {
-            hasVendTokenAttempted = true
-            debugLogManager.logInfo(
-                category = "CREDIT_CHECK",
-                operation = "vendToken",
-                message = "Skipping vendToken; free uses available",
-                details = "Balance=$creditBalance FreeUses=$freeUsesRemaining Reason=$reason"
-            )
-            return
-        }
-        if (creditBalance <= 0) {
-            hasVendTokenAttempted = true
-            debugLogManager.logWarning(
-                category = "CREDIT_CHECK",
-                operation = "vendToken",
-                message = "Skipping vendToken; no credits available (would trigger 402)",
-                details = "Balance=$creditBalance FreeUses=$freeUsesRemaining Reason=$reason"
-            )
-            ctaHelperMessage = "Add credits to unlock transcription"
-            return
-        }
-
-        // Avoid spamming vend-token when we already have credits; reduces 429 rate limits.
-        if (creditBalance > 0 && freeUsesRemaining > 0 && reason == "app_launch") {
-            hasVendTokenAttempted = true
-            debugLogManager.logInfo(
-                category = "CREDIT_CHECK",
-                operation = "vendToken",
-                message = "Skipping vendToken; credits already available",
-                details = "Balance=$creditBalance FreeUses=$freeUsesRemaining"
-            )
-            return
-        }
-
-        hasVendTokenAttempted = true
-        debugLogManager.logInfo(
-            category = "CREDIT_CHECK",
-            operation = "vendToken",
-            message = "Vend token requested",
-            details = "Reason: $reason",
-            requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token",
-            requestMethod = "POST",
-            requestPayload = """{"userId":"${userIdentification.userId}"}"""
-        )
-
-        val vendResult = apiService.vendToken()
-        vendResult.fold(
-            onSuccess = { vend ->
-                creditBalance = maxOf(creditBalance, vend.balanceAfter)
-                freeUsesRemaining = maxOf(freeUsesRemaining, vend.balanceAfter)
-                ctaHelperMessage = if (vend.balanceAfter >= 1) {
-                    "You have ${vend.balanceAfter} free credits"
-                } else {
-                    "Add credits to unlock transcription"
-                }
-                debugLogManager.logInfo(
-                    category = "CREDIT_CHECK",
-                    operation = "vendToken",
-                    message = "Vend token succeeded",
-                    details = "Balance after vend: ${vend.balanceAfter}; Reason: $reason",
-                    requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token",
-                    requestMethod = "POST"
-                )
-
-                // Refresh balance to show updated gem counter immediately
-                val balanceResult = apiService.checkUserBalance()
-                balanceResult.onSuccess { balance ->
-                    val totalCredits = maxOf(0, balance.main + balance.bonus)
-                    creditBalance = totalCredits
-                    freeUsesRemaining = maxOf(freeUsesRemaining, totalCredits)
-                }
+        creditManager.vendTokenWithBalanceUpdate(
+            reason = reason,
+            creditBalance = creditBalance,
+            freeUsesRemaining = freeUsesRemaining,
+            hasVendTokenAttempted = hasVendTokenAttempted,
+            scope = scope,
+            snackbarHostState = snackbarHostState,
+            onBalanceUpdate = { newBalance, newFreeUses ->
+                creditBalance = newBalance
+                freeUsesRemaining = newFreeUses
             },
-            onFailure = { error ->
-                val detailed = error as? PluctCoreAPIDetailedError
-                val statusCode = detailed?.technicalDetails?.responseStatusCode
-
-                if (detailed != null) {
-                    debugLogManager.logAPIError(detailed, "CREDIT_CHECK")
-                } else {
-                    debugLogManager.logError(
-                        category = "CREDIT_CHECK",
-                        operation = "vendToken",
-                        message = error.message ?: "Vend token failed",
-                        exception = error,
-                        requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token"
-                    )
-                }
-
-                if (statusCode == 402) {
-                    ctaHelperMessage = "Add credits to unlock transcription"
-                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                        scope,
-                        snackbarHostState,
-                        "No credits available.",
-                        actionLabel = "Request credits"
-                    )
-                }
+            onCtaMessageUpdate = { message ->
+                ctaHelperMessage = message
+            },
+            onVendTokenAttempted = {
+                hasVendTokenAttempted = true
             }
         )
     }
@@ -483,11 +306,14 @@ fun PluctMainContent(
     
     // Load initial data and check for prefilled URL
     LaunchedEffect(Unit) {
-        // Check for prefilled URL from intent
-        val url = PluctUserPreferences.getAndClearPrefilledUrl(context)
-        if (url != null) {
-            Log.d("MainActivity", "Found prefilled URL: $url")
-            prefilledUrl = url
+        // Check for prefilled URL from intent (only if not already set in onCreate)
+        // This handles the case where activity is resumed (not created from intent)
+        if (prefilledUrl.isNullOrBlank()) {
+            val url = PluctUserPreferences.getAndClearPrefilledUrl(context)
+            if (url != null) {
+                Log.d("MainActivity", "Found prefilled URL from LaunchedEffect: $url")
+                prefilledUrl = url
+            }
         }
         
         // Check for first-time user
@@ -495,8 +321,26 @@ fun PluctMainContent(
             showWelcomeDialog = true
         }
         
+        // Check if permission onboarding is needed
+        val prefs = PluctUserPreferences(context)
+        val hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
+        val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+        val hasSeenNotificationOnboarding = prefs.hasSeenNotificationOnboarding()
+        val hasSeenOverlayOnboarding = prefs.hasSeenOverlayOnboarding()
+        
+        // Show onboarding if permissions not granted and not seen before
+        // Delay to allow welcome dialog to show first if needed
+        scope.launch {
+            delay(2000) // Wait for welcome dialog to potentially show
+            if ((!hasNotificationPermission && !hasSeenNotificationOnboarding) ||
+                (!hasOverlayPermission && !hasSeenOverlayOnboarding)) {
+                showPermissionOnboarding = true
+            }
+        }
+        
         // Always bootstrap balance, then vend a token only if we need credits.
         isLoading = true
+        onLoadingCreditBalanceChange(true)
         errorMessage = null
         try {
             fetchCreditBalance()
@@ -513,6 +357,7 @@ fun PluctMainContent(
             hasLoadedBalanceOnce = true // Mark as loaded even on error to show 0 instead of loading
         } finally {
             isLoading = false
+            onLoadingCreditBalanceChange(false)
         }
 
         // Show any stored intent feedback to the user
@@ -543,6 +388,7 @@ fun PluctMainContent(
     val refreshCreditBalance: () -> Unit = {
         scope.launch {
             isLoading = true
+            onLoadingCreditBalanceChange(true)
             errorMessage = null
             try {
                 fetchCreditBalance()
@@ -566,6 +412,7 @@ fun PluctMainContent(
                 )
             } finally {
                 isLoading = false
+                onLoadingCreditBalanceChange(false)
             }
         }
     }
@@ -582,69 +429,38 @@ fun PluctMainContent(
         }
     }
     
-    // Handle video processing
-    val onTierSubmit: (String, ProcessingTier) -> Unit = { url: String, tier: ProcessingTier ->
-        scope.launch {
-            PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(apiService, url, tier, creditBalance, freeUsesRemaining, videoRepository, clipboardManager, debugLogManager, context) { success, newBalance, newFreeUses, errorMessage, error ->
-                if (success) {
-                    creditBalance = newBalance
-                    freeUsesRemaining = newFreeUses
-                    currentErrorUrl = null // Clear error URL on success
-                    // Show success message (or warning if provided)
-                    val msg = errorMessage ?: "Transcription started successfully"
-                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                        scope, snackbarHostState, msg
-                    )
-                } else {
-                    // Show error message via snackbar if it's not a handled error type
-                    // If it is a handled error (like 402/429), the ErrorHandler will show a dialog
-                    if (error != null) {
-                        currentError = error
-                        currentErrorUrl = url // Track URL for error context
-                    } else {
-                        currentErrorUrl = null
-                        val errorMsg = errorMessage ?: "Failed to process video. Please try again."
-                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                            scope, snackbarHostState, errorMsg
-                        )
-                    }
-                    Log.e("MainActivity", "Video processing failed: ${errorMessage ?: error?.message}")
-                }
+    // Use extracted event handlers
+    val eventHandlers = remember {
+        PluctUIScreen01MainActivity06EventHandlers(
+            scope = scope,
+            apiService = apiService,
+            videoRepository = videoRepository,
+            clipboardManager = clipboardManager,
+            debugLogManager = debugLogManager,
+            context = context,
+            queueManager = queueManager,
+            snackbarHostState = snackbarHostState,
+            onBalanceUpdate = { newBalance, newFreeUses ->
+                creditBalance = newBalance
+                freeUsesRemaining = newFreeUses
+            },
+            onErrorUpdate = { error, url ->
+                currentError = error
+                currentErrorUrl = url
             }
-        }
+        )
+    }
+
+    val onTierSubmit = remember(creditBalance, freeUsesRemaining) {
+        eventHandlers.createOnTierSubmit(creditBalance, freeUsesRemaining)
     }
     
-    // Handle video retry
-    val onRetryVideo: (VideoItem) -> Unit = { video ->
-        scope.launch {
-            PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(apiService, video.url, video.tier, creditBalance, freeUsesRemaining, videoRepository, clipboardManager, debugLogManager, context) { success, newBalance, newFreeUses, errorMessage, error ->
-                if (success) {
-                    creditBalance = newBalance
-                    freeUsesRemaining = newFreeUses
-                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                        scope, snackbarHostState, "Retry started successfully"
-                    )
-                } else {
-                    if (error != null) {
-                        currentError = error
-                    } else {
-                        val errorMsg = errorMessage ?: "Failed to retry video. Please try again."
-                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                            scope, snackbarHostState, errorMsg
-                        )
-                    }
-                    Log.e("MainActivity", "Video retry failed: ${errorMessage ?: error?.message}")
-                }
-            }
-        }
+    val onRetryVideo = remember(creditBalance, freeUsesRemaining) {
+        eventHandlers.createOnRetryVideo(creditBalance, freeUsesRemaining)
     }
     
-    // Handle video deletion
-    val onDeleteVideo: (VideoItem) -> Unit = { video ->
-        scope.launch {
-            videoRepository.deleteVideo(video)
-            Log.d("MainActivity", "Video deleted: ${video.id}")
-        }
+    val onDeleteVideo = remember {
+        eventHandlers.createOnDeleteVideo()
     }
     
     // Navigation State
@@ -658,30 +474,9 @@ fun PluctMainContent(
             onUpgradeClick = { /* Handle upgrade */ }
         )
     } else {
-    // Handle queue for later (from pre-validation prompt) - defined before use
-    val onQueueForLaterWithReason: (String, app.pluct.data.entity.QueueReason) -> Unit = { url, reason ->
-        scope.launch {
-            val tier = ProcessingTier.EXTRACT_SCRIPT
-            val result = queueManager.queueVideo(
-                url = url,
-                tier = tier,
-                reason = reason
-            )
-            if (result.isSuccess) {
-                PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                    scope, snackbarHostState, "Saved! Will process when ready."
-                )
-            } else {
-                PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                    scope, snackbarHostState, "Failed to save video. Please try again."
-                )
-            }
-        }
-    }
-    
-        PluctHomeScreen(
-            creditBalance = creditBalance,
-            freeUsesRemaining = freeUsesRemaining,
+    PluctHomeScreen(
+        creditBalance = creditBalance,
+        freeUsesRemaining = freeUsesRemaining,
             videos = videos,
             isLoading = isLoading,
             errorMessage = errorMessage,
@@ -690,6 +485,8 @@ fun PluctMainContent(
                 val requestId = "credit_req_${System.currentTimeMillis()}"
                 val userId = userIdentification.userId
                 val timestamp = System.currentTimeMillis()
+
+                Log.d("PluctAPI", "CREDIT_REQUEST requestCredits id=$requestId userId=$userId confirmation=$confirmation timestamp=$timestamp")
                 
                 // Log BEFORE request
                 debugLogManager.logInfo(
@@ -765,35 +562,13 @@ fun PluctMainContent(
             videoRepository = videoRepository,
             ctaHelperMessage = ctaHelperMessage,
             debugLogManager = debugLogManager,
-            onQueueForLater = onQueueForLaterWithReason
+            isLoadingCreditBalance = isLoadingCreditBalance
         )
     }
     
     // Handle queue for later (from error handler)
-    val onQueueForLater: () -> Unit = {
-        scope.launch {
-            val url = currentErrorUrl
-            if (url != null) {
-                // Determine tier from context (default to EXTRACT_SCRIPT)
-                val tier = ProcessingTier.EXTRACT_SCRIPT // Could be enhanced to track tier
-                val result = queueManager.queueVideo(
-                    url = url,
-                    tier = tier,
-                    reason = app.pluct.data.entity.QueueReason.INSUFFICIENT_CREDITS
-                )
-                if (result.isSuccess) {
-                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                        scope, snackbarHostState, "Video saved! Will process when credits are added."
-                    )
-                } else {
-                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                        scope, snackbarHostState, "Failed to save video. Please try again."
-                    )
-                }
-            }
-            currentError = null
-            currentErrorUrl = null
-        }
+    val onQueueForLater = remember(currentErrorUrl) {
+        eventHandlers.createOnQueueForLater(currentErrorUrl)
     }
     
     // Unified Error Handler
@@ -831,6 +606,14 @@ fun PluctMainContent(
                 // Refresh balance to show free credits
                 refreshCreditBalance()
             }
+        )
+    }
+    
+    // Permission Onboarding Dialog
+    if (showPermissionOnboarding) {
+        PluctUIComponent06Permission01Onboarding01Dialog(
+            onDismiss = { showPermissionOnboarding = false },
+            onComplete = { showPermissionOnboarding = false }
         )
     }
 }

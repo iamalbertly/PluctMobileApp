@@ -6,9 +6,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import app.pluct.PluctUIScreen01MainActivity
 import app.pluct.R
+import app.pluct.core.permission.PluctCorePermission01Manager
+import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
 
 object PluctNotificationHelper {
     private const val CHANNEL_ID_PROGRESS = "pluct_processing"
@@ -167,6 +170,7 @@ object PluctNotificationHelper {
     
     /**
      * Show transcription completion notification with transcript preview
+     * Checks permission first and falls back to toast if permission denied
      */
     fun showTranscriptionCompleteNotification(
         context: Context,
@@ -174,6 +178,13 @@ object PluctNotificationHelper {
         transcript: String,
         notificationId: Int
     ) {
+        // Check permission first
+        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
+            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
+            // Fall back to toast notification when app is in foreground
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, true)
+            return
+        }
         // Create intent to open video detail screen
         val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -219,11 +230,18 @@ object PluctNotificationHelper {
             .build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        try {
+            notificationManager.notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            Log.w("PluctNotificationHelper", "Failed to show completion notification: ${e.message}")
+            // Fall back to toast
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, true)
+        }
     }
     
     /**
      * Show transcription error notification
+     * Checks permission first and falls back to toast if permission denied
      */
     fun showTranscriptionErrorNotification(
         context: Context,
@@ -231,6 +249,14 @@ object PluctNotificationHelper {
         error: String,
         notificationId: Int
     ) {
+        // Check permission first
+        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
+            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
+            // Fall back to toast notification when app is in foreground
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, false)
+            return
+        }
+        
         val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("url", url)
@@ -254,7 +280,67 @@ object PluctNotificationHelper {
             .build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        try {
+            notificationManager.notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            Log.w("PluctNotificationHelper", "Failed to show error notification: ${e.message}")
+            // Fall back to toast
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, false)
+        }
+    }
+    
+    /**
+     * Show notification when transcription starts from intent
+     * Checks permission first and falls back to toast if permission denied
+     */
+    fun showTranscriptionStartedNotification(
+        context: Context,
+        url: String
+    ) {
+        // Check permission first
+        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
+            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
+            // Fall back to toast notification when app is in foreground
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionStarted(context, url)
+            return
+        }
+        
+        // Ensure notification channels are created
+        createNotificationChannels(context)
+        
+        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("url", url)
+        }
+        
+        val notificationId = url.hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Transcription Started")
+            .setContentText("Processing TikTok video...")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            notificationManager.notify(notificationId, notification)
+            Log.d("PluctNotificationHelper", "Transcription started notification shown for URL: $url")
+        } catch (e: SecurityException) {
+            // Notification permission denied (Android 13+)
+            Log.w("PluctNotificationHelper", "Failed to show notification: ${e.message}")
+            // Fall back to toast
+            PluctUIComponent05Notification02Toast01Helper.showTranscriptionStarted(context, url)
+        }
     }
     
     /**

@@ -9,6 +9,10 @@ import androidx.work.workDataOf
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreBackground01TranscriptionWorkerNetworkMonitor
+import app.pluct.data.entity.ProcessingTier
+import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
+import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
+import app.pluct.services.processing.PluctCoreProcessingDuplicateGuard01Coordinator
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -99,35 +103,62 @@ class PluctCoreBackground01TranscriptionWorker(
         } catch (e: Exception) {
             Log.e(TAG, "Background transcription failed: ${e.message}", e)
             networkMonitor.stopMonitoring()
-            showErrorNotification(url, e.message ?: "Unknown error", notificationId)
-            Result.failure(workDataOf("error" to (e.message ?: "Unknown error")))
+            // Provide more helpful error message
+            val errorMessage = when {
+                e.message?.contains("already being processed", ignoreCase = true) == true ->
+                    "This video is already being transcribed. Check your recent videos for progress."
+                e.message?.contains("network", ignoreCase = true) == true ||
+                e.message?.contains("connection", ignoreCase = true) == true ->
+                    "Network error. The video has been queued and will be processed when your connection is restored."
+                e.message?.contains("insufficient", ignoreCase = true) == true ||
+                e.message?.contains("credits", ignoreCase = true) == true ->
+                    "Insufficient credits. Please add credits to continue transcribing videos."
+                else -> e.message ?: "Transcription failed. Please try again."
+            }
+            showErrorNotification(url, errorMessage, notificationId)
+            Result.failure(workDataOf("error" to errorMessage))
         }
     }
     
     private suspend fun processNewTranscription(url: String, notificationId: Int): Result {
-        // Create video entry in database with PROCESSING status
-        val videoId = System.currentTimeMillis().toString()
-        val processingVideo = app.pluct.data.entity.VideoItem(
-            id = videoId,
-            url = url,
-            title = "Processing...",
-            thumbnailUrl = "",
-            author = "",
-            duration = 0L,
-            status = app.pluct.data.entity.ProcessingStatus.PROCESSING,
-            progress = 0,
-            transcript = null,
-            timestamp = System.currentTimeMillis(),
-            tier = app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT,
-            createdAt = System.currentTimeMillis()
-        )
+        // CRITICAL FIX #2: Check for existing video before creating duplicate
+        val existingVideo = videoRepository.getVideoByUrl(url)
+        if (existingVideo != null) {
+            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.PROCESSING) {
+                Log.w(TAG, "Video $url already processing, skipping duplicate background worker")
+                return Result.failure(workDataOf("error" to "Already processing"))
+            }
+            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingVideo.transcript != null) {
+                Log.d(TAG, "Video $url already completed, returning existing transcript")
+                showCompletionNotification(url, existingVideo.transcript!!, notificationId)
+                return Result.success(workDataOf(
+                    "transcript" to existingVideo.transcript,
+                    "job_id" to (existingVideo.jobId ?: ""),
+                    "status" to "completed"
+                ))
+            }
+        }
         
-        // Insert video into database
-        val insertResult = videoRepository.insertVideo(processingVideo)
-        if (insertResult.isFailure) {
-            Log.w(TAG, "Failed to create video entry in database: ${insertResult.exceptionOrNull()?.message}")
-        } else {
-            Log.d(TAG, "Created video entry in database: $videoId for URL: $url")
+        val guardResult = PluctCoreProcessingDuplicateGuard01Coordinator.ensureProcessingEntry(
+            url = url,
+            videoRepository = videoRepository,
+            tier = ProcessingTier.EXTRACT_SCRIPT
+        )
+
+        when (guardResult) {
+            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.AlreadyProcessing -> {
+                Log.w(TAG, "Processing entry already exists for $url, aborting background job")
+                return Result.failure(workDataOf("error" to "Already processing"))
+            }
+            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.Failure -> {
+                val failureReason = guardResult.reason.ifBlank { "Unable to reserve processing slot" }
+                Log.e(TAG, "Failed to persist processing entry for $url: $failureReason")
+                showErrorNotification(url, failureReason, notificationId)
+                return Result.failure(workDataOf("error" to failureReason))
+            }
+            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.Prepared -> {
+                Log.d(TAG, "Processing entry reserved for background job: ${guardResult.video.id}")
+            }
         }
         
         // Show initial progress notification
@@ -138,7 +169,8 @@ class PluctCoreBackground01TranscriptionWorker(
         
         return result.fold(
             onSuccess = { statusResponse ->
-                val transcript = statusResponse.transcript ?: statusResponse.result?.transcription ?: ""
+                val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(statusResponse)
+                val transcriptText = extraction.transcript
                 val jobId = statusResponse.jobId
                 
                 // Update video entry with jobId if available
@@ -151,23 +183,24 @@ class PluctCoreBackground01TranscriptionWorker(
                     }
                 }
                 
-                if (transcript.isNotEmpty()) {
+                if (!transcriptText.isNullOrBlank()) {
+                    val completedTranscript = transcriptText
                     // Update video entry with completed status and transcript
                     val currentVideo = videoRepository.getVideoByUrl(url)
                     if (currentVideo != null) {
                         val completedVideo = currentVideo.copy(
                             status = app.pluct.data.entity.ProcessingStatus.COMPLETED,
                             progress = 100,
-                            transcript = transcript,
+                            transcript = completedTranscript,
                             jobId = jobId
                         )
                         videoRepository.insertVideo(completedVideo)
                         Log.d(TAG, "Updated video to completed status")
                     }
                     
-                    showCompletionNotification(url, transcript, notificationId)
+                    showCompletionNotification(url, completedTranscript, notificationId)
                     Result.success(workDataOf(
-                        "transcript" to transcript,
+                        "transcript" to completedTranscript,
                         "job_id" to (jobId ?: ""),
                         "status" to "completed"
                     ))
@@ -258,29 +291,45 @@ class PluctCoreBackground01TranscriptionWorker(
                 }
                 
                 if (status.status == "completed") {
-                    val transcript = status.transcript ?: status.result?.transcription ?: ""
-                    if (transcript.isNotEmpty()) {
+                    val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
+                    val transcriptText = extraction.transcript
+                    if (!transcriptText.isNullOrBlank()) {
                         // Update video entry with completed status
                         val existingVideo = videoRepository.getVideoByUrl(url)
                         if (existingVideo != null) {
                             val completedVideo = existingVideo.copy(
                                 status = app.pluct.data.entity.ProcessingStatus.COMPLETED,
                                 progress = 100,
-                                transcript = transcript,
+                                transcript = transcriptText,
                                 jobId = jobId
                             )
                             videoRepository.insertVideo(completedVideo)
                             Log.d(TAG, "Updated video to completed status")
                         }
                         
-                        showCompletionNotification(url, transcript, notificationId)
+                        showCompletionNotification(url, transcriptText, notificationId)
+                        
+                        // Show toast notification when transcription completes
+                        PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(
+                            context = context,
+                            url = url,
+                            success = true
+                        )
+                        
                         return Result.success(workDataOf(
-                            "transcript" to transcript,
+                            "transcript" to transcriptText,
                             "job_id" to jobId,
                             "status" to "completed"
                         ))
                     }
                 } else if (status.status == "failed") {
+                    // Show toast notification when transcription fails
+                    PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(
+                        context = context,
+                        url = url,
+                        success = false
+                    )
+                    
                     // Update video entry with failed status
                     val existingVideo = videoRepository.getVideoByUrl(url)
                     if (existingVideo != null) {
@@ -367,4 +416,3 @@ class PluctCoreBackground01TranscriptionWorker(
         )
     }
 }
-

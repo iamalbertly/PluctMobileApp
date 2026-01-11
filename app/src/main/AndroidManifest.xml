@@ -5,6 +5,10 @@
     <!-- Permissions for app functionality -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Notification permission (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Overlay/draw-over-apps permission for floating transcription status -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Removed legacy storage permissions; use scoped storage if needed -->
 
     <application
@@ -64,6 +68,13 @@
                 <action android:name="android.service.chooser.ChooserTargetService" />
             </intent-filter>
         </activity>
+        
+        <!-- Overlay notification service -->
+        <service
+            android:name=".ui.components.PluctUIComponent05Notification03Overlay01Service"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.BIND_SERVICE" />
         
     </application>
 

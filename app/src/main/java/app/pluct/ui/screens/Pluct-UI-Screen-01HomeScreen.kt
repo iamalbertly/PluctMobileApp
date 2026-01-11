@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.size
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
@@ -54,6 +55,19 @@ import app.pluct.data.entity.LogLevel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import app.pluct.core.permission.PluctCorePermission01Manager
+import app.pluct.core.permission.REQUEST_CODE_NOTIFICATION
+import app.pluct.data.preferences.PluctUserPreferences
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
+import android.os.Build
+import android.app.Activity
+import androidx.core.app.ActivityCompat
 
 /**
  * Pluct-UI-Screen-01HomeScreen - Main home screen with video list and capture interface.
@@ -78,7 +92,8 @@ fun PluctHomeScreen(
     videoRepository: PluctVideoRepository? = null,
     ctaHelperMessage: String? = null,
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
-    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null
+    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
+    isLoadingCreditBalance: Boolean = false
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
@@ -86,14 +101,7 @@ fun PluctHomeScreen(
     var effectivePrefilledUrl by remember(prefilledUrl) { mutableStateOf(prefilledUrl) }
 
     val uniqueVideos = remember(videos) {
-        val urlMap = mutableMapOf<String, VideoItem>()
-        videos.forEach { video ->
-            val existing = urlMap[video.url]
-            if (existing == null || video.timestamp > existing.timestamp) {
-                urlMap[video.url] = video
-            }
-        }
-        urlMap.values.sortedByDescending { it.timestamp }
+        dedupeVideos(videos)
     }
 
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
@@ -138,7 +146,8 @@ fun PluctHomeScreen(
             debugLogManager = debugLogManager,
             onViewDebugLogs = { showDebugLogs = true },
             errorLogs = errorLogs,
-            onQueueForLater = onQueueForLater
+            onQueueForLater = onQueueForLater,
+            isLoadingCreditBalance = isLoadingCreditBalance
         )
     }
 
@@ -188,7 +197,8 @@ private fun HomeContent(
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onViewDebugLogs: () -> Unit = {},
     errorLogs: List<app.pluct.data.entity.DebugLogEntry> = emptyList(),
-    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null
+    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
+    isLoadingCreditBalance: Boolean = false
 ) {
     // Filter queued videos
     val queuedVideos = uniqueVideos.filter { it.status == ProcessingStatus.QUEUED }
@@ -212,7 +222,8 @@ private fun HomeContent(
                 onRequestCredits = onRequestCreditsClick,
                 debugLogManager = debugLogManager,
                 onViewInLogs = onViewDebugLogs,
-                onQueueForLater = onQueueForLater
+                onQueueForLater = onQueueForLater,
+                isLoadingCreditBalance = isLoadingCreditBalance
             )
         }
         
@@ -273,12 +284,33 @@ private fun SettingsDialog(
     onRequestCredits: (String) -> Unit,
     onViewDebugLogs: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val prefs = remember { PluctUserPreferences(context) }
+    
     var referenceText by remember { mutableStateOf("") }
     var isRequesting by remember { mutableStateOf(false) }
     var isCreditRequestInFlight by remember { mutableStateOf(false) }
     var creditRequestStatus by remember { mutableStateOf<String?>(null) }
     var requestId by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
+    
+    // Permission states
+    var hasNotificationPermission by remember { 
+        mutableStateOf(PluctCorePermission01Manager.hasNotificationPermission(context)) 
+    }
+    var hasOverlayPermission by remember { 
+        mutableStateOf(PluctCorePermission01Manager.hasOverlayPermission(context)) 
+    }
+    var overlayEnabled by remember { 
+        mutableStateOf(prefs.getOverlayNotificationsEnabled()) 
+    }
+    
+    // Refresh permission states
+    LaunchedEffect(Unit) {
+        hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
+        hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+        overlayEnabled = prefs.getOverlayNotificationsEnabled()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -318,11 +350,167 @@ private fun SettingsDialog(
 
                 androidx.compose.material3.Divider()
 
+                // Permissions Section
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Permissions",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    // Notification Permission
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Notifications",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = if (hasNotificationPermission) "Granted" else "Required for transcription updates",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (hasNotificationPermission) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                        if (!hasNotificationPermission) {
+                            val isPermanentlyDenied = if (context is Activity) {
+                                PluctCorePermission01Manager.isNotificationPermissionPermanentlyDenied(context)
+                            } else {
+                                false
+                            }
+                            Button(
+                                onClick = {
+                                    if (isPermanentlyDenied) {
+                                        PluctCorePermission01Manager.openNotificationSettings(context)
+                                    } else if (context is Activity && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        androidx.core.app.ActivityCompat.requestPermissions(
+                                            context as Activity,
+                                            arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                                            REQUEST_CODE_NOTIFICATION
+                                        )
+                                        PluctCorePermission01Manager.invalidateCache()
+                                        // Update state after a delay
+                                        scope.launch {
+                                            delay(500)
+                                            hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = if (isPermanentlyDenied) "Open notification settings" else "Enable notifications"
+                                    testTag = "settings_enable_notifications_button"
+                                }
+                            ) {
+                                Text(if (isPermanentlyDenied) "Open Settings" else "Enable")
+                            }
+                        }
+                    }
+                    
+                    // Overlay Permission
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PictureInPicture,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Overlay Notifications",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = if (hasOverlayPermission) "Granted" else "Optional - shows floating status",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (hasOverlayPermission) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (!hasOverlayPermission) {
+                            Button(
+                                onClick = {
+                                    PluctCorePermission01Manager.openOverlaySettings(context)
+                                    PluctCorePermission01Manager.invalidateCache()
+                                    // Update state after a delay
+                                    scope.launch {
+                                        delay(1000)
+                                        hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+                                    }
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Enable overlay permission"
+                                    testTag = "settings_enable_overlay_button"
+                                }
+                            ) {
+                                Text("Enable")
+                            }
+                        }
+                    }
+                    
+                    // Overlay Toggle (only if permission granted)
+                    if (hasOverlayPermission) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Show overlay during transcription",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Switch(
+                                checked = overlayEnabled,
+                                onCheckedChange = { enabled ->
+                                    overlayEnabled = enabled
+                                    prefs.setOverlayNotificationsEnabled(enabled)
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Toggle overlay notifications"
+                                    testTag = "settings_overlay_toggle"
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                androidx.compose.material3.Divider()
+
                 // Request Credits Section
                 if (!isRequesting) {
                     androidx.compose.material3.Button(
                         onClick = { isRequesting = true },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                contentDescription = "Add more credits"
+                                testTag = "settings_add_credits_button"
+                            }
                     ) {
                         Text("Add More Credits")
                     }
@@ -400,8 +588,13 @@ private fun SettingsDialog(
                                 androidx.compose.material3.OutlinedTextField(
                                     value = referenceText,
                                     onValueChange = { referenceText = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    placeholder = { Text("Paste confirmation message") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .semantics {
+                                        contentDescription = "Paste payment confirmation message"
+                                        testTag = "settings_reference_input"
+                                    },
+                                placeholder = { Text("Paste confirmation message") },
                                     maxLines = 4,
                                     minLines = 2,
                                     enabled = !isCreditRequestInFlight
@@ -443,7 +636,12 @@ private fun SettingsDialog(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                contentDescription = "Submit credits request"
+                                testTag = "settings_submit_request_button"
+                            },
                         enabled = referenceText.isNotBlank() && !isCreditRequestInFlight
                     ) {
                         Text("Submit Request")
@@ -463,7 +661,13 @@ private fun SettingsDialog(
         },
         dismissButton = {
             if (isRequesting) {
-                TextButton(onClick = { isRequesting = false }) {
+                TextButton(
+                    onClick = { isRequesting = false },
+                    modifier = Modifier.semantics {
+                        contentDescription = "Cancel credits request"
+                        testTag = "settings_cancel_request_button"
+                    }
+                ) {
                     Text("Cancel")
                 }
             }
@@ -473,6 +677,15 @@ private fun SettingsDialog(
             testTag = "settings_dialog"
         }
     )
+}
+
+private fun dedupeVideos(videos: List<VideoItem>): List<VideoItem> {
+    return videos
+        .groupBy { it.url }
+        .mapNotNull { (_, group) ->
+            group.maxByOrNull { it.timestamp }
+        }
+        .sortedByDescending { it.timestamp }
 }
 
 

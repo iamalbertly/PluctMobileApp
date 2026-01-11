@@ -25,6 +25,10 @@ class PluctUserPreferences(context: Context) {
         private const val KEY_INTENT_FEEDBACK_MESSAGE = "intent_feedback_message"
         private const val KEY_INTENT_FEEDBACK_IS_ERROR = "intent_feedback_is_error"
         private const val KEY_HAS_LAUNCHED_BEFORE = "has_launched_before"
+        private const val KEY_PERMISSION_ONBOARDING_NOTIFICATION_SEEN = "permission_onboarding_notification_seen"
+        private const val KEY_PERMISSION_ONBOARDING_OVERLAY_SEEN = "permission_onboarding_overlay_seen"
+        private const val KEY_OVERLAY_NOTIFICATIONS_ENABLED = "overlay_notifications_enabled"
+        private const val KEY_LAST_PERMISSION_CHECK_TIMESTAMP = "last_permission_check_timestamp"
         
         /**
          * Check if this is the first time the user has launched the app
@@ -131,6 +135,63 @@ class PluctUserPreferences(context: Context) {
      */
     fun hasFreeUsesRemaining(): Boolean {
         return getFreeUsesRemaining() > 0
+    }
+    
+    /**
+     * Check if user has seen notification permission onboarding
+     */
+    fun hasSeenNotificationOnboarding(): Boolean {
+        return prefs.getBoolean(KEY_PERMISSION_ONBOARDING_NOTIFICATION_SEEN, false)
+    }
+    
+    /**
+     * Mark notification permission onboarding as seen
+     */
+    fun markNotificationOnboardingSeen() {
+        prefs.edit().putBoolean(KEY_PERMISSION_ONBOARDING_NOTIFICATION_SEEN, true).apply()
+    }
+    
+    /**
+     * Check if user has seen overlay permission onboarding
+     */
+    fun hasSeenOverlayOnboarding(): Boolean {
+        return prefs.getBoolean(KEY_PERMISSION_ONBOARDING_OVERLAY_SEEN, false)
+    }
+    
+    /**
+     * Mark overlay permission onboarding as seen
+     */
+    fun markOverlayOnboardingSeen() {
+        prefs.edit().putBoolean(KEY_PERMISSION_ONBOARDING_OVERLAY_SEEN, true).apply()
+    }
+    
+    /**
+     * Check if overlay notifications are enabled
+     * Default: true (enabled by default)
+     */
+    fun getOverlayNotificationsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_OVERLAY_NOTIFICATIONS_ENABLED, true)
+    }
+    
+    /**
+     * Set overlay notifications enabled/disabled
+     */
+    fun setOverlayNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_OVERLAY_NOTIFICATIONS_ENABLED, enabled).apply()
+    }
+    
+    /**
+     * Get last permission check timestamp
+     */
+    fun getLastPermissionCheckTimestamp(): Long {
+        return prefs.getLong(KEY_LAST_PERMISSION_CHECK_TIMESTAMP, 0)
+    }
+    
+    /**
+     * Set last permission check timestamp
+     */
+    fun setLastPermissionCheckTimestamp(timestamp: Long) {
+        prefs.edit().putLong(KEY_LAST_PERMISSION_CHECK_TIMESTAMP, timestamp).apply()
     }
 }
 
