@@ -35,26 +35,33 @@ class JourneyPermission03OverlayService01Validation extends BaseJourney {
             await this.core.launchApp();
             await this.core.sleep(3000);
             
-            // Step 3: Enable overlay in settings (if needed)
+            // Step 3: Ensure overlay is enabled in settings (if needed)
             this.core.logger.info('📱 Step 3: Ensuring overlay is enabled in settings...');
             await this.ensureAppForeground();
             
             // Open settings
             const settingsTap = await this.core.tapByTestTag('settings_button');
             if (settingsTap.success) {
-                await this.core.sleep(1000);
+                await this.core.sleep(1500);
                 
                 // Check if overlay toggle exists and is enabled
                 await this.core.dumpUIHierarchy();
                 const settingsDump = this.core.readLastUIDump();
                 
-                if (settingsDump.includes('overlay_toggle')) {
-                    // Toggle might be off, enable it
+                // Look for overlay toggle or permission section
+                if (settingsDump.includes('overlay_toggle') || 
+                    settingsDump.includes('Show overlay') ||
+                    settingsDump.includes('Overlay')) {
+                    // Try to find and enable toggle
                     const toggleTap = await this.core.tapByTestTag('settings_overlay_toggle');
-                    if (toggleTap.success) {
-                        await this.core.sleep(500);
-                        this.core.logger.info('✅ Overlay enabled in settings');
+                    if (!toggleTap.success) {
+                        // Try by text
+                        await this.core.tapByText('Show overlay');
                     }
+                    await this.core.sleep(500);
+                    this.core.logger.info('✅ Overlay toggle accessed');
+                } else {
+                    this.core.logger.info('ℹ️ Overlay toggle not visible (may require permission first)');
                 }
                 
                 // Close settings

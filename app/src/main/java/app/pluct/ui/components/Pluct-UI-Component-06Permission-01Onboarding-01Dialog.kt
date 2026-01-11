@@ -14,12 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import app.pluct.core.permission.PluctCorePermission01Manager
-import app.pluct.core.permission.REQUEST_CODE_NOTIFICATION
 import app.pluct.data.preferences.PluctUserPreferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import android.os.Build
-import androidx.core.app.ActivityCompat
 
 /**
  * Pluct-UI-Component-06Permission-01Onboarding-01Dialog - Permission onboarding dialog
@@ -32,7 +29,8 @@ import androidx.core.app.ActivityCompat
 @Composable
 fun PluctUIComponent06Permission01Onboarding01Dialog(
     onDismiss: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    permissionLauncherHelper: app.pluct.core.permission.PluctCorePermission02Launcher01Helper? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -67,76 +65,110 @@ fun PluctUIComponent06Permission01Onboarding01Dialog(
         PermissionOnboardingStep(
             permissionType = permission,
             onEnable = {
-                when (permission) {
-                    PermissionType.NOTIFICATION -> {
-                        if (context is Activity) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // Request notification permission
+                // Use ActivityResultLauncher if available, otherwise fallback to old method
+                if (permissionLauncherHelper != null && context is Activity) {
+                    when (permission) {
+                        PermissionType.NOTIFICATION -> {
+                            permissionLauncherHelper.requestNotificationPermission { granted ->
+                                scope.launch {
+                                    // Mark as seen
+                                    prefs.markNotificationOnboardingSeen()
+                                    
+                                    // Move to next permission or complete
+                                    if (granted) {
+                                        val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+                                        val hasSeenOverlay = prefs.hasSeenOverlayOnboarding()
+                                        
+                                        if (!hasOverlayPermission && !hasSeenOverlay) {
+                                            currentPermission = PermissionType.OVERLAY
+                                        } else {
+                                            currentPermission = null
+                                            onComplete()
+                                        }
+                                    } else {
+                                        // Permission denied, move to next or complete
+                                        val hasSeenOverlay = prefs.hasSeenOverlayOnboarding()
+                                        if (!hasSeenOverlay) {
+                                            currentPermission = PermissionType.OVERLAY
+                                        } else {
+                                            currentPermission = null
+                                            onComplete()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        PermissionType.OVERLAY -> {
+                            permissionLauncherHelper.requestOverlayPermission { granted ->
+                                scope.launch {
+                                    // Mark as seen
+                                    prefs.markOverlayOnboardingSeen()
+                                    currentPermission = null
+                                    onComplete()
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to old method if launcher not available
+                    when (permission) {
+                        PermissionType.NOTIFICATION -> {
+                            if (context is Activity && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                                 androidx.core.app.ActivityCompat.requestPermissions(
                                     context,
                                     arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                                    REQUEST_CODE_NOTIFICATION
+                                    app.pluct.core.permission.REQUEST_CODE_NOTIFICATION
                                 )
-                                // Invalidate cache
                                 PluctCorePermission01Manager.invalidateCache()
                             }
-                        }
-                    }
-                    PermissionType.OVERLAY -> {
-                        if (context is Activity) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                // Open overlay settings
-                                PluctCorePermission01Manager.openOverlaySettings(context)
-                                // Invalidate cache
-                                PluctCorePermission01Manager.invalidateCache()
-                            }
-                        }
-                    }
-                }
-                
-                scope.launch {
-                    // Wait a bit for permission to be granted
-                    delay(1000)
-                    val granted = when (permission) {
-                        PermissionType.NOTIFICATION -> {
-                            PluctCorePermission01Manager.hasNotificationPermission(context)
                         }
                         PermissionType.OVERLAY -> {
-                            PluctCorePermission01Manager.hasOverlayPermission(context)
+                            if (context is Activity) {
+                                PluctCorePermission01Manager.openOverlaySettings(context)
+                                PluctCorePermission01Manager.invalidateCache()
+                            }
                         }
                     }
                     
-                    // Mark as seen
-                    when (permission) {
-                        PermissionType.NOTIFICATION -> prefs.markNotificationOnboardingSeen()
-                        PermissionType.OVERLAY -> prefs.markOverlayOnboardingSeen()
-                    }
-                    
-                    // Move to next permission or complete
-                    if (granted || permission == PermissionType.OVERLAY) {
-                        // Check if there's another permission to show
-                        val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
-                        val hasSeenOverlay = prefs.hasSeenOverlayOnboarding()
+                    scope.launch {
+                        delay(1000)
+                        val granted = when (permission) {
+                            PermissionType.NOTIFICATION -> {
+                                PluctCorePermission01Manager.hasNotificationPermission(context)
+                            }
+                            PermissionType.OVERLAY -> {
+                                PluctCorePermission01Manager.hasOverlayPermission(context)
+                            }
+                        }
                         
-                        if (!hasOverlayPermission && !hasSeenOverlay && permission == PermissionType.NOTIFICATION) {
-                            currentPermission = PermissionType.OVERLAY
-                        } else {
-                            currentPermission = null
-                            onComplete()
+                        when (permission) {
+                            PermissionType.NOTIFICATION -> prefs.markNotificationOnboardingSeen()
+                            PermissionType.OVERLAY -> prefs.markOverlayOnboardingSeen()
                         }
-                    } else {
-                        // Permission denied, move to next or complete
-                        if (permission == PermissionType.NOTIFICATION) {
+                        
+                        if (granted || permission == PermissionType.OVERLAY) {
+                            val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
                             val hasSeenOverlay = prefs.hasSeenOverlayOnboarding()
-                            if (!hasSeenOverlay) {
+                            
+                            if (!hasOverlayPermission && !hasSeenOverlay && permission == PermissionType.NOTIFICATION) {
                                 currentPermission = PermissionType.OVERLAY
                             } else {
                                 currentPermission = null
                                 onComplete()
                             }
                         } else {
-                            currentPermission = null
-                            onComplete()
+                            if (permission == PermissionType.NOTIFICATION) {
+                                val hasSeenOverlay = prefs.hasSeenOverlayOnboarding()
+                                if (!hasSeenOverlay) {
+                                    currentPermission = PermissionType.OVERLAY
+                                } else {
+                                    currentPermission = null
+                                    onComplete()
+                                }
+                            } else {
+                                currentPermission = null
+                                onComplete()
+                            }
                         }
                     }
                 }

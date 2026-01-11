@@ -7,9 +7,6 @@ import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.widget.Toast
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,7 +32,7 @@ object PluctUIComponent05Notification02Toast01Helper {
      * Show toast notification when transcription starts
      * Only shows if app is in foreground
      */
-    fun showTranscriptionStarted(context: Context, url: String) {
+    fun showTranscriptionStarted(context: Context, @Suppress("UNUSED_PARAMETER") url: String) {
         showToast(
             context = context,
             message = "Transcription started - Processing TikTok video...",
@@ -47,7 +44,7 @@ object PluctUIComponent05Notification02Toast01Helper {
      * Show toast notification when transcription finishes
      * Only shows if app is in foreground
      */
-    fun showTranscriptionFinished(context: Context, url: String, success: Boolean) {
+    fun showTranscriptionFinished(context: Context, @Suppress("UNUSED_PARAMETER") url: String, success: Boolean) {
         val message = if (success) {
             "Transcription complete! Tap to view transcript."
         } else {
@@ -160,17 +157,38 @@ object PluctUIComponent05Notification02Toast01Helper {
     
     /**
      * Check if app is in foreground
-     * Simple check: if context is an Activity and it's not finishing, app is likely in foreground
+     * Improved check using Activity lifecycle state
      */
     private fun isAppInForeground(context: Context): Boolean {
         return when (context) {
             is Activity -> {
-                !context.isFinishing && !context.isDestroyed
+                // Check if activity is in a visible state
+                val isResumed = try {
+                    // Use lifecycle-aware check if available
+                    if (context is androidx.lifecycle.LifecycleOwner) {
+                        context.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+                    } else {
+                        // Fallback to simple check
+                        !context.isFinishing && !context.isDestroyed
+                    }
+                } catch (e: Exception) {
+                    // Fallback to simple check
+                    !context.isFinishing && !context.isDestroyed
+                }
+                isResumed
             }
             else -> {
-                // For non-Activity contexts, assume foreground
-                // This is a best-effort check
-                true
+                // For non-Activity contexts (e.g., Application context), 
+                // check if any activity is in foreground
+                try {
+                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                    val runningTasks = activityManager?.getRunningTasks(1)
+                    val topActivity = runningTasks?.firstOrNull()?.topActivity
+                    topActivity?.packageName == context.packageName
+                } catch (e: Exception) {
+                    // Fallback: assume foreground for Application context
+                    true
+                }
             }
         }
     }

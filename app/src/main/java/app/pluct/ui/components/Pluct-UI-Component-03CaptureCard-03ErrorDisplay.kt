@@ -203,9 +203,12 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = when (errorCategory) {
-                            "Authentication" -> "Authentication failed"
-                            "Network" -> "Network issue"
-                            else -> "Something went wrong"
+                            "Authentication" -> "Authentication Error"
+                            "Network" -> "Connection Problem"
+                            "Timeout" -> "Request Timed Out"
+                            "Validation" -> "Invalid Input"
+                            "Payment" -> "Insufficient Credits"
+                            else -> "Error Occurred"
                         },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
@@ -251,7 +254,13 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 val shortMessage = when {
                     serviceName != null -> "Error from $serviceName: ${extractShortError(message)}"
                     message.contains("authentication", true) || message.contains("401") ->
-                        "We couldn’t authenticate while checking status. We’ll retry once — or tap Retry."
+                        "We couldn't authenticate while checking status. We'll retry once — or tap Retry."
+                    message.contains("network", ignoreCase = true) || message.contains("connection", ignoreCase = true) ->
+                        "Unable to connect. Check your internet connection and try again. If the problem persists, the video will be saved and processed when your connection is restored."
+                    message.contains("timeout", ignoreCase = true) ->
+                        "The request took too long. Please check your connection and try again."
+                    message.contains("insufficient", ignoreCase = true) || message.contains("credits", ignoreCase = true) ->
+                        "You don't have enough credits. You can add credits in Settings, or save this video to process later when you have credits."
                     else -> message.take(140) + if (message.length > 140) "..." else ""
                 }
 

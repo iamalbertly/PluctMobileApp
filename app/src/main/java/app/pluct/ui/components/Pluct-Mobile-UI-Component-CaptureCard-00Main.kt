@@ -53,6 +53,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import app.pluct.notification.PluctNotificationHelper
 
 /**
  * Pluct-Mobile-UI-Component-CaptureCard-00Main
@@ -72,7 +73,8 @@ fun PluctUIComponent03CaptureCard(
     onRequestCredits: (() -> Unit)? = null,
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onViewInLogs: (() -> Unit)? = null,
-    onQueueForLater: ((String, QueueReason) -> Unit)? = null
+    onQueueForLater: ((String, QueueReason) -> Unit)? = null,
+    isLoadingCreditBalance: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -151,6 +153,11 @@ fun PluctUIComponent03CaptureCard(
             
             reservationId = reservationResult.reservationId
             Log.d("CaptureCard", "Credit reserved: $reservationId")
+            
+            // Show notification when transcription starts from intent
+            if (isPrefilledUrl) {
+                PluctNotificationHelper.showTranscriptionStartedNotification(context, normalizedUrl)
+            }
         }
 
         val onComplete: () -> Unit = {
@@ -246,7 +253,7 @@ fun PluctUIComponent03CaptureCard(
                 isPrefilledUrl = true
                 validationError = null
                 if (sanitizer.isTikTokUrl(sanitizedUrl)) {
-                    apiService?.preWarmVideoProcessing(sanitizedUrl)
+                    // TECHNICAL DEBT CLEANUP #1: Removed pre-warming call (function deprecated)
                 }
             } else {
                 validationError = validationResult.errorMessage
@@ -255,25 +262,32 @@ fun PluctUIComponent03CaptureCard(
     }
 
     // Auto-submit on intent receive when credits available
-    LaunchedEffect(preFilledUrl, creditBalance, freeUsesRemaining, isSubmitting) {
+    // Wait for credit balance to finish loading before deciding to submit or queue
+    LaunchedEffect(preFilledUrl, creditBalance, freeUsesRemaining, isSubmitting, isLoadingCreditBalance) {
+        Log.d("CaptureCard", "Auto-submit LaunchedEffect triggered: preFilledUrl=$preFilledUrl, creditBalance=$creditBalance, freeUsesRemaining=$freeUsesRemaining, isSubmitting=$isSubmitting, isLoadingCreditBalance=$isLoadingCreditBalance")
+        
         if (!preFilledUrl.isNullOrBlank() && 
             !isSubmitting && 
             !isAutoSubmitting &&
+            !isLoadingCreditBalance && // Wait for balance to finish loading
             (creditBalance >= 1 || freeUsesRemaining > 0)) {
             
+            Log.d("CaptureCard", "Auto-submit conditions met, validating URL: $preFilledUrl")
             val validationResult = sanitizer.validateUrl(preFilledUrl)
             if (validationResult.isValid) {
                 isAutoSubmitting = true
-                delay(800) // Brief delay for smooth UX
+                Log.d("CaptureCard", "URL validated, waiting 800ms before auto-submit...")
+                delay(800) // Brief delay for smooth UX and state propagation
                 
                 // Check credits again (may have changed)
                 val currentBalance = creditBalance
                 val currentFreeUses = freeUsesRemaining
                 
                 if (currentBalance >= 1 || currentFreeUses > 0) {
-                    Log.d("CaptureCard", "Auto-submitting URL: $preFilledUrl")
+                    Log.d("CaptureCard", "Auto-submitting URL: $preFilledUrl (balance=$currentBalance, freeUses=$currentFreeUses)")
                     submitExtract()
                 } else {
+                    Log.d("CaptureCard", "Credits depleted during delay, queueing instead")
                     // Credits depleted, queue instead
                     if (onQueueForLater != null) {
                         onQueueForLater(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
@@ -281,7 +295,20 @@ fun PluctUIComponent03CaptureCard(
                     isAutoSubmitting = false
                 }
             } else {
+                Log.w("CaptureCard", "URL validation failed: ${validationResult.errorMessage}")
                 isAutoSubmitting = false
+            }
+        } else {
+            if (preFilledUrl.isNullOrBlank()) {
+                Log.d("CaptureCard", "Auto-submit skipped: preFilledUrl is blank")
+            } else if (isSubmitting) {
+                Log.d("CaptureCard", "Auto-submit skipped: already submitting")
+            } else if (isAutoSubmitting) {
+                Log.d("CaptureCard", "Auto-submit skipped: already auto-submitting")
+            } else if (isLoadingCreditBalance) {
+                Log.d("CaptureCard", "Auto-submit skipped: credit balance still loading")
+            } else if (creditBalance < 1 && freeUsesRemaining <= 0) {
+                Log.d("CaptureCard", "Auto-submit skipped: insufficient credits (balance=$creditBalance, freeUses=$freeUsesRemaining)")
             }
         }
     }
@@ -293,7 +320,7 @@ fun PluctUIComponent03CaptureCard(
             if (validationResult.isValid) {
                 val sanitizedUrl = validationResult.sanitizedValue
                 if (sanitizer.isTikTokUrl(sanitizedUrl)) {
-                    apiService?.preWarmVideoProcessing(sanitizedUrl)
+                    // TECHNICAL DEBT CLEANUP #1: Removed pre-warming call (function deprecated)
                 }
             }
         }

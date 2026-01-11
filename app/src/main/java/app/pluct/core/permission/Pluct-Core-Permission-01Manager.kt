@@ -107,74 +107,63 @@ object PluctCorePermission01Manager {
     }
     
     /**
-     * Request notification permission
-     * Returns true if permission is granted, false otherwise
+     * Request notification permission (deprecated - use PluctCorePermission02Launcher01Helper instead)
+     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper for better reliability
      */
+    @Deprecated("Use PluctCorePermission02Launcher01Helper.requestNotificationPermission instead")
     suspend fun requestNotificationPermission(activity: Activity): Boolean {
-        // Check if already granted
         if (hasNotificationPermission(activity)) {
             return true
         }
         
-        // Android 13+ requires runtime permission request
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return suspendCancellableCoroutine { continuation ->
-                val permissionLauncher = ActivityCompat.requestPermissions(
+                @Suppress("DEPRECATION")
+                ActivityCompat.requestPermissions(
                     activity,
                     arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
                     REQUEST_CODE_NOTIFICATION
                 )
                 
-                // Note: This is a simplified implementation
-                // In practice, we need to use ActivityResultLauncher for proper handling
-                // For now, we'll check permission status after a short delay
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     val granted = hasNotificationPermission(activity)
-                    // Invalidate cache to force fresh check
                     notificationPermissionCached = null
                     continuation.resume(granted)
                 }, 500)
             }
         }
         
-        // Android 12 and below: permission always granted
         return true
     }
     
     /**
-     * Request overlay/draw-over-apps permission
-     * Returns true if permission is granted, false otherwise
+     * Request overlay/draw-over-apps permission (deprecated - use PluctCorePermission02Launcher01Helper instead)
+     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper for better reliability
      */
+    @Deprecated("Use PluctCorePermission02Launcher01Helper.requestOverlayPermission instead")
     suspend fun requestOverlayPermission(activity: Activity): Boolean {
-        // Check if already granted
         if (hasOverlayPermission(activity)) {
             return true
         }
         
-        // Android 6+ requires runtime permission request via settings
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             return suspendCancellableCoroutine { continuation ->
-                // Open system settings for overlay permission
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:${activity.packageName}")
                 )
                 
+                @Suppress("DEPRECATION")
                 activity.startActivityForResult(intent, REQUEST_CODE_OVERLAY)
                 
-                // Check permission status after user returns from settings
-                // Note: This is a simplified implementation
-                // In practice, we need to use ActivityResultLauncher for proper handling
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     val granted = hasOverlayPermission(activity)
-                    // Invalidate cache to force fresh check
                     overlayPermissionCached = null
                     continuation.resume(granted)
                 }, 1000)
             }
         }
         
-        // Android 5 and below: permission always granted
         return true
     }
     
@@ -250,9 +239,10 @@ object PluctCorePermission01Manager {
     }
     
     /**
-     * Handle permission request result
-     * Call this from Activity.onRequestPermissionsResult
+     * Handle permission request result (deprecated - kept for backward compatibility)
+     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper instead
      */
+    @Deprecated("Use ActivityResultLauncher instead", ReplaceWith("PluctCorePermission02Launcher01Helper"))
     fun handlePermissionResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -262,11 +252,9 @@ object PluctCorePermission01Manager {
             REQUEST_CODE_NOTIFICATION -> {
                 if (grantResults.isNotEmpty() && 
                     grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    // Permission granted, invalidate cache
                     invalidateCache()
                     Log.d(TAG, "Notification permission granted")
                 } else {
-                    // Permission denied, invalidate cache
                     invalidateCache()
                     Log.d(TAG, "Notification permission denied")
                 }
@@ -275,12 +263,12 @@ object PluctCorePermission01Manager {
     }
     
     /**
-     * Handle activity result for overlay permission
-     * Call this from Activity.onActivityResult
+     * Handle activity result for overlay permission (deprecated - kept for backward compatibility)
+     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper instead
      */
+    @Deprecated("Use ActivityResultLauncher instead", ReplaceWith("PluctCorePermission02Launcher01Helper"))
     fun handleActivityResult(requestCode: Int, context: Context) {
         if (requestCode == REQUEST_CODE_OVERLAY) {
-            // Invalidate cache to force fresh check
             invalidateCache()
             val granted = hasOverlayPermission(context)
             Log.d(TAG, "Overlay permission check after settings: $granted")

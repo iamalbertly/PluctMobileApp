@@ -277,21 +277,44 @@ class PluctUIComponent05Notification03Overlay01Service : Service() {
     
     /**
      * Check if app is in foreground
+     * Uses ActivityManager to check if app is in foreground
      */
     private fun isAppInForeground(): Boolean {
-        // Simple check: if service is running, app might be in background
-        // But we can't reliably detect this from a service
-        // For now, we'll show overlay if service is called
-        return false
+        try {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            val runningTasks = activityManager?.getRunningTasks(1)
+            val topActivity = runningTasks?.firstOrNull()?.topActivity
+            val isForeground = topActivity?.packageName == packageName
+            Log.d(TAG, "App foreground check: $isForeground")
+            return isForeground
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check foreground state: ${e.message}")
+            // If check fails, assume background (safer to show overlay)
+            return false
+        }
     }
     
     /**
      * Check if overlay should not be shown (lock screen, phone call, etc.)
      */
     private fun shouldNotShowOverlay(): Boolean {
-        // TODO: Check for lock screen, phone call state
-        // For now, always allow
-        return false
+        try {
+            // Check for keyguard (lock screen)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+            if (keyguardManager?.isKeyguardLocked == true) {
+                Log.d(TAG, "Keyguard locked, not showing overlay")
+                return true
+            }
+            
+            // Check for phone call state (requires READ_PHONE_STATE permission)
+            // For now, we'll skip this check to avoid requiring additional permission
+            // The overlay is small and non-intrusive, so it's acceptable during calls
+            
+            return false
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check overlay conditions: ${e.message}")
+            return false
+        }
     }
 }
 

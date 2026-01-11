@@ -22,15 +22,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,7 +56,10 @@ fun PluctProcessingIndicator(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Processing indicator" },
+            .semantics {
+                contentDescription = "Processing indicator"
+                testTag = "processing_indicator"
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (showTimeoutWarning) {
                 MaterialTheme.colorScheme.errorContainer
@@ -98,7 +104,15 @@ fun PluctProcessingIndicator(
                         Text(
                             text = "$progress% complete",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            text = "Starting transcription... This may take up to 2 minutes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 

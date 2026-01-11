@@ -56,7 +56,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import app.pluct.core.permission.PluctCorePermission01Manager
-import app.pluct.core.permission.REQUEST_CODE_NOTIFICATION
 import app.pluct.data.preferences.PluctUserPreferences
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
@@ -67,7 +66,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import android.os.Build
 import android.app.Activity
-import androidx.core.app.ActivityCompat
 
 /**
  * Pluct-UI-Screen-01HomeScreen - Main home screen with video list and capture interface.
@@ -163,7 +161,8 @@ fun PluctHomeScreen(
             },
             onViewDebugLogs = {
                 showDebugLogs = true
-            }
+            },
+            permissionLauncherHelper = null // Settings dialog can use fallback method
         )
     }
     
@@ -234,8 +233,8 @@ private fun HomeContent(
                     errorLogs = errorLogs,
                     onCopyError = { error ->
                         debugLogManager?.let { manager ->
-                            val errorText = manager.formatLogForClipboard(error)
                             // Copy is handled in the component
+                            manager.formatLogForClipboard(error)
                         }
                     }
                 )
@@ -282,7 +281,8 @@ private fun SettingsDialog(
     debugLogCount: Int,
     onDismiss: () -> Unit,
     onRequestCredits: (String) -> Unit,
-    onViewDebugLogs: () -> Unit
+    onViewDebugLogs: () -> Unit,
+    permissionLauncherHelper: app.pluct.core.permission.PluctCorePermission02Launcher01Helper? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -305,11 +305,19 @@ private fun SettingsDialog(
         mutableStateOf(prefs.getOverlayNotificationsEnabled()) 
     }
     
-    // Refresh permission states
+    // Refresh permission states on dialog open and when permissions change
     LaunchedEffect(Unit) {
         hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
         hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
         overlayEnabled = prefs.getOverlayNotificationsEnabled()
+    }
+    
+    // Refresh permission states periodically when dialog is open
+    LaunchedEffect(hasNotificationPermission, hasOverlayPermission) {
+        // Re-check permissions when state might have changed
+        delay(500)
+        hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
+        hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
     }
 
     AlertDialog(
@@ -398,14 +406,20 @@ private fun SettingsDialog(
                                 onClick = {
                                     if (isPermanentlyDenied) {
                                         PluctCorePermission01Manager.openNotificationSettings(context)
+                                    } else if (permissionLauncherHelper != null) {
+                                        // Use ActivityResultLauncher if available
+                                        permissionLauncherHelper.requestNotificationPermission { granted ->
+                                            hasNotificationPermission = granted
+                                        }
                                     } else if (context is Activity && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        // Fallback to deprecated method
+                                        @Suppress("DEPRECATION")
                                         androidx.core.app.ActivityCompat.requestPermissions(
-                                            context as Activity,
+                                            context,
                                             arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                                            REQUEST_CODE_NOTIFICATION
+                                            app.pluct.core.permission.REQUEST_CODE_NOTIFICATION
                                         )
                                         PluctCorePermission01Manager.invalidateCache()
-                                        // Update state after a delay
                                         scope.launch {
                                             delay(500)
                                             hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
@@ -455,12 +469,19 @@ private fun SettingsDialog(
                         if (!hasOverlayPermission) {
                             Button(
                                 onClick = {
-                                    PluctCorePermission01Manager.openOverlaySettings(context)
-                                    PluctCorePermission01Manager.invalidateCache()
-                                    // Update state after a delay
-                                    scope.launch {
-                                        delay(1000)
-                                        hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+                                    if (permissionLauncherHelper != null) {
+                                        // Use ActivityResultLauncher if available
+                                        permissionLauncherHelper.requestOverlayPermission { granted ->
+                                            hasOverlayPermission = granted
+                                        }
+                                    } else {
+                                        // Fallback to opening settings
+                                        PluctCorePermission01Manager.openOverlaySettings(context)
+                                        PluctCorePermission01Manager.invalidateCache()
+                                        scope.launch {
+                                            delay(1000)
+                                            hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+                                        }
                                     }
                                 },
                                 modifier = Modifier.semantics {

@@ -14,6 +14,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,9 +45,9 @@ import app.pluct.services.background.status.PluctStatusResumer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.pluct.core.permission.PluctCorePermission01Manager
+import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import app.pluct.ui.components.PluctUIComponent06Permission01Onboarding01Dialog
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
-import androidx.activity.result.contract.ActivityResultContracts
 
 /**
  * Pluct-Main-01Activity - Simplified main activity for core UI testing
@@ -66,18 +67,15 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     private val prefilledUrlState = mutableStateOf<String?>(null)
     private val isLoadingCreditBalanceState = mutableStateOf(true) // Start as loading
     
-    // Permission request launchers
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        PluctCorePermission01Manager.invalidateCache()
-        Log.d("MainActivity", "Notification permission result: $isGranted")
-    }
+    // Permission launcher helper
+    private lateinit var permissionLauncherHelper: PluctCorePermission02Launcher01Helper
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Permission request results are handled in onRequestPermissionsResult and onActivityResult
+        // Initialize permission launcher helper
+        permissionLauncherHelper = PluctCorePermission02Launcher01Helper(this)
+        permissionLauncherHelper.initialize()
         
         // Initialize debug log manager (cleanup old logs on startup)
         debugLogManager.initialize()
@@ -125,35 +123,15 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                         debugLogManager = debugLogManager,
                         queueManager = queueManager,
                         isLoadingCreditBalance = isLoadingCreditBalanceState.value,
-                        onLoadingCreditBalanceChange = { isLoadingCreditBalanceState.value = it }
+                        onLoadingCreditBalanceChange = { isLoadingCreditBalanceState.value = it },
+                        permissionLauncherHelper = permissionLauncherHelper
                     )
                 }
             }
         }
     }
     
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_NOTIFICATION) {
-            PluctCorePermission01Manager.handlePermissionResult(requestCode, permissions, grantResults)
-        }
-    }
-    
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_OVERLAY) {
-            PluctCorePermission01Manager.handleActivityResult(requestCode, this)
-        }
-    }
-    
-    companion object {
-        const val REQUEST_CODE_NOTIFICATION = 1001
-        const val REQUEST_CODE_OVERLAY = 1002
-    }
+    // Deprecated methods removed - using ActivityResultLauncher instead
     
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
@@ -204,7 +182,8 @@ fun PluctMainContent(
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager,
     queueManager: app.pluct.services.PluctQueueManager,
     isLoadingCreditBalance: Boolean = false,
-    onLoadingCreditBalanceChange: (Boolean) -> Unit = {}
+    onLoadingCreditBalanceChange: (Boolean) -> Unit = {},
+    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -320,25 +299,29 @@ fun PluctMainContent(
         if (PluctUserPreferences.isFirstTimeUser(context)) {
             showWelcomeDialog = true
         }
-        
-        // Check if permission onboarding is needed
-        val prefs = PluctUserPreferences(context)
-        val hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
-        val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
-        val hasSeenNotificationOnboarding = prefs.hasSeenNotificationOnboarding()
-        val hasSeenOverlayOnboarding = prefs.hasSeenOverlayOnboarding()
-        
-        // Show onboarding if permissions not granted and not seen before
-        // Delay to allow welcome dialog to show first if needed
-        scope.launch {
-            delay(2000) // Wait for welcome dialog to potentially show
+    }
+    
+    // Check if permission onboarding is needed - wait for welcome dialog to complete
+    LaunchedEffect(showWelcomeDialog) {
+        if (!showWelcomeDialog) {
+            // Welcome dialog dismissed, now check for permission onboarding
+            delay(500) // Small delay after welcome dialog
+            val prefs = PluctUserPreferences(context)
+            val hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
+            val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
+            val hasSeenNotificationOnboarding = prefs.hasSeenNotificationOnboarding()
+            val hasSeenOverlayOnboarding = prefs.hasSeenOverlayOnboarding()
+            
+            // Show onboarding if permissions not granted and not seen before
             if ((!hasNotificationPermission && !hasSeenNotificationOnboarding) ||
                 (!hasOverlayPermission && !hasSeenOverlayOnboarding)) {
                 showPermissionOnboarding = true
             }
         }
-        
-        // Always bootstrap balance, then vend a token only if we need credits.
+    }
+    
+    // Always bootstrap balance, then vend a token only if we need credits.
+    LaunchedEffect(Unit) {
         isLoading = true
         onLoadingCreditBalanceChange(true)
         errorMessage = null
@@ -613,7 +596,8 @@ fun PluctMainContent(
     if (showPermissionOnboarding) {
         PluctUIComponent06Permission01Onboarding01Dialog(
             onDismiss = { showPermissionOnboarding = false },
-            onComplete = { showPermissionOnboarding = false }
+            onComplete = { showPermissionOnboarding = false },
+            permissionLauncherHelper = permissionLauncherHelper
         )
     }
 }
