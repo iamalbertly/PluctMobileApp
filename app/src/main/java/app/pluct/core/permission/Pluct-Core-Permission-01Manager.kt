@@ -10,8 +10,6 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 /**
  * Pluct-Core-Permission-01Manager - Centralized permission management
@@ -30,6 +28,9 @@ object PluctCorePermission01Manager {
     
     @Volatile
     private var overlayPermissionCached: Boolean? = null
+    
+    @Volatile
+    private var batteryOptimizationCached: Boolean? = null
     
     @Volatile
     private var lastPermissionCheckTimestamp: Long = 0
@@ -107,65 +108,63 @@ object PluctCorePermission01Manager {
     }
     
     /**
-     * Request notification permission (deprecated - use PluctCorePermission02Launcher01Helper instead)
-     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper for better reliability
+     * UX IMPROVEMENT #1: Check if app is exempt from battery optimization
+     * Battery optimization can kill background WorkManager jobs, causing transcriptions to fail silently
+     * when the app is backgrounded. This violates Trust (users expect background processing) and
+     * Customer (poor experience when transcriptions don't complete).
+     * Returns true if exempt (optimized), false if not exempt (may be killed)
      */
-    @Deprecated("Use PluctCorePermission02Launcher01Helper.requestNotificationPermission instead")
-    suspend fun requestNotificationPermission(activity: Activity): Boolean {
-        if (hasNotificationPermission(activity)) {
-            return true
+    fun isBatteryOptimizationExempt(context: Context): Boolean {
+        // Invalidate cache if stale
+        val now = System.currentTimeMillis()
+        if (now - lastPermissionCheckTimestamp > CACHE_VALIDITY_MS) {
+            batteryOptimizationCached = null
         }
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return suspendCancellableCoroutine { continuation ->
-                @Suppress("DEPRECATION")
-                ActivityCompat.requestPermissions(
-                    activity,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                    REQUEST_CODE_NOTIFICATION
-                )
-                
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    val granted = hasNotificationPermission(activity)
-                    notificationPermissionCached = null
-                    continuation.resume(granted)
-                }, 500)
-            }
+        // Return cached value if available
+        batteryOptimizationCached?.let { return it }
+        
+        val isExempt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+        } else {
+            // Android 5 and below: no battery optimization restrictions
+            true
         }
         
-        return true
+        // Cache the result
+        batteryOptimizationCached = isExempt
+        lastPermissionCheckTimestamp = now
+        
+        Log.d(TAG, "Battery optimization exempt check: $isExempt")
+        return isExempt
     }
     
     /**
-     * Request overlay/draw-over-apps permission (deprecated - use PluctCorePermission02Launcher01Helper instead)
-     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper for better reliability
+     * UX IMPROVEMENT #1: Open battery optimization settings
+     * Guides user to exempt app from battery optimization for reliable background processing
      */
-    @Deprecated("Use PluctCorePermission02Launcher01Helper.requestOverlayPermission instead")
-    suspend fun requestOverlayPermission(activity: Activity): Boolean {
-        if (hasOverlayPermission(activity)) {
-            return true
-        }
-        
+    fun openBatteryOptimizationSettings(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return suspendCancellableCoroutine { continuation ->
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${activity.packageName}")
-                )
-                
-                @Suppress("DEPRECATION")
-                activity.startActivityForResult(intent, REQUEST_CODE_OVERLAY)
-                
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    val granted = hasOverlayPermission(activity)
-                    overlayPermissionCached = null
-                    continuation.resume(granted)
-                }, 1000)
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback to app settings if direct request fails
+                Log.w(TAG, "Failed to open battery optimization request, opening app settings: ${e.message}")
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
             }
         }
-        
-        return true
     }
+    
+    // Deprecated request methods removed - use PluctCorePermission02Launcher01Helper instead
     
     /**
      * Open system settings for notification permission
@@ -234,46 +233,12 @@ object PluctCorePermission01Manager {
     fun invalidateCache() {
         notificationPermissionCached = null
         overlayPermissionCached = null
+        batteryOptimizationCached = null
         lastPermissionCheckTimestamp = 0
         Log.d(TAG, "Permission cache invalidated")
     }
     
-    /**
-     * Handle permission request result (deprecated - kept for backward compatibility)
-     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper instead
-     */
-    @Deprecated("Use ActivityResultLauncher instead", ReplaceWith("PluctCorePermission02Launcher01Helper"))
-    fun handlePermissionResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        when (requestCode) {
-            REQUEST_CODE_NOTIFICATION -> {
-                if (grantResults.isNotEmpty() && 
-                    grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    invalidateCache()
-                    Log.d(TAG, "Notification permission granted")
-                } else {
-                    invalidateCache()
-                    Log.d(TAG, "Notification permission denied")
-                }
-            }
-        }
-    }
-    
-    /**
-     * Handle activity result for overlay permission (deprecated - kept for backward compatibility)
-     * @deprecated Use ActivityResultLauncher via PluctCorePermission02Launcher01Helper instead
-     */
-    @Deprecated("Use ActivityResultLauncher instead", ReplaceWith("PluctCorePermission02Launcher01Helper"))
-    fun handleActivityResult(requestCode: Int, context: Context) {
-        if (requestCode == REQUEST_CODE_OVERLAY) {
-            invalidateCache()
-            val granted = hasOverlayPermission(context)
-            Log.d(TAG, "Overlay permission check after settings: $granted")
-        }
-    }
+    // Deprecated handler methods removed - use PluctCorePermission02Launcher01Helper instead
     
 }
 

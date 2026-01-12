@@ -14,13 +14,20 @@ class PluctJourneyOrchestrator {
         this.journeys = new Map();
         this.results = [];
         this.journeyExecutionOrder = [
+            // Start with intent user journey as requested
+            'Journey-TikTok-Intent-01Transcription.js',
+            // Comprehensive Intent Flow Validation (runs early to catch regressions)
+            'Journey-Transcription-01IntentFlow-Complete-Validation.js',
+            // Intent Fix Validation Journeys
+            'Journey-Intent-01TikTok-02AutoSubmit-01Validation.js',
+            'Journey-Intent-02TikTok-03Queue-01Validation.js',
+            'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
             'Journey-AppLaunch.js',
             'Journey-ErrorNotificationValidation.js',
             'Pluct-UI-Header-01CreditBalance-Validation.js',
             'Pluct-UI-Header-02SettingsNavigation-Validation.js',
             'Pluct-UI-Header-03EndToEndIntegration-Validation.js',
             'Journey-QuickScan.js', // Updated to work with new Extract Script button
-            'Journey-TikTok-Intent-01Transcription.js',
             'Journey-TikTok-Intent-Route-01Transcription.js',
             'Journey-TikTok-Manual-URL-01Transcription.js',
             'Journey-Transcript-Storage-01Display.js',
@@ -63,6 +70,12 @@ class PluctJourneyOrchestrator {
             'Journey-UX-12BackgroundProcessing-Validation.js',
             'Journey-UX-13NotificationNavigation-Validation.js',
             'Journey-UX-14CreditQueueFlow-Validation.js',
+            // UX Reliability Fixes Validation Journeys
+            'Journey-UX-15BatteryOptimization-01Validation.js',
+            'Journey-UX-16StatusVerification-01Validation.js',
+            'Journey-UX-17BackgroundProcessing-01Validation.js',
+            'Journey-UX-18StaleStatus-01Validation.js',
+            'Journey-UX-19ReProcessingPrevention-01Validation.js',
             // Edge Case Validation Journeys
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
             'Journey-EdgeCase-02CreditDepletion-Validation.js',
@@ -72,6 +85,12 @@ class PluctJourneyOrchestrator {
             'Journey-EdgeCase-06ConcurrentVending-Validation.js',
             'Journey-EdgeCase-07TokenExpirationPolling-Validation.js',
             'Journey-EdgeCase-08NetworkInterruption-Validation.js',
+            // Critical Fixes Validation Journeys
+            'Journey-Fix-01JWTExpiration-Validation.js',
+            'Journey-Fix-02ResourceLeak-Validation.js',
+            'Journey-Fix-03HealthMonitoring-Validation.js',
+            'Journey-Fix-04RetryTokenRefresh-Validation.js',
+            'Journey-Fix-05ComprehensiveE2E-Validation.js',
             // Refactoring Validation Journeys
             'Journey-Refactor-01VideoProcessorRename-Validation.js',
             'Journey-Refactor-02ProcessingTierCleanup-Validation.js',
@@ -88,6 +107,8 @@ class PluctJourneyOrchestrator {
             'Journey-ErrorNotificationValidation.js': 'ErrorNotificationValidation',
             'Journey-QuickScan.js': 'QuickScan', // Updated to work with new Start Transcription button
             'Journey-TikTok-Intent-01Transcription.js': 'TikTokIntentTranscription',
+            'Journey-Transcription-01IntentFlow-Complete-Validation.js': 'Transcription-01IntentFlow-Complete-Validation',
+            'Journey-Duplicate-01ProcessingLock-Validation.js': 'Duplicate-01ProcessingLock-Validation',
             'Journey-TikTok-Intent-Route-01Transcription.js': 'TikTok-Intent-Route-01Transcription',
             'Journey-TikTok-Manual-URL-01Transcription.js': 'TikTokManualURLTranscription',
             'Journey-TikTok-Manual-URL-02Insights.js': 'TikTokManualURLInsights',
@@ -136,6 +157,12 @@ class PluctJourneyOrchestrator {
             'Journey-UX-12BackgroundProcessing-Validation.js': 'UX-12BackgroundProcessing-Validation',
             'Journey-UX-13NotificationNavigation-Validation.js': 'UX-13NotificationNavigation-Validation',
             'Journey-UX-14CreditQueueFlow-Validation.js': 'UX-14CreditQueueFlow-Validation',
+            // UX Reliability Fixes Validation Journey Mappings
+            'Journey-UX-15BatteryOptimization-01Validation.js': 'UX-15BatteryOptimization-01Validation',
+            'Journey-UX-16StatusVerification-01Validation.js': 'UX-16StatusVerification-01Validation',
+            'Journey-UX-17BackgroundProcessing-01Validation.js': 'UX-17BackgroundProcessing-01Validation',
+            'Journey-UX-18StaleStatus-01Validation.js': 'UX-18StaleStatus-01Validation',
+            'Journey-UX-19ReProcessingPrevention-01Validation.js': 'UX-19ReProcessingPrevention-01Validation',
             // Edge Case Validation Journey Mappings
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
             'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
@@ -196,6 +223,25 @@ class PluctJourneyOrchestrator {
                     const uiCheck = await this.core.scanUIForErrors();
                     if (!uiCheck.success) {
                         this.core.logger.error(`❌ UI error detected after journey: ${uiCheck.error}`);
+                        try {
+                            const uiDump = this.core.readLastUIDump();
+                            if (uiDump) {
+                                this.core.logger.error('UI snapshot (post-journey, truncated):');
+                                this.core.logger.error(uiDump.substring(0, 800));
+                            }
+                        } catch (e) {
+                            this.core.logger.error(`Failed to read UI snapshot: ${e.message}`);
+                        }
+                        try {
+                            const logcatResult = await this.core.executeCommand('adb logcat -d -t 80', undefined, undefined, { allowFailure: true });
+                            if (logcatResult.success && logcatResult.output) {
+                                const tail = logcatResult.output.split('\n').slice(-40).join('\n');
+                                this.core.logger.error('Logcat tail (post-journey):');
+                                this.core.logger.error(tail);
+                            }
+                        } catch (e) {
+                            this.core.logger.error(`Failed to capture logcat tail: ${e.message}`);
+                        }
                         result = {
                             success: false,
                             error: uiCheck.error
@@ -294,8 +340,10 @@ class PluctJourneyOrchestrator {
                 this.core.logger.error(`❌ Error: ${result.error}`);
                 this.core.logger.error(`❌ Stopping test execution due to failure`);
                 
-                // Comprehensive debugging information
-                await this.generateDetailedFailureReport(name, result);
+                // Comprehensive debugging information (verbose only)
+                if (this.core.logger.isVerbose && this.core.logger.isVerbose()) {
+                    await this.generateDetailedFailureReport(name, result);
+                }
                 
                 // Terminate immediately with detailed error
                 const errorMessage = `Journey ${name} failed: ${result.error}`;
@@ -311,6 +359,9 @@ class PluctJourneyOrchestrator {
      * Generate detailed failure report
      */
     async generateDetailedFailureReport(failedJourney, result) {
+        if (!this.core.logger.isVerbose || !this.core.logger.isVerbose()) {
+            return;
+        }
         try {
             this.core.logger.info('🔍 Generating detailed failure report...');
             
@@ -481,8 +532,34 @@ class BaseJourney {
      * Fail with logcat output, API logs, and UI dump for debugging
      */
     async failWithDiagnostics(errorMessage) {
-        this.core.logger.error(`❌ ${errorMessage}`);
-        
+        this.core.logger.error(`ERROR ${errorMessage}`);
+
+        if (!this.core.logger.isVerbose || !this.core.logger.isVerbose()) {
+            try {
+                await this.dumpUI();
+                const uiDump = this.core.readLastUIDump();
+                if (uiDump) {
+                    this.core.logger.error('UI snapshot (truncated):');
+                    this.core.logger.error(uiDump.substring(0, 800));
+                }
+            } catch (e) {
+                this.core.logger.error(`Failed to capture UI snapshot: ${e.message}`);
+            }
+
+            try {
+                const logcatResult = await this.core.executeCommand('adb logcat -d -t 80', undefined, undefined, { allowFailure: true });
+                if (logcatResult.success && logcatResult.output) {
+                    const tail = logcatResult.output.split('\n').slice(-40).join('\n');
+                    this.core.logger.error('Logcat tail (recent):');
+                    this.core.logger.error(tail);
+                }
+            } catch (e) {
+                this.core.logger.error(`Failed to capture logcat tail: ${e.message}`);
+            }
+
+            throw new Error(errorMessage);
+        }
+
         // Capture API logs first (most important for debugging API issues)
         try {
             this.core.logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

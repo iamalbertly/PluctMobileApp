@@ -12,7 +12,6 @@ import app.pluct.services.PluctCoreBackground01TranscriptionWorkerNetworkMonitor
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
-import app.pluct.services.processing.PluctCoreProcessingDuplicateGuard01Coordinator
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -139,32 +138,11 @@ class PluctCoreBackground01TranscriptionWorker(
             }
         }
         
-        val guardResult = PluctCoreProcessingDuplicateGuard01Coordinator.ensureProcessingEntry(
-            url = url,
-            videoRepository = videoRepository,
-            tier = ProcessingTier.EXTRACT_SCRIPT
-        )
-
-        when (guardResult) {
-            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.AlreadyProcessing -> {
-                Log.w(TAG, "Processing entry already exists for $url, aborting background job")
-                return Result.failure(workDataOf("error" to "Already processing"))
-            }
-            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.Failure -> {
-                val failureReason = guardResult.reason.ifBlank { "Unable to reserve processing slot" }
-                Log.e(TAG, "Failed to persist processing entry for $url: $failureReason")
-                showErrorNotification(url, failureReason, notificationId)
-                return Result.failure(workDataOf("error" to failureReason))
-            }
-            is PluctCoreProcessingDuplicateGuard01Coordinator.DuplicateGuardOutcome.Prepared -> {
-                Log.d(TAG, "Processing entry reserved for background job: ${guardResult.video.id}")
-            }
-        }
-        
         // Show initial progress notification
         showProgressNotification(url, 0, "Starting transcription...", notificationId)
         
         // Process transcription with background flag
+        // Deduplication is handled internally by apiService.processTikTokVideo() via unified coordinator
         val result = apiService.processTikTokVideo(url, isBackground = true)
         
         return result.fold(
@@ -237,6 +215,24 @@ class PluctCoreBackground01TranscriptionWorker(
     }
     
     private suspend fun pollExistingJob(jobId: String, url: String, notificationId: Int): Result {
+        // UX IMPROVEMENT #5: First verify current status before polling
+        val existingVideo = videoRepository.getVideoByUrl(url)
+        if (existingVideo != null) {
+            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingVideo.transcript != null) {
+                Log.d(TAG, "Video $url already completed in database, returning existing transcript")
+                showCompletionNotification(url, existingVideo.transcript!!, notificationId)
+                return Result.success(workDataOf(
+                    "transcript" to existingVideo.transcript,
+                    "job_id" to jobId,
+                    "status" to "completed"
+                ))
+            }
+            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.FAILED) {
+                Log.d(TAG, "Video $url already failed in database, skipping poll")
+                return Result.failure(workDataOf("error" to "Transcription already failed"))
+            }
+        }
+        
         // Get service token (will use cached if available)
         val vendResult = apiService.vendToken("background_${System.currentTimeMillis()}")
         if (vendResult.isFailure) {
