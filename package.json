@@ -25,7 +25,9 @@
     "test": "powershell -ExecutionPolicy Bypass -File run_tests.ps1",
     "test:dev": "powershell -ExecutionPolicy Bypass -File run_tests.ps1 -DevMode",
     "test:maestro": "node maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js",
-    "test:maestro:dev": "cross-env DEV_MODE=1 node maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js"
+    "test:maestro:dev": "cross-env DEV_MODE=1 node maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js",
+    "test:maestro:ux": "node maestro/Pluct-Maestro-Test-02Focused-01UXImprovements-01Runner.js",
+    "test:maestro:ux:dev": "cross-env DEV_MODE=1 node maestro/Pluct-Maestro-Test-02Focused-01UXImprovements-01Runner.js"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
