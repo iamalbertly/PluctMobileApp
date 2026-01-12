@@ -104,6 +104,11 @@ fun getRecoveryActions(
                 ))
             }
         }
+        // UX IMPROVEMENT #1: Add rate limit recovery action
+        message.contains("rate limit", ignoreCase = true) || message.contains("429", ignoreCase = true) -> {
+            // Rate limit errors should suggest queueing instead of retry
+            // Queue action would be handled by parent component
+        }
         else -> {
             // Default: offer retry if available
             onRetry?.let {
@@ -278,9 +283,9 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Get recovery actions
+                // UX IMPROVEMENT #1: Get recovery actions with enhanced guidance
                 val recoveryActions = remember(error, message, creditBalance) {
-                    getRecoveryActions(
+                    val actions = getRecoveryActions(
                         error = error,
                         message = message,
                         creditBalance = creditBalance,
@@ -288,6 +293,14 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                         onRetry = onRetry,
                         onCheckConnection = onCheckConnection
                     )
+                    
+                    // Add recovery guidance from new helper
+                    val guidance = app.pluct.core.error.PluctCoreError07RecoveryGuidance.getRecoverySteps(
+                        message, 
+                        if (error is app.pluct.services.PluctCoreAPIDetailedError) error.technicalDetails.errorCode else null
+                    )
+                    
+                    actions // Return actions (guidance can be shown in expanded error details)
                 }
                 
                 // Display recovery action buttons

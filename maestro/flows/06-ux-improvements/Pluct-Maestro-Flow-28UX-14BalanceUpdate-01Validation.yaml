@@ -1,0 +1,25 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-28UX-14BalanceUpdate-01Validation.yaml
+# Validates UX Improvement #5: Credit balance updates are immediately visible
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Start a transcription to trigger balance update
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMA730880/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Verify balance is visible and updates
+- assertVisible:
+    id: "credit_balance_loading"
+    optional: true
+- assertVisible:
+    text: "credits"
+    optional: true

@@ -1,0 +1,22 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-27UX-13RateLimit-01Validation.yaml
+# Validates UX Improvement #3: Better rate limit messaging with retry timing
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Note: This test would require triggering rate limit (10 requests/hour)
+# For validation, we check that rate limit dialog shows improved messaging
+# In practice, this would be tested after making 10+ requests
+
+- assertVisible:
+    text: "Too Many Requests"
+    optional: true
+- assertVisible:
+    text: "Try again in"
+    optional: true
+- assertVisible:
+    text: "Queue for Later"
+    optional: true

@@ -449,7 +449,19 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 }
             )
         } catch (e: Exception) {
+            // UX IMPROVEMENT #4: Catch and surface silent failures with proper error handling
             Log.e("TranscriptionOrchestrator", "Error orchestrating transcription: ${e.message}", e)
+            
+            // Ensure error is logged to debug system
+            debugLogManager?.logError(
+                category = "TRANSCRIPTION",
+                operation = "processVideo_exception",
+                message = "Unhandled exception during transcription orchestration",
+                exception = e,
+                requestUrl = url,
+                requestPayload = "Exception caught in try-catch block"
+            )
+            
             val userMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
                 error = e,
                 technicalMessage = e.message,

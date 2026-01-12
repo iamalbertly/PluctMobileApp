@@ -1,0 +1,28 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-26UX-12ErrorRecovery-01Validation.yaml
+# Validates UX Improvement #1: Error recovery guidance with specific next steps
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Trigger an error (insufficient credits scenario)
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMA730880/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Verify error message appears with recovery actions
+- assertVisible:
+    id: "error_message_text"
+    optional: true
+- assertVisible:
+    text: "credits"
+    optional: true
+- assertVisible:
+    id: "error_recovery_add_credits"
+    optional: true

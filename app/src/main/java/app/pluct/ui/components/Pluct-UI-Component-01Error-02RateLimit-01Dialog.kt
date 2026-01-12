@@ -37,16 +37,35 @@ fun PluctRateLimitDialog(
         title = { Text("Too Many Requests") },
         text = {
             Column {
+                // UX IMPROVEMENT #3: Better rate limit messaging with specific guidance
                 Text("You've reached the rate limit for token requests.")
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Limit: 10 requests per hour")
-                if (resetDate != null) {
-                    Text("Try again after: ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(resetDate)}")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    "This helps prevent abuse and ensures fair usage for all users.",
-                    style = MaterialTheme.typography.bodySmall
+                    "Limit: 10 requests per hour",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+                if (resetDate != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val now = System.currentTimeMillis()
+                    val resetTime = resetDate.time
+                    val minutesUntilReset = ((resetTime - now) / 60000).toInt().coerceAtLeast(0)
+                    Text(
+                        "⏰ Try again in ${if (minutesUntilReset > 0) "$minutesUntilReset minute${if (minutesUntilReset != 1) "s" else ""}" else "less than a minute"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Or after: ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(resetDate)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "💡 Tip: You can queue videos for later processing. They'll automatically process when the rate limit resets.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         },

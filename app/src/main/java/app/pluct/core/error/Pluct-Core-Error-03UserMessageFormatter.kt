@@ -43,18 +43,18 @@ object PluctCoreError03UserMessageFormatter {
             message.contains("credits", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Insufficient Credits",
-                    message = "You don't have enough credits to complete this operation. Please add credits and try again.",
+                    message = "You don't have enough credits to complete this operation. You can add credits in Settings, or save this video to process later when you have credits.",
                     action = "Add Credits",
                     retryable = false
                 )
             
-            // Rate limiting
+            // Rate limiting - UX IMPROVEMENT #3: Better messaging with actionable guidance
             status == 429 || message.contains("rate limit", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Too Many Requests",
-                    message = "You've made too many requests. Please wait a moment and try again.",
-                    action = "Wait and Retry",
-                    retryable = true
+                    message = "You've reached the rate limit (10 requests per hour). You can queue this video for later processing, or wait and try again. Queued videos will process automatically when the limit resets.",
+                    action = "Queue for Later",
+                    retryable = false
                 )
             
             // Server errors
@@ -93,9 +93,29 @@ object PluctCoreError03UserMessageFormatter {
             message.contains("network", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Connection Error",
-                    message = "Unable to connect to the server. Please check your internet connection and try again.",
-                    action = "Retry",
+                    message = "Unable to connect to the server. Please check your internet connection and try again. If the problem persists, the video will be saved and processed when your connection is restored.",
+                    action = "Check Connection",
                     retryable = true
+                )
+            
+            // Duplicate processing errors - provide helpful guidance
+            message.contains("already being processed", ignoreCase = true) ||
+            message.contains("already being transcribed", ignoreCase = true) ->
+                UserFriendlyMessage(
+                    title = "Already Processing",
+                    message = "This video is already being transcribed. Check your recent videos to see the progress, or wait for it to complete.",
+                    action = "View Recent Videos",
+                    retryable = false
+                )
+            
+            // Duplicate intent errors
+            (message.contains("duplicate", ignoreCase = true) && 
+            (message.contains("intent", ignoreCase = true) || message.contains("request", ignoreCase = true))) ->
+                UserFriendlyMessage(
+                    title = "Request Already Received",
+                    message = "This video link was already received. If it's not processing, check your recent videos.",
+                    action = "View Recent Videos",
+                    retryable = false
                 )
             
             // Default - try to make it user-friendly
@@ -131,7 +151,7 @@ object PluctCoreError03UserMessageFormatter {
     /**
      * Format network error message
      */
-    private fun formatNetworkError(message: String, context: String): UserFriendlyMessage {
+    private fun formatNetworkError(message: String, @Suppress("UNUSED_PARAMETER") context: String): UserFriendlyMessage {
         return when {
             message.contains("timeout", ignoreCase = true) -> 
                 UserFriendlyMessage(
