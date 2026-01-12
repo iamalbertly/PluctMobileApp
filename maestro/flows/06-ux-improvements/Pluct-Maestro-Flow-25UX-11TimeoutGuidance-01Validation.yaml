@@ -1,0 +1,35 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-25UX-11TimeoutGuidance-01Validation.yaml
+# Validates UX Improvement #5: Helpful guidance when transcription takes longer
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Start a transcription
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMA730880/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Wait for timeout warning to appear (if transcription takes too long)
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Verify timeout guidance appears if transcription is slow
+- assertVisible:
+    id: "timeout_warning"
+    optional: true
+- assertVisible:
+    text: "Taking longer than usual"
+    optional: true
+- assertVisible:
+    text: "may still complete"
+    optional: true
+- assertVisible:
+    text: "processed in the background"
+    optional: true

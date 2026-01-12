@@ -339,10 +339,19 @@ private fun QuickActionsMenu(
     }
 }
 
+/**
+ * UX IMPROVEMENT #1: Enhanced empty state with actionable guidance
+ * Provides clear instructions and multiple ways to get started
+ */
 @Composable
 fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Empty state - no transcripts yet"
+                testTag = "empty_state_message"
+            },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
@@ -358,18 +367,29 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
                 text = "No transcripts yet",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 6.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Text(
-                text = "Paste a TikTok link to get your first transcript.",
-                style = MaterialTheme.typography.bodySmall,
+                text = "Get started by pasting a TikTok link above, or share a video from TikTok directly to this app.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Text(
+                text = "💡 Tip: You can also tap the input field and paste a link from your clipboard.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             Button(
                 onClick = onDemoLinkClick,
+                modifier = Modifier.semantics {
+                    contentDescription = "Try with demo link"
+                    testTag = "empty_state_demo_button"
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer

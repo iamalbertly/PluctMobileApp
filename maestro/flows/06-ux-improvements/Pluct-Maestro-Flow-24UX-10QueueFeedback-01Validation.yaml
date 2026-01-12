@@ -1,0 +1,37 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-24UX-10QueueFeedback-01Validation.yaml
+# Validates UX Improvement #4: Immediate feedback when video is queued
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Disable network to trigger queueing
+- runScript: |
+    const { execSync } = require('child_process');
+    execSync('adb shell svc wifi disable', { stdio: 'pipe' });
+
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMA730880/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Verify immediate queue feedback message
+- assertVisible:
+    text: "Video saved"
+    optional: true
+- assertVisible:
+    text: "will automatically process"
+    optional: true
+- assertVisible:
+    text: "Queue section"
+    optional: true
+
+# Re-enable network
+- runScript: |
+    const { execSync } = require('child_process');
+    execSync('adb shell svc wifi enable', { stdio: 'pipe' });

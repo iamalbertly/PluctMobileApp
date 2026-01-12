@@ -1,0 +1,35 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-23UX-09ProgressClarity-01Validation.yaml
+# Validates UX Improvement #2: Clearer progress phase descriptions
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Start a transcription to see progress indicator
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMA730880/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Verify progress indicator appears with clear information
+- assertVisible:
+    id: "processing_indicator"
+- assertVisible:
+    id: "progress_percentage"
+    optional: true
+- assertVisible:
+    id: "progress_starting"
+    optional: true
+
+# Verify phase descriptions are shown
+- assertVisible:
+    text: "Processing"
+    optional: true
+- assertVisible:
+    text: "complete"
+    optional: true

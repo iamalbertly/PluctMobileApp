@@ -100,19 +100,40 @@ fun PluctProcessingIndicator(
                         fontWeight = FontWeight.Bold
                     )
 
+                    // UX IMPROVEMENT #2: Clearer progress information with phase context
                     if (progress > 0) {
                         Text(
                             text = "$progress% complete",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Progress: $progress percent complete"
+                                testTag = "progress_percentage"
+                            }
                         )
+                        if (estimatedTimeRemaining == null) {
+                            Text(
+                                text = when {
+                                    progress < 20 -> "Initializing..."
+                                    progress < 50 -> "Processing video..."
+                                    progress < 80 -> "Transcribing audio..."
+                                    else -> "Finalizing..."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     } else {
                         Text(
-                            text = "Starting transcription... This may take up to 2 minutes",
+                            text = "Starting transcription... This typically takes 30-90 seconds",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Starting transcription, typically takes 30-90 seconds"
+                                testTag = "progress_starting"
+                            }
                         )
                     }
 
@@ -134,14 +155,39 @@ fun PluctProcessingIndicator(
                 }
             }
 
+            // UX IMPROVEMENT #5: Helpful guidance when transcription takes longer than expected
             if (showTimeoutWarning) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "This is taking longer than expected. The operation may timeout soon.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Timeout warning"
+                            testTag = "timeout_warning"
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "⏱️ Taking longer than usual",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "This transcription is taking longer than expected. It may still complete successfully. You can check back later or the video will be processed in the background.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
             }
 
             if (debugInfo != null) {

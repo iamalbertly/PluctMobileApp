@@ -277,7 +277,8 @@ fun PluctUIComponent03CaptureCard(
             if (validationResult.isValid) {
                 isAutoSubmitting = true
                 Log.d("CaptureCard", "URL validated, waiting 800ms before auto-submit...")
-                delay(800) // Brief delay for smooth UX and state propagation
+                // Technical Debt #1: Use timing constants instead of hardcoded delays
+                delay(app.pluct.core.timing.PluctCoreTiming01Constants.UI_STATE_PROPAGATION_DELAY_MS)
                 
                 // Check credits again (may have changed)
                 val currentBalance = creditBalance
@@ -393,7 +394,7 @@ fun PluctUIComponent03CaptureCard(
                 delay(if (isAdbConnected) 30000L else 20000L)
                 if (isSubmitting && lastStepChangeTime == null) {
                     // Still no step info after initial delay
-                    delay(10000L)
+                    delay(app.pluct.core.timing.PluctCoreTiming01Constants.TRANSCRIPTION_STEP_TIMEOUT_MS)
                     if (isSubmitting) {
                         Log.w("CaptureCard", "Timeout: no step info received")
                         persistentError = PersistentError(
@@ -407,7 +408,7 @@ fun PluctUIComponent03CaptureCard(
                 }
             } else {
                 // Step info exists, monitor for changes
-                delay(5000) // Check every 5 seconds
+                delay(app.pluct.core.timing.PluctCoreTiming01Constants.TRANSCRIPTION_STEP_CHECK_INTERVAL_MS)
                 if (isSubmitting) {
                     // Re-check in next iteration
                 }

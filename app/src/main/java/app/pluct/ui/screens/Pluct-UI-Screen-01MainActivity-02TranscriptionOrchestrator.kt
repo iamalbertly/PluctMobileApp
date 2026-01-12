@@ -13,6 +13,7 @@ import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.MetadataResponse
 import app.pluct.services.PluctQueueManager
+import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 
 /**
@@ -53,7 +54,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                         operation = "loadInitialData",
                         message = "Credit balance loaded",
                         details = "Total=$totalCredits; Main=${balance.main}; Bonus=${balance.bonus}; User=${userIdentification.userId}",
-                        requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance",
+                        requestUrl = "${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}/v1/credits/balance",
                         requestMethod = "GET"
                     )
                     
@@ -80,7 +81,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                                 appendLine("  Endpoint: /v1/credits/balance")
                                 appendLine("  Method: GET")
                                 appendLine("  Service: Business Engine")
-                                appendLine("  Base URL: https://pluct-business-engine.romeo-lya2.workers.dev")
+                                appendLine("  Base URL: ${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}")
                                 appendLine()
                                 appendLine("EXPECTED BEHAVIOR:")
                                 appendLine("  Both main and bonus credits should be >= 0")
@@ -196,12 +197,13 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                     reason = QueueReason.NO_INTERNET
                 )
                 
+                // UX IMPROVEMENT #4: Immediate, clear feedback when video is queued
                 if (queueResult.isSuccess) {
-                    val userMessage = "Saved! Will process when online."
+                    val userMessage = "✅ Video saved! It will automatically process when your connection is restored. You can check the Queue section below."
                     onResult(true, currentBalance, currentFreeUses, userMessage, null)
                 } else {
                     val error = queueResult.exceptionOrNull() ?: Exception("Failed to queue video")
-                    val userMessage = "No internet connection. Failed to save video for later."
+                    val userMessage = "❌ No internet connection. Unable to save video for later processing. Please check your connection and try again."
                     onResult(false, currentBalance, currentFreeUses, userMessage, error)
                 }
                 return
@@ -247,87 +249,45 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 return
             }
             
-            // Check for existing processing video to prevent duplicates
-            val existingProcessing = videoRepository.getProcessingVideoByUrl(url)
-            val urlHistoryItem = if (existingProcessing != null) {
-                Log.d("TranscriptionOrchestrator", "Found existing processing video for URL: $url, updating instead of creating duplicate")
-                existingProcessing.copy(
-                    status = ProcessingStatus.PROCESSING,
-                    progress = 0,
-                    timestamp = System.currentTimeMillis()
-                )
-            } else {
-                // Check for any existing video with this URL
-                val existingVideo = videoRepository.getVideoByUrl(url)
-                if (existingVideo != null) {
-                    Log.d("TranscriptionOrchestrator", "Found existing video for URL: $url, updating status to PROCESSING")
-                    existingVideo.copy(
-                        status = ProcessingStatus.PROCESSING,
-                        progress = 0,
-                        timestamp = System.currentTimeMillis()
-                    )
-                } else {
-                    // Create new video item
-                    val videoId = System.currentTimeMillis().toString()
-                    VideoItem(
-                        id = videoId,
-                        url = url,
-                        title = "", // Not storing full video data
-                        thumbnailUrl = "",
-                        author = "",
-                        duration = 0L,
-                        status = ProcessingStatus.PROCESSING,
-                        progress = 0,
-                        transcript = null, // Not storing transcript in database
-                        timestamp = System.currentTimeMillis(),
-                        tier = tier,
-                        createdAt = System.currentTimeMillis()
-                    )
-                }
-            }
-            
-            // Store URL history for dropdown (minimal data only) - use REPLACE to update existing
-            val insertResult = videoRepository.insertVideo(urlHistoryItem)
-            if (insertResult.isFailure) {
-                val dbError = insertResult.exceptionOrNull()
-                Log.w("TranscriptionOrchestrator", "Failed to save URL history (non-critical): ${dbError?.message}")
-                // Don't fail the entire operation if history save fails
-            } else {
-                Log.d("TranscriptionOrchestrator", "URL history saved/updated for: $url")
-            }
-            
+            // Deduplication is handled by apiService.processTikTokVideo() via unified coordinator
             // Fetch metadata to populate title and author (fast-fail to avoid blocking UX on slow /meta)
             val metadataResult = apiService.getMetadata(url, timeoutMs = 8000L)
-            var currentVideoItem = urlHistoryItem
+            var currentVideoItem: app.pluct.data.entity.VideoItem? = null
             
+            // Use complete processTikTokVideo flow which handles deduplication, metadata, vending, submission, and polling
+            // This ensures the transcript is retrieved and can be saved
+            // Note: jobId will be available in the response and stored when transcription completes
+            // Deduplication is handled internally by the unified coordinator
+            Log.d("TranscriptionOrchestrator", "Starting complete transcription flow with processTikTokVideo...")
+            val transcriptionResult = apiService.processTikTokVideo(url)
+            
+            // If metadata was fetched, update the video item (if it exists in database)
             if (metadataResult.isSuccess) {
                 val metadata = metadataResult.getOrNull()
                 if (metadata != null) {
                     Log.d("TranscriptionOrchestrator", "Metadata fetched: ${metadata.title}")
-                    currentVideoItem = currentVideoItem.copy(
-                        title = metadata.title ?: "",
-                        author = metadata.author ?: ""
-                    )
-                    videoRepository.updateVideo(currentVideoItem)
+                    val existingVideo = videoRepository.getVideoByUrl(url)
+                    if (existingVideo != null) {
+                        currentVideoItem = existingVideo.copy(
+                            title = metadata.title ?: "",
+                            author = metadata.author ?: ""
+                        )
+                        videoRepository.updateVideo(currentVideoItem)
+                    }
                 }
             } else {
                 Log.w("TranscriptionOrchestrator", "Failed to fetch metadata: ${metadataResult.exceptionOrNull()?.message}")
             }
             
-            // Use complete processTikTokVideo flow which handles metadata, vending, submission, and polling
-            // This ensures the transcript is retrieved and can be saved
-            // Note: jobId will be available in the response and stored when transcription completes
-            Log.d("TranscriptionOrchestrator", "Starting complete transcription flow with processTikTokVideo...")
-            val transcriptionResult = apiService.processTikTokVideo(url)
-            
             transcriptionResult.fold(
                 onSuccess = { statusResponse ->
                     Log.d("TranscriptionOrchestrator", "Transcription completed successfully")
                     
+                    val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(statusResponse)
+                    val transcriptText = extraction.transcript
+
                     // CRITICAL: Validate transcript exists before saving
-                    val transcriptText = statusResponse.transcript?.takeIf { it.isNotBlank() }
-                        ?: statusResponse.result?.transcription?.takeIf { it.isNotBlank() }
-                        ?: null
+                    // UX IMPROVEMENT #2: Enhanced transcript extraction with multiple fallbacks
                     
                     if (transcriptText == null) {
                         Log.e("TranscriptionOrchestrator", "WARNING: Transcript is null or empty in response")
@@ -335,17 +295,47 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                             category = "TRANSCRIPTION",
                             operation = "processVideo_missing_transcript",
                             message = "Transcription completed but transcript field is empty",
-                            details = "Response structure: transcript=${statusResponse.transcript != null}, result.transcription=${statusResponse.result?.transcription != null}"
+                            details = buildString {
+                                appendLine("Response structure:")
+                                appendLine("  transcript=${statusResponse.transcript != null}")
+                                appendLine("  result.transcription=${statusResponse.result?.transcription != null}")
+                                appendLine("  text=${statusResponse.text != null}")
+                                appendLine("  status=${statusResponse.status}")
+                                appendLine("  jobId=${statusResponse.jobId}")
+                                appendLine("  transcriptSource=${extraction.source}")
+                            }
                         )
+                        // UX IMPROVEMENT #3: User-friendly message when transcript extraction fails
+                        val userMessage = "Transcription completed but no text was found. The video may be silent or the audio quality was too low. Please try another video."
+                        onResult(false, currentBalance, currentFreeUses, userMessage, Exception("Transcript extraction failed"))
+                        return
                     }
                     
+                    // Get or create video item for saving transcript
+                    val existingVideo = videoRepository.getVideoByUrl(url) ?: app.pluct.data.entity.VideoItem(
+                        id = System.currentTimeMillis().toString(),
+                        url = url,
+                        title = currentVideoItem?.title ?: "",
+                        thumbnailUrl = "",
+                        author = currentVideoItem?.author ?: "",
+                        duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
+                        status = ProcessingStatus.COMPLETED,
+                        progress = 100,
+                        transcript = transcriptText, // Use validated transcript
+                        timestamp = System.currentTimeMillis(),
+                        tier = tier,
+                        jobId = statusResponse.jobId // Store jobId for status resumption
+                    )
+                    
                     // Update video item with completed status and transcript
-                    val completedItem = currentVideoItem.copy(
+                    val completedItem = existingVideo.copy(
                         status = ProcessingStatus.COMPLETED,
                         progress = 100,
                         transcript = transcriptText, // Use validated transcript
                         duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
-                        jobId = statusResponse.jobId // Store jobId for status resumption
+                        jobId = statusResponse.jobId, // Store jobId for status resumption
+                        title = currentVideoItem?.title ?: existingVideo.title,
+                        author = currentVideoItem?.author ?: existingVideo.author
                     )
                     
                     // Use insertVideo to ensure transcript is saved (handles both insert and update)
@@ -470,4 +460,5 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
         }
     }
 }
+
 

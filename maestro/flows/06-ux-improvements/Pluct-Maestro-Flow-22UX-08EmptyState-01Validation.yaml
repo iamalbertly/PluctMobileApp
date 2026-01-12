@@ -1,0 +1,27 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-22UX-08EmptyState-01Validation.yaml
+# Validates UX Improvement #1: Enhanced empty state with actionable guidance
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Verify empty state appears when no videos exist
+- assertVisible:
+    id: "empty_state_message"
+- assertVisible:
+    text: "No transcripts yet"
+- assertVisible:
+    text: "Get started by pasting"
+- assertVisible:
+    text: "Tip: You can also tap"
+- assertVisible:
+    id: "empty_state_demo_button"
+- assertVisible:
+    text: "Try with Demo Link"
+
+# Verify actionable guidance is present
+- assertVisible:
+    text: "share a video from TikTok"
+    optional: true

@@ -83,11 +83,18 @@ fun PluctVideoListContainer(
  * Empty state when no videos are available
  */
 @Composable
+/**
+ * UX IMPROVEMENT #1: Enhanced empty video list with actionable guidance
+ */
 private fun EmptyVideoList() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(32.dp)
+            .semantics {
+                contentDescription = "Empty video list - no videos processed yet"
+                testTag = "empty_video_list"
+            },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -98,11 +105,18 @@ private fun EmptyVideoList() {
             }
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
         Text(
             text = "Process your first TikTok video to see it here",
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Text(
+            text = "Paste a link in the input field above or share a video from TikTok",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.semantics { 
                 contentDescription = "Instructions to add videos"
