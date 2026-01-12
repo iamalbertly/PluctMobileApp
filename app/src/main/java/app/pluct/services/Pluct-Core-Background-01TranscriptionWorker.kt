@@ -90,10 +90,10 @@ class PluctCoreBackground01TranscriptionWorker(
             // Process transcription in background
             val result = if (jobId != null) {
                 // If jobId exists, poll for completion
-                pollExistingJob(jobId, url, notificationId)
+                pollExistingJob(jobId, url, notificationId, networkMonitor)
             } else {
                 // Start new transcription
-                processNewTranscription(url, notificationId)
+                processNewTranscription(url, notificationId, networkMonitor)
             }
             
             // Stop network monitoring on completion
@@ -119,7 +119,7 @@ class PluctCoreBackground01TranscriptionWorker(
         }
     }
     
-    private suspend fun processNewTranscription(url: String, notificationId: Int): Result {
+    private suspend fun processNewTranscription(url: String, notificationId: Int, networkMonitor: PluctCoreBackground01TranscriptionWorkerNetworkMonitor): Result {
         // CRITICAL FIX #2: Check for existing video before creating duplicate
         val existingVideo = videoRepository.getVideoByUrl(url)
         if (existingVideo != null) {
@@ -129,11 +129,13 @@ class PluctCoreBackground01TranscriptionWorker(
             }
             if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingVideo.transcript != null) {
                 Log.d(TAG, "Video $url already completed, returning existing transcript")
+                // UX IMPROVEMENT #4: Show completion notification with clear message
                 showCompletionNotification(url, existingVideo.transcript!!, notificationId)
                 return Result.success(workDataOf(
                     "transcript" to existingVideo.transcript,
                     "job_id" to (existingVideo.jobId ?: ""),
-                    "status" to "completed"
+                    "status" to "completed",
+                    "message" to "This video was already transcribed. Transcript is available in your recent videos."
                 ))
             }
         }
@@ -214,7 +216,7 @@ class PluctCoreBackground01TranscriptionWorker(
         )
     }
     
-    private suspend fun pollExistingJob(jobId: String, url: String, notificationId: Int): Result {
+    private suspend fun pollExistingJob(jobId: String, url: String, notificationId: Int, networkMonitor: PluctCoreBackground01TranscriptionWorkerNetworkMonitor): Result {
         // UX IMPROVEMENT #5: First verify current status before polling
         val existingVideo = videoRepository.getVideoByUrl(url)
         if (existingVideo != null) {
@@ -256,6 +258,22 @@ class PluctCoreBackground01TranscriptionWorker(
         // Poll for completion with progress updates
         repeat(60) { _attempt -> // Max 60 attempts (5 minutes with 5s intervals)
             delay(5000) // 5 second intervals
+            
+            // UX IMPROVEMENT #3: Check for network loss and queue proactively
+            if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                Log.d(TAG, "Video queued due to network loss, stopping polling")
+                showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                return Result.failure(workDataOf("error" to "Network lost, video queued"))
+            }
+            
+            // Check if network is available before making API call
+            if (!networkMonitor.isNetworkCurrentlyAvailable()) {
+                Log.w(TAG, "Network unavailable, queueing video")
+                if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                    showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                    return Result.failure(workDataOf("error" to "Network lost, video queued"))
+                }
+            }
             
             val statusResult = apiService.checkTranscriptionStatus(jobId, serviceToken)
             

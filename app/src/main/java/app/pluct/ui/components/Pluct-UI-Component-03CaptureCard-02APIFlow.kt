@@ -12,6 +12,7 @@ import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreAPIDetailedError
 import app.pluct.services.PluctCoreAPIUnifiedServiceErrorCache
 import app.pluct.core.debug.PluctCoreDebug01LogManager
+import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.KEY_URL
@@ -181,6 +182,10 @@ object PluctUIComponent03CaptureCardAPIFlow {
         }
     }
 
+    /**
+     * Technical Debt #3: Consolidate error message formatting using UserMessageFormatter
+     * Single source of truth for user-facing error messages
+     */
     private fun resolveErrorMessage(
         error: Throwable?,
         normalizedUrl: String,
@@ -190,33 +195,20 @@ object PluctUIComponent03CaptureCardAPIFlow {
         if (error is PluctCoreAPIDetailedError) {
             Log.e(logTag, "Detailed API error while processing $normalizedUrl", error)
             debugLogManager?.logAPIError(error, "TRANSCRIPTION")
-            val statusCode = error.technicalDetails.responseStatusCode
-            val userMessage = error.userMessage.orEmpty()
-            val operation = error.technicalDetails.operation.orEmpty()
-            return when {
-                statusCode in listOf(401, 402, 403, 500) &&
-                    error.technicalDetails.errorType.contains("AUTH", ignoreCase = true) ->
-                    "Session expired. We refreshed your access; please retry."
-                userMessage.contains("Circuit breaker", ignoreCase = true) ->
-                    "Service is cooling down. Please retry in a few seconds."
-                statusCode == 401 && operation.contains("/ttt/transcribe") ->
-                    "We're revalidating your access. Please tap Extract again."
-                userMessage.contains("timed out", ignoreCase = true) ->
-                    "The transcription is taking longer than expected. It may still be processing in the background. Check your recent videos or retry in 30 seconds."
-                statusCode == 402 ->
-                    "Insufficient credits. Please add credits to continue transcribing videos."
-                statusCode == 429 ->
-                    "Too many requests. Please wait a moment and try again."
-                userMessage.isNotBlank() -> userMessage
-                else -> error.getDetailedMessage()
-            }
+            
+            // Use UserMessageFormatter for consistent error messages
+            val formattedMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+                error = error,
+                technicalMessage = error.userMessage,
+                errorCode = error.technicalDetails.errorCode,
+                httpStatus = error.technicalDetails.responseStatusCode,
+                context = "video processing"
+            )
+            return formattedMessage.message
         }
 
         if (error != null) {
             val msg = error.message ?: "Unknown error occurred while processing the video."
-            if (msg.contains("already being processed", ignoreCase = true)) {
-                return "This video is already being transcribed. Check your recent videos or wait for it to complete."
-            }
             Log.e(logTag, "Complete API flow failed: $msg", error)
             debugLogManager?.logError(
                 category = "TRANSCRIPTION",
@@ -225,7 +217,16 @@ object PluctUIComponent03CaptureCardAPIFlow {
                 exception = error,
                 requestUrl = normalizedUrl
             )
-            return msg
+            
+            // Use UserMessageFormatter for consistent error messages
+            val formattedMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+                error = error,
+                technicalMessage = msg,
+                errorCode = error.javaClass.simpleName,
+                httpStatus = null,
+                context = "video processing"
+            )
+            return formattedMessage.message
         }
 
         return "Unknown error occurred while processing the video."

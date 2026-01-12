@@ -34,6 +34,10 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
     private val _isNetworkAvailable = MutableStateFlow(PluctNetworkConnectivityChecker.isNetworkAvailable(context))
     val isNetworkAvailable: StateFlow<Boolean> = _isNetworkAvailable.asStateFlow()
     
+    // UX IMPROVEMENT #3: Track if network loss was detected to enable proactive queueing
+    @Volatile
+    private var networkLossDetected = false
+    
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             val wasUnavailable = !_isNetworkAvailable.value
@@ -50,8 +54,9 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
         
         override fun onLost(network: Network) {
             _isNetworkAvailable.value = false
-            Log.w(TAG, "Network lost")
-            handleNetworkLoss()
+            networkLossDetected = true
+            Log.w(TAG, "Network lost during transcription")
+            // Note: Actual queueing will be handled in worker's coroutine scope via checkAndQueueOnNetworkLoss()
         }
         
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
@@ -84,14 +89,39 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
     }
     
     /**
-     * Handle network loss - queue video and show error notification
-     * Note: This is called from NetworkCallback which is not a coroutine context
-     * The actual queueing will be handled by the worker's coroutine scope
+     * UX IMPROVEMENT #3: Check if network loss was detected and queue video proactively
+     * Must be called from coroutine scope
+     * Technical Debt #2: Properly handles network loss queueing in coroutine context
      */
-    private fun handleNetworkLoss() {
-        Log.w(TAG, "Network lost during transcription, will queue video: $url")
-        // Note: queueVideo is suspend, so it will be called from the worker's coroutine scope
-        // For now, just log - the worker will handle queueing on failure
+    suspend fun checkAndQueueOnNetworkLoss(): Boolean {
+        if (networkLossDetected && !_isNetworkAvailable.value) {
+            Log.w(TAG, "Network loss detected, queueing video: $url")
+            
+            val existingVideo = videoRepository.getVideoByUrl(url)
+            if (existingVideo != null && existingVideo.status == ProcessingStatus.PROCESSING) {
+                val queueResult = queueManager.queueVideo(
+                    url = url,
+                    tier = existingVideo.tier,
+                    reason = QueueReason.NO_INTERNET
+                )
+                
+                if (queueResult.isSuccess) {
+                    Log.d(TAG, "Video queued successfully due to network loss")
+                    networkLossDetected = false // Reset flag after successful queue
+                    return true
+                } else {
+                    Log.e(TAG, "Failed to queue video on network loss: ${queueResult.exceptionOrNull()?.message}")
+                }
+            }
+        }
+        return false
+    }
+    
+    /**
+     * Check if network is currently available
+     */
+    fun isNetworkCurrentlyAvailable(): Boolean {
+        return _isNetworkAvailable.value
     }
     
     /**
