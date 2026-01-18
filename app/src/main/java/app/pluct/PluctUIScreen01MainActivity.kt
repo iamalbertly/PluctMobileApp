@@ -323,12 +323,26 @@ fun PluctMainContent(
     
     // Show contextual permission request after first transcript
     var showContextualPermissionRequest by remember { mutableStateOf(false) }
+    var firstTranscriptJustCompleted by remember { mutableStateOf(false) }
+    
+    // Listen for first transcript completion
     LaunchedEffect(Unit) {
-        // Listen for first transcript completion to trigger contextual permission
         val prefs = PluctUserPreferences(context)
         if (prefs.isFirstTranscriptCompleted() && !prefs.hasSeenNotificationOnboarding()) {
-            delay(2000) // Wait 2 seconds after celebration
-            showContextualPermissionRequest = true
+            firstTranscriptJustCompleted = true
+            Log.d("MainActivity", "First transcript completed - will show contextual permission after celebration")
+        }
+    }
+    
+    // Show permission dialog after celebration delay (3 seconds to let celebration show)
+    LaunchedEffect(firstTranscriptJustCompleted) {
+        if (firstTranscriptJustCompleted) {
+            delay(3000) // Wait 3 seconds to let celebration toast/snackbar complete
+            val prefs = PluctUserPreferences(context)
+            if (!prefs.hasSeenNotificationOnboarding()) {
+                showContextualPermissionRequest = true
+                Log.d("MainActivity", "Showing contextual permission request after first transcript celebration")
+            }
         }
     }
     
@@ -341,7 +355,8 @@ fun PluctMainContent(
         isLoading = false
         onLoadingCreditBalanceChange(false)
         
-        Log.d("MainActivity", "Optimistic balance set immediately: 3 credits")
+        Log.d("MainActivity", "Optimistic balance set immediately: 3 credits, 3 free uses")
+        Log.d("MainActivity", "UI is now interactive - user can start exploring immediately")
         
         // Small delay to ensure UI is stable before background fetch
         delay(100)
@@ -349,20 +364,25 @@ fun PluctMainContent(
         // Load real balance in background without blocking UI
         scope.launch {
             try {
-                Log.d("MainActivity", "Background balance fetch started")
+                Log.d("MainActivity", "Background balance fetch started (non-blocking)")
+                val startTime = System.currentTimeMillis()
                 fetchCreditBalance()
+                val duration = System.currentTimeMillis() - startTime
+                
+                Log.d("MainActivity", "Background balance fetch completed in ${duration}ms: $creditBalance credits, $freeUsesRemaining free uses")
                 
                 // Vend token if needed (background operation)
                 if (creditBalance < 1 && freeUsesRemaining < 1) {
+                    Log.d("MainActivity", "No credits available, attempting token vend in background")
                     vendTokenWithBalanceUpdate(reason = "app_launch")
                 } else {
                     hasVendTokenAttempted = true
                     ctaHelperMessage = if (creditBalance > 0) null else "Add credits to unlock transcription"
+                    Log.d("MainActivity", "Credits available: $creditBalance, no token vend needed")
                 }
-                
-                Log.d("MainActivity", "Background balance fetch completed: $creditBalance credits")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Background balance fetch failed: ${e.message}", e)
+                Log.d("MainActivity", "User still has optimistic 3 credits - app remains functional")
                 // Silent failure - user already has optimistic 3 credits
                 // Don't show error message for background operation
             }

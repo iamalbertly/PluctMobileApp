@@ -135,14 +135,47 @@ class PluctUIScreen01MainActivity05CreditManager(
                     )
                 }
 
-                if (statusCode == 402) {
-                    onCtaMessageUpdate("Add credits to unlock transcription")
-                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                        scope,
-                        snackbarHostState,
-                        "No credits available.",
-                        actionLabel = "Request credits"
-                    )
+                when (statusCode) {
+                    402 -> {
+                        onCtaMessageUpdate("Add credits to unlock transcription")
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope,
+                            snackbarHostState,
+                            "No credits available. Contact support@pluct.app to add credits.",
+                            actionLabel = "Request credits"
+                        )
+                    }
+                    401 -> {
+                        onCtaMessageUpdate("Authentication required. Please restart the app.")
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope,
+                            snackbarHostState,
+                            "Session expired. Restart the app to continue.",
+                            actionLabel = null
+                        )
+                    }
+                    429 -> {
+                        onCtaMessageUpdate("Rate limit exceeded. Please wait a moment.")
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope,
+                            snackbarHostState,
+                            "Too many requests. Please wait a moment and try again.",
+                            actionLabel = null
+                        )
+                    }
+                    else -> {
+                        // Network or server error - show user-friendly message
+                        val errorMessage = when {
+                            error.message?.contains("network", ignoreCase = true) == true -> 
+                                "Network error. Check your connection and try again."
+                            error.message?.contains("timeout", ignoreCase = true) == true -> 
+                                "Request timed out. Please try again."
+                            else -> 
+                                "Unable to refresh credits. Please try again later."
+                        }
+                        onCtaMessageUpdate(errorMessage)
+                        Log.e("CreditManager", "Balance refresh failed: ${error.message}", error)
+                    }
                 }
             }
         )

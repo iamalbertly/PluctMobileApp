@@ -71,6 +71,7 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                                     delay(500)
                                     
                                     Log.d("EffectsHandler", "MILESTONE: first_transcript completed for user")
+                                    Log.d("EffectsHandler", "MILESTONE: Showing celebration and triggering balance refresh")
                                     
                                     // Show celebration toast
                                     PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
@@ -82,6 +83,7 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                                     
                                     // Disable inline hint if it was showing
                                     PluctUserPreferencesInlineHint.setInlineHintEnabled(context, false)
+                                    Log.d("EffectsHandler", "MILESTONE: Inline hint disabled after first transcript")
                                 }
                             }
                         )

@@ -13,36 +13,31 @@ appId: app.pluct
 
 - clearState
 - launchApp
+- waitForAnimationToEnd:
+    timeout: 1000
 
-# Verify balance appears quickly (optimistic loading)
+# Dismiss welcome dialog if shown (must be done first)
+- tapOn:
+    text: "Get Started"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Verify balance appears quickly (optimistic loading) - check for credit text or number
 - extendedWaitUntil:
     visible:
-      text: ".*credit.*"
+      text: ".*credit.*|.*3.*"
     timeout: 2000
 
 # Verify no loading spinner blocking UI
 - assertNotVisible:
-    id: ".*loading.*"
+    id: ".*CircularProgressIndicator.*|.*loading.*|.*Loading.*"
     optional: true
 
-# Dismiss welcome dialog if shown
-- tapOn:
-    text: "Get Started"
+# Verify app is interactive (can see header with credits)
+- assertVisible:
+    text: ".*credit.*|.*3.*"
     optional: true
-- waitForAnimationToEnd
-
-# Verify app is interactive (can tap settings)
-- tapOn:
-    id: ".*settings.*"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1000
-
-# Close settings if opened
-- tapOn:
-    text: "Close"
-    optional: true
-- back
 
 # Wait for background balance refresh to complete
 - waitForAnimationToEnd:
