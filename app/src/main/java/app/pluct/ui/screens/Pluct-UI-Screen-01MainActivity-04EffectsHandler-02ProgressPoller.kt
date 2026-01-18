@@ -37,7 +37,8 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
         video: app.pluct.data.entity.VideoItem,
         apiService: PluctCoreAPIUnifiedService,
         videoRepository: PluctVideoRepository,
-        context: Context? = null
+        context: Context? = null,
+        onFirstTranscriptCompleted: (() -> Unit)? = null
     ) {
         if (video.jobId == null || video.jobId.isBlank()) {
             Log.d(TAG, "Video ${video.url} has no jobId yet, skipping poll")
@@ -54,8 +55,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
         }
         
         var consecutiveFailures = 0
-        var lastProgress = 0
-        
+
         while (coroutineContext.isActive && consecutiveFailures < MAX_RETRY_FAILURES) {
             try {
                 // Check database status before each poll
@@ -106,7 +106,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                 consecutiveFailures = 0
                 
                 val status = statusResult.getOrNull()!!
-                val progress = status.progress ?: 0
+                val progress = status.progress
                 val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
                 val transcript = extraction.transcript
                 
@@ -118,6 +118,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                             if (!prefs.isFirstTranscriptCompleted()) {
                                 prefs.markFirstTranscriptCompleted()
                                 Log.d(TAG, "First transcript completed - onboarding milestone achieved")
+                                onFirstTranscriptCompleted?.invoke()
                             }
                         }
                         video.copy(
@@ -145,7 +146,6 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                 }
                 
                 // UX IMPROVEMENT #5: Adaptive polling interval based on progress
-                lastProgress = progress
                 val pollInterval = if (progress >= PROGRESS_THRESHOLD_FAST) {
                     FAST_POLL_INTERVAL_MS
                 } else {

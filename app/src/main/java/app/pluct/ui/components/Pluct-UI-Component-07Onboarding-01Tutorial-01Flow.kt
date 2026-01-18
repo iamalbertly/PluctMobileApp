@@ -82,6 +82,12 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                     }
                 }
                 2 -> {
+                    val isTikTokInstalled = try {
+                        context.packageManager.getPackageInfo("com.zhiliaoapp.musically", 0)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
                     Button(
                         onClick = {
                             Log.d(TAG, "Onboarding tutorial completed - opening TikTok")
@@ -91,10 +97,10 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                         },
                         modifier = Modifier.semantics {
                             testTag = "onboarding_open_tiktok_button"
-                            contentDescription = "Open TikTok"
+                            contentDescription = if (isTikTokInstalled) "Open TikTok" else "Get TikTok"
                         }
                     ) {
-                        Text("Open TikTok")
+                        Text(if (isTikTokInstalled) "Open TikTok" else "Get TikTok")
                     }
                 }
             }
@@ -274,11 +280,23 @@ private fun TutorialStep3OpenTikTok() {
                 textAlign = TextAlign.Center
             )
         } else {
-            Text(
-                text = "Install TikTok to get started, or use the app to paste video URLs manually.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "TikTok not installed",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "You can paste TikTok links directly into the app, or install TikTok for easier sharing.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))

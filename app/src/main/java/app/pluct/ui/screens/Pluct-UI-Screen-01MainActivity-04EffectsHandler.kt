@@ -62,7 +62,15 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                             video = video,
                             apiService = apiService,
                             videoRepository = videoRepository,
-                            context = context
+                            context = context,
+                            onFirstTranscriptCompleted = {
+                                // Show celebration toast for first transcript
+                                scope.launch {
+                                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                                        scope, snackbarHostState, "Your first transcript! You're all set."
+                                    )
+                                }
+                            }
                         )
                     }
                 }

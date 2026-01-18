@@ -71,8 +71,8 @@ appId: app.pluct
 
 # Verify home screen is visible (app functional after tutorial)
 - assertVisible:
-    text: "Credits"
+    text: ".*credits.*"
     optional: true
 - assertVisible:
-    id: "app.pluct:id/.*"
+    text: "Pluct"
     optional: true

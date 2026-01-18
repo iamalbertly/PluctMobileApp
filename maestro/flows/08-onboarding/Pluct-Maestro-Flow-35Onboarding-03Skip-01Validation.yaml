@@ -54,7 +54,7 @@ appId: app.pluct
 
 # Verify home screen is visible
 - assertVisible:
-    text: "Credits"
+    text: ".*credits.*"
     optional: true
 
 # Stop and restart app to verify persistence
@@ -70,5 +70,5 @@ appId: app.pluct
     text: "Open TikTok"
     optional: true
 - assertVisible:
-    text: "Credits"
+    text: "Pluct"
     optional: true
