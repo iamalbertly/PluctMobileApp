@@ -21,7 +21,7 @@ class PluctMaestroTestRunnerOrchestrator {
      */
     discoverFlows() {
         const flows = [];
-        const categories = ['01-core', '02-ui', '03-transcription', '04-queue', '05-edge-cases', '06-ux-improvements', '07-intent-fixes'];
+        const categories = ['01-core', '02-ui', '03-transcription', '04-queue', '05-edge-cases', '06-ux-improvements', '07-intent-fixes', '08-onboarding', '09-onboarding-improvements'];
         
         // Filter by category if specified
         const categoryFilter = process.env.MAESTRO_CATEGORY;

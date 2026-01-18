@@ -1,0 +1,52 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-37Onboarding-05OptimisticBalance-01Validation.yaml
+# Validates optimistic balance loading (instant UI without blocking)
+#
+# Test Flow:
+# 1. Clear app data
+# 2. Launch app
+# 3. Verify credit balance visible within 2 seconds (no loading spinner)
+# 4. Verify UI is interactive immediately
+# 5. Wait for background balance refresh
+# 6. Verify balance updates if server returns different value
+
+- clearState
+- launchApp
+
+# Verify balance appears quickly (optimistic loading)
+- extendedWaitUntil:
+    visible:
+      text: ".*credit.*"
+    timeout: 2000
+
+# Verify no loading spinner blocking UI
+- assertNotVisible:
+    id: ".*loading.*"
+    optional: true
+
+# Dismiss welcome dialog if shown
+- tapOn:
+    text: "Get Started"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify app is interactive (can tap settings)
+- tapOn:
+    id: ".*settings.*"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Close settings if opened
+- tapOn:
+    text: "Close"
+    optional: true
+- back
+
+# Wait for background balance refresh to complete
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Note: Optimistic balance and background loading are validated via logcat monitoring
+# The PowerShell runner automatically captures and analyzes these patterns

@@ -31,7 +31,8 @@ class PluctUserPreferences(context: Context) {
         private const val KEY_LAST_PERMISSION_CHECK_TIMESTAMP = "last_permission_check_timestamp"
         private const val KEY_ONBOARDING_TUTORIAL_SEEN = "onboarding_tutorial_seen"
         private const val KEY_FIRST_TRANSCRIPT_COMPLETED = "first_transcript_completed"
-        private const val KEY_ONBOARDING_STEP = "onboarding_step"
+        private const val KEY_INLINE_HINT_ENABLED = "inline_hint_enabled"
+        private const val KEY_INLINE_HINT_DISMISSED_AT = "inline_hint_dismissed_at"
         
         /**
          * Check if this is the first time the user has launched the app
@@ -224,19 +225,51 @@ class PluctUserPreferences(context: Context) {
     fun markFirstTranscriptCompleted() {
         prefs.edit().putBoolean(KEY_FIRST_TRANSCRIPT_COMPLETED, true).apply()
     }
+}
 
+/**
+ * Inline hint helper methods
+ */
+object PluctUserPreferencesInlineHint {
+    private const val KEY_INLINE_HINT_ENABLED = "inline_hint_enabled"
+    private const val KEY_INLINE_HINT_DISMISSED_AT = "inline_hint_dismissed_at"
+    
     /**
-     * Get current onboarding step (0-2)
+     * Check if inline hint should be shown
      */
-    fun getOnboardingStep(): Int {
-        return prefs.getInt(KEY_ONBOARDING_STEP, 0)
+    fun getInlineHintEnabled(context: android.content.Context): Boolean {
+        val prefs = context.getSharedPreferences("pluct_user_preferences", android.content.Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean(KEY_INLINE_HINT_ENABLED, false)
+        
+        // Check if hint was dismissed more than 24 hours ago
+        if (!enabled) {
+            val dismissedAt = prefs.getLong(KEY_INLINE_HINT_DISMISSED_AT, 0)
+            val now = System.currentTimeMillis()
+            val hoursSinceDismissal = (now - dismissedAt) / (1000 * 60 * 60)
+            
+            // Re-enable hint after 24 hours if user still hasn't completed first transcript
+            if (hoursSinceDismissal >= 24) {
+                val userPrefs = PluctUserPreferences(context)
+                if (!userPrefs.isFirstTranscriptCompleted()) {
+                    return true
+                }
+            }
+        }
+        
+        return enabled
     }
-
+    
     /**
-     * Set current onboarding step
+     * Enable inline hint (called when user skips tutorial)
      */
-    fun setOnboardingStep(step: Int) {
-        prefs.edit().putInt(KEY_ONBOARDING_STEP, step.coerceIn(0, 2)).apply()
+    fun setInlineHintEnabled(context: android.content.Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences("pluct_user_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_INLINE_HINT_ENABLED, enabled).apply()
+        
+        if (!enabled) {
+            // Record dismissal time for 24-hour reappearance logic
+            prefs.edit().putLong(KEY_INLINE_HINT_DISMISSED_AT, System.currentTimeMillis()).apply()
+        }
     }
 }
 

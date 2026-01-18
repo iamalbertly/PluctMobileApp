@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
+import android.util.Log
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
@@ -48,6 +50,8 @@ import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
+import app.pluct.ui.components.PluctUIComponent08InlineHint01Card
+import app.pluct.data.preferences.PluctUserPreferencesInlineHint
 // UX FIX: Removed PluctErrorLogSection import - error logs consolidated in Settings
 import app.pluct.ui.screens.PluctQueueSection
 import app.pluct.data.entity.ProcessingStatus
@@ -80,7 +84,8 @@ fun PluctHomeScreen(
     ctaHelperMessage: String? = null,
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
-    isLoadingCreditBalance: Boolean = false
+    isLoadingCreditBalance: Boolean = false,
+    onShowTutorial: (() -> Unit)? = null
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
@@ -135,7 +140,8 @@ fun PluctHomeScreen(
             // UX FIX: errorLogs parameter removed from HomeContent - errors consolidated in Settings
             // errorLogs still calculated above for Settings badge count
             onQueueForLater = onQueueForLater,
-            isLoadingCreditBalance = isLoadingCreditBalance
+            isLoadingCreditBalance = isLoadingCreditBalance,
+            onShowTutorial = onShowTutorial
         )
     }
 
@@ -188,10 +194,18 @@ private fun HomeContent(
     onViewDebugLogs: () -> Unit = {},
     // UX FIX: errorLogs parameter removed - errors consolidated in Settings, not displayed in HomeContent
     onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
-    isLoadingCreditBalance: Boolean = false
+    isLoadingCreditBalance: Boolean = false,
+    onShowTutorial: (() -> Unit)? = null
 ) {
     // Filter queued videos
     val queuedVideos = uniqueVideos.filter { it.status == ProcessingStatus.QUEUED }
+    
+    // Check if inline hint should be shown
+    val context = LocalContext.current
+    val showInlineHint = remember { 
+        PluctUserPreferencesInlineHint.getInlineHintEnabled(context) 
+    }
+    var inlineHintVisible by remember { mutableStateOf(showInlineHint) }
     
     LazyColumn(
         modifier = Modifier
@@ -200,6 +214,23 @@ private fun HomeContent(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Inline hint for users who skipped tutorial
+        if (inlineHintVisible) {
+            item {
+                PluctUIComponent08InlineHint01Card(
+                    onShowTutorial = {
+                        Log.d("HomeScreen", "Inline hint: Show tutorial clicked")
+                        onShowTutorial?.invoke()
+                    },
+                    onDismiss = {
+                        PluctUserPreferencesInlineHint.setInlineHintEnabled(context, false)
+                        inlineHintVisible = false
+                        Log.d("HomeScreen", "Inline hint dismissed")
+                    }
+                )
+            }
+        }
+        
         item {
             PluctUIComponent03CaptureCard(
                 freeUsesRemaining = freeUsesRemaining,

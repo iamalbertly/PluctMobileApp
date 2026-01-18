@@ -16,6 +16,7 @@ import app.pluct.notification.PluctQueueNotificationManager
 import app.pluct.ui.screens.PluctUIScreen01MainActivityTranscriptionOrchestrator
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import app.pluct.data.preferences.PluctUserPreferences
+import app.pluct.data.preferences.PluctUserPreferencesInlineHint
 
 /**
  * Pluct-UI-Screen-01MainActivity-04EffectsHandler
@@ -64,11 +65,23 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                             videoRepository = videoRepository,
                             context = context,
                             onFirstTranscriptCompleted = {
-                                // Show celebration toast for first transcript
+                                // Show celebration for first transcript milestone
                                 scope.launch {
+                                    // Small delay to let transcript appear first
+                                    delay(500)
+                                    
+                                    Log.d("EffectsHandler", "MILESTONE: first_transcript completed for user")
+                                    
+                                    // Show celebration toast
                                     PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                                        scope, snackbarHostState, "Your first transcript! You're all set."
+                                        scope, snackbarHostState, "🎉 First transcript complete! You're a pro now!"
                                     )
+                                    
+                                    // Trigger balance refresh to surface potential milestone bonus
+                                    onBalanceUpdate(creditBalance, freeUsesRemaining)
+                                    
+                                    // Disable inline hint if it was showing
+                                    PluctUserPreferencesInlineHint.setInlineHintEnabled(context, false)
                                 }
                             }
                         )

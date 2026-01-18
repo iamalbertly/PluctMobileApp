@@ -17,6 +17,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pluct.data.preferences.PluctUserPreferences
+import app.pluct.data.preferences.PluctUserPreferencesInlineHint
+import app.pluct.services.PluctCoreAPIUnifiedService
+import kotlinx.coroutines.launch
 
 /**
  * Pluct-UI-Component-07Onboarding-01Tutorial-01Flow
@@ -33,10 +36,13 @@ private const val TAG = "OnboardingTutorial"
 @Composable
 fun PluctUIComponent07Onboarding01Tutorial01Flow(
     onComplete: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    apiService: PluctCoreAPIUnifiedService? = null,
+    onBalanceRefresh: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val prefs = remember { PluctUserPreferences(context) }
+    val scope = rememberCoroutineScope()
     var currentStep by remember { mutableStateOf(0) }
 
     Log.d(TAG, "Onboarding tutorial started, step: $currentStep")
@@ -92,6 +98,30 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                         onClick = {
                             Log.d(TAG, "Onboarding tutorial completed - opening TikTok")
                             prefs.markOnboardingTutorialSeen()
+                            
+                            // Trigger balance refresh to surface welcome bonus
+                            scope.launch {
+                                try {
+                                    Log.d(TAG, "Tutorial completed - triggering balance refresh for potential reward")
+                                    onBalanceRefresh?.invoke()
+                                    
+                                    // Show celebration toast
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "🎉 Tutorial complete! Check your credits",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to refresh balance after tutorial: ${e.message}")
+                                    // Show optimistic celebration even if refresh fails
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Tutorial complete! Reward pending...",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                            
                             launchTikTok(context)
                             onComplete()
                         },
@@ -111,14 +141,19 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                     onClick = {
                         Log.d(TAG, "Onboarding tutorial skipped")
                         prefs.markOnboardingTutorialSeen()
+                        
+                        // Enable inline hint for users who skip
+                        PluctUserPreferencesInlineHint.setInlineHintEnabled(context, true)
+                        Log.d(TAG, "Inline hint enabled for skipped tutorial")
+                        
                         onSkip()
                     },
                     modifier = Modifier.semantics {
                         testTag = "onboarding_skip_button"
-                        contentDescription = "Skip for now"
+                        contentDescription = "I'll Figure It Out"
                     }
                 ) {
-                    Text("Skip for Now")
+                    Text("I'll Figure It Out")
                 }
             }
         },

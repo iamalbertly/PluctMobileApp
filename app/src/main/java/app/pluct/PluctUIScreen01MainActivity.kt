@@ -35,6 +35,7 @@ import app.pluct.ui.screens.PluctUIScreen01MainActivity07CreditRequestHandler
 import app.pluct.ui.screens.PluctUIScreen01MainActivity08Dialogs
 import app.pluct.ui.screens.PluctVideoDetailScreen
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
+import app.pluct.ui.components.PluctUIComponent09ContextualPermission01Dialog
 import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.entity.ProcessingTier
@@ -308,35 +309,11 @@ fun PluctMainContent(
         }
     }
     
-    // Check if permission onboarding is needed - wait for welcome dialog to complete
+    // Check if tutorial is needed - skip permission onboarding (now contextual)
     LaunchedEffect(showWelcomeDialog) {
         if (!showWelcomeDialog) {
-            // Welcome dialog dismissed, now check for permission onboarding
+            // Welcome dialog dismissed, check if tutorial needed
             delay(500) // Small delay after welcome dialog
-            val prefs = PluctUserPreferences(context)
-            val hasNotificationPermission = PluctCorePermission01Manager.hasNotificationPermission(context)
-            val hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
-            val hasSeenNotificationOnboarding = prefs.hasSeenNotificationOnboarding()
-            val hasSeenOverlayOnboarding = prefs.hasSeenOverlayOnboarding()
-            
-            // Show onboarding if permissions not granted and not seen before
-            if ((!hasNotificationPermission && !hasSeenNotificationOnboarding) ||
-                (!hasOverlayPermission && !hasSeenOverlayOnboarding)) {
-                showPermissionOnboarding = true
-            } else {
-                // Permissions already done, check if tutorial needed
-                if (!prefs.hasSeenOnboardingTutorial()) {
-                    showOnboardingTutorial = true
-                }
-            }
-        }
-    }
-
-    // Show tutorial after permission onboarding completes
-    LaunchedEffect(showPermissionOnboarding) {
-        if (!showPermissionOnboarding) {
-            // Permission onboarding completed, now check for tutorial
-            delay(300) // Small delay for smooth transition
             val prefs = PluctUserPreferences(context)
             if (!prefs.hasSeenOnboardingTutorial()) {
                 showOnboardingTutorial = true
@@ -344,27 +321,51 @@ fun PluctMainContent(
         }
     }
     
-    // Always bootstrap balance, then vend a token only if we need credits.
+    // Show contextual permission request after first transcript
+    var showContextualPermissionRequest by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        isLoading = true
-        onLoadingCreditBalanceChange(true)
-        errorMessage = null
-        try {
-            fetchCreditBalance()
-            hasLoadedBalanceOnce = true // Mark that we've loaded balance at least once
-            if (creditBalance < 1 && freeUsesRemaining < 1) {
-                vendTokenWithBalanceUpdate(reason = "app_launch")
-            } else {
-                hasVendTokenAttempted = true
-                ctaHelperMessage = if (creditBalance > 0) null else "Add credits to unlock transcription"
+        // Listen for first transcript completion to trigger contextual permission
+        val prefs = PluctUserPreferences(context)
+        if (prefs.isFirstTranscriptCompleted() && !prefs.hasSeenNotificationOnboarding()) {
+            delay(2000) // Wait 2 seconds after celebration
+            showContextualPermissionRequest = true
+        }
+    }
+    
+    // Optimistic balance loading: Show default immediately, fetch real balance in background
+    LaunchedEffect(Unit) {
+        // Set optimistic default balance immediately (non-blocking)
+        creditBalance = 3
+        freeUsesRemaining = 3
+        hasLoadedBalanceOnce = true
+        isLoading = false
+        onLoadingCreditBalanceChange(false)
+        
+        Log.d("MainActivity", "Optimistic balance set immediately: 3 credits")
+        
+        // Small delay to ensure UI is stable before background fetch
+        delay(100)
+        
+        // Load real balance in background without blocking UI
+        scope.launch {
+            try {
+                Log.d("MainActivity", "Background balance fetch started")
+                fetchCreditBalance()
+                
+                // Vend token if needed (background operation)
+                if (creditBalance < 1 && freeUsesRemaining < 1) {
+                    vendTokenWithBalanceUpdate(reason = "app_launch")
+                } else {
+                    hasVendTokenAttempted = true
+                    ctaHelperMessage = if (creditBalance > 0) null else "Add credits to unlock transcription"
+                }
+                
+                Log.d("MainActivity", "Background balance fetch completed: $creditBalance credits")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Background balance fetch failed: ${e.message}", e)
+                // Silent failure - user already has optimistic 3 credits
+                // Don't show error message for background operation
             }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to load initial balance: ${e.message}", e)
-            errorMessage = "Failed to load balance"
-            hasLoadedBalanceOnce = true // Mark as loaded even on error to show 0 instead of loading
-        } finally {
-            isLoading = false
-            onLoadingCreditBalanceChange(false)
         }
 
         // Show any stored intent feedback to the user
@@ -505,7 +506,12 @@ fun PluctMainContent(
             videoRepository = videoRepository,
             ctaHelperMessage = ctaHelperMessage,
             debugLogManager = debugLogManager,
-            isLoadingCreditBalance = isLoadingCreditBalance
+            isLoadingCreditBalance = isLoadingCreditBalance,
+            onShowTutorial = {
+                // Re-open tutorial from inline hint
+                showOnboardingTutorial = true
+                Log.d("MainActivity", "Tutorial reopened from inline hint")
+            }
         )
     }
     
@@ -549,12 +555,24 @@ fun PluctMainContent(
         }
     )
     
-    PluctUIScreen01MainActivity08Dialogs.PermissionOnboardingDialog(
-        showPermissionOnboarding = showPermissionOnboarding,
-        onDismiss = { showPermissionOnboarding = false },
-        onComplete = { showPermissionOnboarding = false },
-        permissionLauncherHelper = permissionLauncherHelper
-    )
+    // Contextual permission request (after first transcript)
+    if (showContextualPermissionRequest) {
+        PluctUIComponent09ContextualPermission01Dialog(
+            onDismiss = { 
+                showContextualPermissionRequest = false
+                val prefs = PluctUserPreferences(context)
+                prefs.markNotificationOnboardingSeen()
+            },
+            onEnable = {
+                permissionLauncherHelper?.requestNotificationPermission { granted ->
+                    showContextualPermissionRequest = false
+                    val prefs = PluctUserPreferences(context)
+                    prefs.markNotificationOnboardingSeen()
+                    Log.d("MainActivity", "Contextual notification permission: $granted")
+                }
+            }
+        )
+    }
 
     // Onboarding Tutorial Dialog - shows after permissions complete
     if (showOnboardingTutorial) {
@@ -566,7 +584,9 @@ fun PluctMainContent(
             onSkip = {
                 showOnboardingTutorial = false
                 Log.d("MainActivity", "Onboarding tutorial skipped")
-            }
+            },
+            apiService = apiService,
+            onBalanceRefresh = refreshCreditBalance
         )
     }
 }

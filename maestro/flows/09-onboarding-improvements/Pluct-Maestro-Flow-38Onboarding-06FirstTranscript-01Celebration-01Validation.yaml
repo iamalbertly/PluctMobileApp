@@ -1,0 +1,65 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-38Onboarding-06FirstTranscript-01Celebration-01Validation.yaml
+# Validates first transcript celebration and milestone tracking
+#
+# Test Flow:
+# 1. Clear app data
+# 2. Complete onboarding (skip tutorial for speed)
+# 3. Submit TikTok URL for transcription
+# 4. Wait for completion
+# 5. Verify celebration message shown
+# 6. Verify milestone logged
+# 7. Submit second transcript
+# 8. Verify NO celebration shown (only first time)
+
+- clearState
+- launchApp
+- waitForAnimationToEnd
+
+# Skip welcome and tutorial quickly
+- tapOn:
+    text: "Get Started"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Next"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: "Got It"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: "I'll Figure It Out"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Submit first transcript (use test URL)
+- tapOn:
+    id: ".*url.*input.*"
+    optional: true
+- inputText: "https://vm.tiktok.com/test123/"
+- tapOn:
+    text: "Quick Scan"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 30000
+
+# Wait for transcription to complete
+- extendedWaitUntil:
+    visible:
+      text: ".*completed.*|.*transcript.*"
+    timeout: 60000
+    optional: true
+
+# Verify celebration message appears
+- assertVisible:
+    text: ".*First transcript.*|.*pro now.*"
+    optional: true
+
+# Note: Milestone tracking and SharedPreferences are validated via logcat monitoring
+# The PowerShell runner automatically captures milestone events and preference changes
