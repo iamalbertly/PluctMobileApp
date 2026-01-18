@@ -18,16 +18,17 @@ class PluctMaestroTestFocusedUXImprovementsRunner extends PluctMaestroTestRunner
     discoverFlows() {
         const allFlows = super.discoverFlows();
         
-        // Filter to only UX improvement flows (22-28)
+        // Filter to only UX improvement flows (22-28) from 06-ux-improvements category
         const focusedFlows = allFlows.filter(flow => {
             const filename = flow.file;
-            return filename.includes('Flow-22UX') ||
+            return flow.category === '06-ux-improvements' && (
+                   filename.includes('Flow-22UX') ||
                    filename.includes('Flow-23UX') ||
                    filename.includes('Flow-24UX') ||
                    filename.includes('Flow-25UX') ||
                    filename.includes('Flow-26UX') ||
                    filename.includes('Flow-27UX') ||
-                   filename.includes('Flow-28UX');
+                   filename.includes('Flow-28UX'));
         });
         
         return focusedFlows;

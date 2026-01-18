@@ -1,6 +1,8 @@
 package app.pluct.core.retry
 
 import android.util.Log
+import app.pluct.services.PluctCoreAPIDetailedError
+import app.pluct.core.error.PluctCoreError01AuthErrorDetector
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.math.pow
@@ -50,6 +52,11 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
      */
     fun isRetryable(error: Throwable?): Boolean {
         if (error == null) return false
+        if (error is PluctCoreAPIDetailedError) {
+            val statusCode = error.technicalDetails.responseStatusCode
+            if (statusCode == 401 || statusCode == 403) return false
+            if (statusCode in 400..499 && statusCode != 408 && statusCode != 429) return false
+        }
         val errorMessage = error.message?.lowercase() ?: ""
         
         // Network/timeout errors are retryable
@@ -97,23 +104,37 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
 
     /**
      * Execute operation with retry logic (Result-based API for API service)
+     * @param on401Error Optional callback to handle 401 errors (e.g., token refresh)
+     *                   Should return a new operation to retry with refreshed credentials
      */
     suspend fun <T> executeWithRetry(
         requestId: String,
         startTime: Long,
-        operation: suspend () -> Result<T>
+        operation: suspend () -> Result<T>,
+        on401Error: (suspend () -> Result<T>)? = null
     ): RetryOutcome<T> {
         var lastException: Exception? = null
+        var currentOperation = operation
 
-        repeat(MAX_RETRIES) { attempt ->
+        for (attempt in 0 until MAX_RETRIES) {
             try {
-                val result = operation()
+                val result = currentOperation()
                 if (result.isSuccess) {
                     val duration = System.currentTimeMillis() - startTime
                     return RetryOutcome(result, attempt + 1, duration)
                 } else {
                     val exception = result.exceptionOrNull() as? Exception ?: Exception("Unknown error")
                     lastException = exception
+                    
+                    // Check if this is a 401 error and we have a token refresh handler
+                    val is401Error = PluctCoreError01AuthErrorDetector.is401Unauthorized(exception)
+                    if (is401Error && on401Error != null && attempt < MAX_RETRIES - 1) {
+                        Log.d(TAG, "401 error detected, refreshing token before retry (attempt ${attempt + 1}/$MAX_RETRIES)")
+                        currentOperation = on401Error
+                        // Retry immediately with new token (no delay needed for auth refresh)
+                        continue
+                    }
+                    
                     if (!isRetryable(exception)) {
                         Log.d(TAG, "Error is not retryable: ${exception.message}")
                         val duration = System.currentTimeMillis() - startTime
@@ -122,6 +143,16 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
                 }
             } catch (e: Exception) {
                 lastException = e
+                
+                // Check if this is a 401 error and we have a token refresh handler
+                val is401Error = PluctCoreError01AuthErrorDetector.is401Unauthorized(e)
+                if (is401Error && on401Error != null && attempt < MAX_RETRIES - 1) {
+                    Log.d(TAG, "401 exception detected, refreshing token before retry (attempt ${attempt + 1}/$MAX_RETRIES)")
+                    currentOperation = on401Error
+                    // Retry immediately with new token (no delay needed for auth refresh)
+                    continue
+                }
+                
                 if (!isRetryable(e)) {
                     Log.d(TAG, "Exception is not retryable: ${e.message}")
                     val duration = System.currentTimeMillis() - startTime
@@ -141,6 +172,7 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
         val finalException = lastException ?: Exception("Request failed after $MAX_RETRIES attempts")
         return RetryOutcome(Result.failure(finalException), MAX_RETRIES, duration)
     }
+
 
     /**
      * Handle operation with retry logic (direct value API for UI components)
@@ -222,6 +254,47 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
         } else {
             cappedDelay
         }
+    }
+
+    /**
+     * Execute operation with exponential backoff retry (consolidated from ExponentialBackoffHandler)
+     * @param maxAttempts Maximum number of attempts
+     * @param retryCheck Function to check if error is retryable
+     * @param operation Operation to execute
+     * @return Result of operation
+     */
+    suspend fun <T> executeWithBackoff(
+        maxAttempts: Int = 3,
+        retryCheck: (Throwable?) -> Boolean = { error -> isRetryable(error) },
+        operation: suspend () -> Result<T>
+    ): Result<T> {
+        var lastError: Throwable? = null
+        
+        repeat(maxAttempts) { attempt ->
+            val result = operation()
+            
+            if (result.isSuccess) {
+                return result
+            }
+            
+            lastError = result.exceptionOrNull()
+            
+            // Check if error is retryable
+            if (!retryCheck(lastError)) {
+                Log.d(TAG, "Error is not retryable, stopping retries: ${lastError?.message}")
+                return result
+            }
+            
+            // Don't delay after last attempt
+            if (attempt < maxAttempts - 1) {
+                val delayMs = calculateRetryDelay(attempt)
+                Log.d(TAG, "Retry attempt ${attempt + 1}/$maxAttempts failed, waiting ${delayMs}ms before retry")
+                delay(delayMs)
+            }
+        }
+        
+        Log.w(TAG, "All $maxAttempts retry attempts exhausted")
+        return Result.failure(lastError ?: Exception("Retry exhausted"))
     }
 }
 

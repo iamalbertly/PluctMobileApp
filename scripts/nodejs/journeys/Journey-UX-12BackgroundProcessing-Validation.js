@@ -11,7 +11,7 @@ class JourneyUX12BackgroundProcessingValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Background Processing Validation');
+        this.core.logger.info('Starting Background Processing Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -101,7 +101,7 @@ class JourneyUX12BackgroundProcessingValidation extends BaseJourney {
         // Step 7: Edge case - Network drops during background processing
         // This is tested in a separate edge case test
         
-        await this.log('Background Processing Validation Complete');
+        this.core.logger.info('Background Processing Validation Complete');
         return { success: true, notificationFound, progressUpdates };
     }
 }

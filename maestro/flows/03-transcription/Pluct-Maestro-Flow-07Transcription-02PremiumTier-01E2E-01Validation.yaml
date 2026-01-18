@@ -1,0 +1,33 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-07Transcription-02PremiumTier-01E2E-01Validation.yaml
+# Complete premium tier E2E validation
+
+- launchApp
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Credits:"
+    optional: true
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Generate Insights"
+    optional: true
+- assertVisible:
+    text: "2 Coins"
+    optional: true
+- tapOn:
+    text: "Generate Insights"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "processing_indicator"
+    optional: true
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true

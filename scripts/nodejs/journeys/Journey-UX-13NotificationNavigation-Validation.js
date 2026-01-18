@@ -11,7 +11,7 @@ class JourneyUX13NotificationNavigationValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Notification Navigation Validation');
+        this.core.logger.info('Starting Notification Navigation Validation');
         
         // Step 1: Launch app and start transcription
         await this.core.launchApp();
@@ -111,7 +111,7 @@ class JourneyUX13NotificationNavigationValidation extends BaseJourney {
             this.logger.warn('⚠️ Navigation not clearly verified (may need manual test)');
         }
         
-        await this.log('Notification Navigation Validation Complete');
+        this.core.logger.info('Notification Navigation Validation Complete');
         return { success: true, hasTranscript: !!hasTranscript, intentDetected: !!intentLog.output };
     }
 }

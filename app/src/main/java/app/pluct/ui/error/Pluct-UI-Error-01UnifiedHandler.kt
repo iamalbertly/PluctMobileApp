@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import app.pluct.services.PluctCoreAPIDetailedError
+import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 import app.pluct.ui.components.PluctInsufficientCreditsDialog
 import app.pluct.ui.components.PluctInsufficientCreditsDialogWithQueue
 import app.pluct.ui.components.PluctRateLimitDialog
@@ -30,6 +31,7 @@ import app.pluct.ui.components.PluctRateLimitDialog
 /**
  * Pluct-UI-Error-01UnifiedHandler
  * Centralized error handling for Business Engine errors
+ * Uses PluctCoreError03UserMessageFormatter as single source of truth for error messages
  * Maps technical errors to user-friendly dialogs
  */
 @Composable
@@ -64,6 +66,14 @@ fun PluctBusinessEngineErrorHandler(
             if (details.errorCode.isNotBlank()) appendLine("Error Code: ${details.errorCode}")
             appendLine("Timestamp: ${details.timestamp}")
         }
+        
+        // Use unified formatter as single source of truth for error messages
+        val userMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+            error = error,
+            technicalMessage = error.userMessage,
+            errorCode = details.errorCode,
+            httpStatus = details.responseStatusCode
+        )
         
         when {
             // 402 Insufficient Credits
@@ -106,48 +116,54 @@ fun PluctBusinessEngineErrorHandler(
                 )
             }
             
-            // 502/500 Upstream Error with retry guidance
+            // 502/500 Upstream Error with retry guidance - use unified formatter
             details.responseStatusCode in 500..599 -> {
-                val isRetryable = determineRetryability(error)
-                val retryDelay = if (isRetryable) "30 seconds" else "a few minutes"
-                
                 AlertDialog(
                     onDismissRequest = onDismiss,
-                    title = { Text(if (isRetryable) "Temporary Issue" else "Service Error") },
+                    title = { Text(userMessage.title) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(error.userMessage)
-                            if (isRetryable) {
-                                Text("This appears to be a temporary issue. Waiting $retryDelay before retrying usually resolves it.")
-                            } else {
-                                Text("If this persists, the video URL may be invalid or the service may be experiencing issues.")
+                            Text(userMessage.message)
+                            if (userMessage.technicalDetails != null) {
+                                Text(
+                                    text = "Technical details available. Tap 'Show Details' for more information.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                     },
                     confirmButton = {
-                        TextButton(onClick = onRetry) {
-                            Text(if (isRetryable) "Retry Now" else "Try Again")
+                        if (userMessage.retryable) {
+                            TextButton(onClick = onRetry) {
+                                Text(userMessage.action)
+                            }
+                        } else {
+                            TextButton(onClick = onDismiss) {
+                                Text("OK")
+                            }
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = onDismiss) {
-                            Text("Cancel")
+                        if (userMessage.retryable) {
+                            TextButton(onClick = onDismiss) {
+                                Text("Cancel")
+                            }
                         }
                     }
                 )
             }
             
-            // Default Detailed Error
+            // Default Detailed Error - use unified formatter
             else -> {
                 val hasUpstreamDetails = error.technicalDetails.responseBody.contains("upstream", ignoreCase = true) ||
                                         error.technicalDetails.responseBody.contains("\"error\"", ignoreCase = true)
                 
                 AlertDialog(
                     onDismissRequest = onDismiss,
-                    title = { Text("Error") },
+                    title = { Text(userMessage.title) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(error.userMessage)
+                            Text(userMessage.message)
                             if (hasUpstreamDetails && !showDetails) {
                                 Text(
                                     text = "Technical details available. Tap 'Show Details' for more information.",
@@ -175,8 +191,14 @@ fun PluctBusinessEngineErrorHandler(
                                 Spacer(modifier = Modifier.height(0.dp))
                                 Text("Copy Details")
                             }
-                            TextButton(onClick = onDismiss) {
-                                Text("OK")
+                            if (userMessage.retryable) {
+                                TextButton(onClick = onRetry) {
+                                    Text(userMessage.action)
+                                }
+                            } else {
+                                TextButton(onClick = onDismiss) {
+                                    Text("OK")
+                                }
                             }
                         }
                     }
@@ -184,14 +206,24 @@ fun PluctBusinessEngineErrorHandler(
             }
         }
     } else {
-        // Generic Throwable
+        // Generic Throwable - use unified formatter
+        val userMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+            error = error,
+            technicalMessage = error.message
+        )
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Error") },
-            text = { Text(error.message ?: "An unexpected error occurred") },
+            title = { Text(userMessage.title) },
+            text = { Text(userMessage.message) },
             confirmButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("OK")
+                if (userMessage.retryable) {
+                    TextButton(onClick = onRetry) {
+                        Text(userMessage.action)
+                    }
+                } else {
+                    TextButton(onClick = onDismiss) {
+                        Text("OK")
+                    }
                 }
             }
         )
@@ -209,11 +241,5 @@ private fun ErrorDetails(details: String) {
     }
 }
 
-private fun determineRetryability(error: PluctCoreAPIDetailedError): Boolean {
-    val message = error.userMessage.lowercase()
-    return message.contains("timeout") || 
-           message.contains("temporarily") || 
-           message.contains("unavailable") ||
-           (error.technicalDetails.errorType == "UPSTREAM_ERROR" && 
-            error.technicalDetails.responseStatusCode in 502..504)
-}
+// Removed determineRetryability - now using unified formatter's retryable flag
+// Single source of truth: PluctCoreError03UserMessageFormatter determines retryability

@@ -13,7 +13,7 @@ class JourneyEdgeCase06ConcurrentVendingValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Concurrent Token Vending Edge Case Validation');
+        this.core.logger.info('Starting Concurrent Token Vending Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -92,7 +92,7 @@ class JourneyEdgeCase06ConcurrentVendingValidation extends BaseJourney {
             };
         }
         
-        await this.log('✅ Concurrent token vending edge case validated');
+        this.core.logger.info('✅ Concurrent token vending edge case validated');
         return true;
     }
 }

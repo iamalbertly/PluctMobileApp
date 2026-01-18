@@ -1,0 +1,26 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-16UX-05TranscriptDisplay-01Validation.yaml
+# Validates improved transcript display reliability
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true
+- assertVisible:
+    text: "Transcript"
+    optional: true
+- assertVisible:
+    id: "copy_transcript_button"
+    optional: true

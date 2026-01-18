@@ -11,7 +11,7 @@ class JourneyUX12QueueNotificationValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Queue Notification Validation');
+        this.core.logger.info('Starting Queue Notification Validation');
         
         // Step 1: Disable network (simulate offline)
         this.logger.info('Disabling network to simulate offline scenario...');
@@ -97,12 +97,15 @@ class JourneyUX12QueueNotificationValidation extends BaseJourney {
             this.logger.info('Queue notification logs found in logcat');
         }
         
-        await this.log('Queue Notification Validation Complete');
+        this.core.logger.info('Queue Notification Validation Complete');
         return { success: true };
     }
 }
 
 module.exports = JourneyUX12QueueNotificationValidation;
+
+
+
 
 
 

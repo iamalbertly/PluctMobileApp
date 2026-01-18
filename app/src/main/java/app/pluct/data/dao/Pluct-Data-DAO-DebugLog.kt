@@ -49,4 +49,9 @@ interface PluctDebugLogDAO {
     
     @Query("DELETE FROM debug_logs WHERE category = :category AND operation = :operation AND message = :message AND timestamp < :beforeTimestamp")
     suspend fun deleteDuplicateLogs(category: String, operation: String, message: String, beforeTimestamp: Long): Int
+    
+    // Delete duplicate logs keeping only the most recent one per category+operation
+    // Note: Room doesn't support window functions, so we use a simpler approach
+    @Query("DELETE FROM debug_logs WHERE id IN (SELECT id FROM debug_logs WHERE category = :category AND operation = :operation AND timestamp < :beforeTimestamp AND id NOT IN (SELECT id FROM debug_logs WHERE category = :category AND operation = :operation AND timestamp < :beforeTimestamp ORDER BY timestamp DESC LIMIT 1))")
+    suspend fun deleteDuplicateLogsByCategoryAndOperation(category: String, operation: String, beforeTimestamp: Long): Int
 }

@@ -1,0 +1,25 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-02QuickScan-01Transcription.yaml
+# Tests Quick Scan transcription flow with TikTok URL
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "extract_script_button"
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true
+- assertVisible:
+    text: "Completed"
+    optional: true

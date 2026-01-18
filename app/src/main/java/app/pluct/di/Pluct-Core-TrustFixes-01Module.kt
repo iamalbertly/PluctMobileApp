@@ -6,7 +6,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import app.pluct.core.credit.PluctCoreCredit01AtomicReservation01Service
 import app.pluct.services.PluctCoreAPI01UnifiedService02TokenRefresh01Manager
-import app.pluct.services.PluctCoreAPI01UnifiedService03RequestDeduplication01Handler
 import app.pluct.services.PluctCoreAPIJWTGenerator
 import app.pluct.services.PluctCoreUserIdentification
 import javax.inject.Singleton
@@ -39,10 +38,5 @@ object PluctCoreTrustFixesModule {
         )
     }
     
-    @Provides
-    @Singleton
-    fun provideRequestDeduplicationHandler(): PluctCoreAPI01UnifiedService03RequestDeduplication01Handler {
-        return PluctCoreAPI01UnifiedService03RequestDeduplication01Handler()
-    }
 }
 

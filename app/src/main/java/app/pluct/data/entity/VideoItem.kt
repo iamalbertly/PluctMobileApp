@@ -21,7 +21,7 @@ data class VideoItem(
     val tier: ProcessingTier = ProcessingTier.EXTRACT_SCRIPT,
     val createdAt: Long = timestamp,
     val failureReason: String? = null,
-    val errorDetails: String? = null,  // JSON serialized DetailedAPIError
+    val errorDetails: String? = null,  // JSON serialized PluctCoreAPIDetailedError
     val queueReason: QueueReason? = null,
     val queuedAt: Long? = null,
     val jobId: String? = null  // Transcription job ID for status resumption

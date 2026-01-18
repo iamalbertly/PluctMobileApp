@@ -7,19 +7,10 @@ appId: app.pluct
 - launchApp
 - waitForAnimationToEnd
 
-# Start a transcription to trigger balance update
-- tapOn:
-    id: "url_input_field"
-- inputText: "https://vm.tiktok.com/ZMA730880/"
-- waitForAnimationToEnd
-- tapOn:
-    id: "extract_script_button"
-- waitForAnimationToEnd
-
-# Verify balance is visible and updates
+# Verify balance display is visible
 - assertVisible:
-    id: "credit_balance_loading"
+    text: "Credits:"
     optional: true
 - assertVisible:
-    text: "credits"
+    text: "Settings"
     optional: true

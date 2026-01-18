@@ -1,0 +1,31 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-03Intent-01TikTok-01Transcription.yaml
+# Tests TikTok intent flow with pre-filled URL
+
+- launchApp
+- waitForAnimationToEnd
+# Send ACTION_SEND intent with TikTok URL to simulate user sharing
+- runScript: |
+    #!/bin/bash
+    adb shell am start -a android.intent.action.SEND -t "text/plain" --es android.intent.extra.TEXT "https://vm.tiktok.com/ZMDRUGT2P/" app.pluct/.PluctUIScreen01MainActivity
+    sleep 3
+- waitForAnimationToEnd:
+    timeout: 3000
+# Verify intent was received and URL is prefilled
+- assertVisible:
+    id: "url_input_field"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "extract_script_button"
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true

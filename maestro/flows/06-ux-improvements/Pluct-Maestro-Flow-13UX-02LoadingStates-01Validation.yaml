@@ -1,0 +1,21 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-13UX-02LoadingStates-01Validation.yaml
+# Validates improved loading state visibility
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "processing_indicator"
+- assertVisible:
+    text: "Processing"
+- assertVisible:
+    text: "may take up to 2 minutes"
+    optional: true

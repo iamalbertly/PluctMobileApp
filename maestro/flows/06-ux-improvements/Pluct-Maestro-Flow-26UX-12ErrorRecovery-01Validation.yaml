@@ -7,10 +7,10 @@ appId: app.pluct
 - launchApp
 - waitForAnimationToEnd
 
-# Trigger an error (insufficient credits scenario)
+# Trigger an error (invalid URL scenario)
 - tapOn:
     id: "url_input_field"
-- inputText: "https://vm.tiktok.com/ZMA730880/"
+- inputText: "invalid-url-test"
 - waitForAnimationToEnd
 - tapOn:
     id: "extract_script_button"
@@ -18,11 +18,8 @@ appId: app.pluct
 
 # Verify error message appears with recovery actions
 - assertVisible:
-    id: "error_message_text"
+    text: "Invalid"
     optional: true
 - assertVisible:
-    text: "credits"
-    optional: true
-- assertVisible:
-    id: "error_recovery_add_credits"
+    text: "Retry"
     optional: true

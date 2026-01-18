@@ -1,0 +1,22 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-12UX-01ErrorMessages-01Validation.yaml
+# Validates improved error messages with actionable steps
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "invalid-url-test"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "error_message_text"
+- assertVisible:
+    text: "Invalid"
+    optional: true
+- assertVisible:
+    text: "Retry"
+    optional: true

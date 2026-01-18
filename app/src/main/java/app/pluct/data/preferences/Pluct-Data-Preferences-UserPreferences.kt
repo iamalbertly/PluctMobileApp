@@ -29,6 +29,9 @@ class PluctUserPreferences(context: Context) {
         private const val KEY_PERMISSION_ONBOARDING_OVERLAY_SEEN = "permission_onboarding_overlay_seen"
         private const val KEY_OVERLAY_NOTIFICATIONS_ENABLED = "overlay_notifications_enabled"
         private const val KEY_LAST_PERMISSION_CHECK_TIMESTAMP = "last_permission_check_timestamp"
+        private const val KEY_ONBOARDING_TUTORIAL_SEEN = "onboarding_tutorial_seen"
+        private const val KEY_FIRST_TRANSCRIPT_COMPLETED = "first_transcript_completed"
+        private const val KEY_ONBOARDING_STEP = "onboarding_step"
         
         /**
          * Check if this is the first time the user has launched the app
@@ -192,6 +195,48 @@ class PluctUserPreferences(context: Context) {
      */
     fun setLastPermissionCheckTimestamp(timestamp: Long) {
         prefs.edit().putLong(KEY_LAST_PERMISSION_CHECK_TIMESTAMP, timestamp).apply()
+    }
+
+    /**
+     * Check if user has seen onboarding tutorial
+     */
+    fun hasSeenOnboardingTutorial(): Boolean {
+        return prefs.getBoolean(KEY_ONBOARDING_TUTORIAL_SEEN, false)
+    }
+
+    /**
+     * Mark onboarding tutorial as seen
+     */
+    fun markOnboardingTutorialSeen() {
+        prefs.edit().putBoolean(KEY_ONBOARDING_TUTORIAL_SEEN, true).apply()
+    }
+
+    /**
+     * Check if user has completed their first transcript
+     */
+    fun isFirstTranscriptCompleted(): Boolean {
+        return prefs.getBoolean(KEY_FIRST_TRANSCRIPT_COMPLETED, false)
+    }
+
+    /**
+     * Mark first transcript as completed
+     */
+    fun markFirstTranscriptCompleted() {
+        prefs.edit().putBoolean(KEY_FIRST_TRANSCRIPT_COMPLETED, true).apply()
+    }
+
+    /**
+     * Get current onboarding step (0-2)
+     */
+    fun getOnboardingStep(): Int {
+        return prefs.getInt(KEY_ONBOARDING_STEP, 0)
+    }
+
+    /**
+     * Set current onboarding step
+     */
+    fun setOnboardingStep(step: Int) {
+        prefs.edit().putInt(KEY_ONBOARDING_STEP, step.coerceIn(0, 2)).apply()
     }
 }
 

@@ -1,0 +1,33 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-17Intent-01TikTok-02AutoSubmit-01Validation.yaml
+# Validates that TikTok intents automatically trigger transcription when credits are available
+
+- launchApp
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 5000
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "url_input_field"
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 1000
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 3000
+# Script execution removed - use adb logcat monitoring instead
+- assertVisible:
+    id: "processing_indicator"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true

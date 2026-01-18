@@ -1,0 +1,28 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-09Queue-02Credits-01Insufficient-01Validation.yaml
+# Tests insufficient credits queue functionality
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Insufficient Credits"
+    optional: true
+- assertVisible:
+    text: "Save for Later"
+    optional: true
+- tapOn:
+    text: "Save for Later"
+    optional: true
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- assertVisible:
+    text: "queued"
+    optional: true

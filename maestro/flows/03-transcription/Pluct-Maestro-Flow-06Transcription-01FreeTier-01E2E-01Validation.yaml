@@ -1,0 +1,34 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-06Transcription-01FreeTier-01E2E-01Validation.yaml
+# Complete free tier E2E validation
+
+- launchApp
+- waitForAnimationToEnd
+- assertVisible:
+    text: "free extractions remaining"
+    optional: true
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "extract_script_button"
+- assertVisible:
+    text: "FREE"
+    optional: true
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "processing_indicator"
+    optional: true
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 160000
+- assertVisible:
+    text: "transcript"
+    optional: true
+- assertVisible:
+    text: "Completed"
+    optional: true

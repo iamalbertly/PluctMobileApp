@@ -13,7 +13,7 @@ class JourneyEdgeCase08NetworkInterruptionValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Network Interruption During Token Vending Edge Case Validation');
+        this.core.logger.info('Starting Network Interruption During Token Vending Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -92,7 +92,7 @@ class JourneyEdgeCase08NetworkInterruptionValidation extends BaseJourney {
             }
         }
         
-        await this.log('✅ Network interruption during token vending edge case validated');
+        this.core.logger.info('✅ Network interruption during token vending edge case validated');
         return true;
     }
 }

@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.sp
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
-import app.pluct.ui.components.PluctOfflineBadge
+// UX FIX: Removed PluctOfflineBadge import - component deprecated
 import app.pluct.ui.components.PluctProcessingIndicator
 import kotlinx.coroutines.launch
 
@@ -103,12 +103,12 @@ fun PluctVideoItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     StatusBadge(video)
                     Text(
-                        text = if (video.title.isNotBlank()) video.title else "Untitled Video",
+                        text = getVideoDisplayTitle(video),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2
                     )
-                    PluctOfflineBadge(video = video)
+                    // UX FIX: Removed PluctOfflineBadge - all transcripts are saved offline by default
                 }
 
                 IconButton(onClick = onDelete) {
@@ -279,6 +279,30 @@ private fun StatusBadge(video: VideoItem) {
     }
 }
 
+/**
+ * UX FIX: Improved video title fallback logic
+ * Provides meaningful titles even when metadata is unavailable
+ * Priority: title > author > URL extraction > generic fallback
+ */
+@Composable
+private fun getVideoDisplayTitle(video: VideoItem): String {
+    return when {
+        video.title.isNotBlank() -> video.title
+        video.author.isNotBlank() -> "Video by @${video.author}"
+        video.url.contains("@") -> {
+            // Extract creator handle from TikTok URL using regex
+            val handleMatch = Regex("@([^/?]+)").find(video.url)
+            if (handleMatch != null) {
+                val handle = handleMatch.groupValues[1]
+                "Video by @$handle"
+            } else {
+                "TikTok Video"
+            }
+        }
+        else -> "TikTok Video"
+    }
+}
+
 @Composable
 private fun QuickActionsMenu(
     visible: Boolean,
@@ -309,7 +333,17 @@ private fun QuickActionsMenu(
             leadingIcon = { Icon(Icons.Default.Share, "Share") },
             onClick = {
                 val shareText = buildString {
-                    appendLine("Transcript for ${video.title.ifBlank { "Untitled Video" }}")
+                    // UX FIX: Use improved title fallback instead of "Untitled Video"
+                    val displayTitle = when {
+                        video.title.isNotBlank() -> video.title
+                        video.author.isNotBlank() -> "Video by @${video.author}"
+                        video.url.contains("@") -> {
+                            val handleMatch = Regex("@([^/?]+)").find(video.url)
+                            if (handleMatch != null) "Video by @${handleMatch.groupValues[1]}" else "TikTok Video"
+                        }
+                        else -> "TikTok Video"
+                    }
+                    appendLine("Transcript for $displayTitle")
                     if (video.author.isNotBlank()) appendLine("By ${video.author}")
                     appendLine("URL: ${video.url}")
                     appendLine()

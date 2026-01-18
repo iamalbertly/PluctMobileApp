@@ -30,7 +30,7 @@ class PluctCoreAPI01UnifiedService02TokenRefresh01Manager(
                 return true // Refresh if we can't determine expiration
             }
             
-            val now = System.currentTimeMillis() / 1000
+            val now = PluctCoreAPIServerTimeSync.nowEpochSeconds()
             val timeUntilExpiration = expirationTime - now
             
             val shouldRefresh = timeUntilExpiration <= REFRESH_THRESHOLD_SECONDS
@@ -108,7 +108,7 @@ class PluctCoreAPI01UnifiedService02TokenRefresh01Manager(
      */
     fun getTimeUntilExpiration(token: String): Long? {
         val expirationTime = getTokenExpirationTime(token) ?: return null
-        val now = System.currentTimeMillis() / 1000
+        val now = PluctCoreAPIServerTimeSync.nowEpochSeconds()
         return expirationTime - now
     }
 }

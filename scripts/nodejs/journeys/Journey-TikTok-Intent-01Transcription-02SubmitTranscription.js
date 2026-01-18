@@ -34,7 +34,7 @@ class ChildSubmitTranscription {
             }
 
             // 4) Validate via logcat that the app performed Business Engine calls
-            const logResult = await this.core.executeCommand('adb logcat -d | findstr /i "CaptureCard PluctBusinessEngineService API Error TTTranscribe"');
+            const logResult = await this.core.executeCommand('adb logcat -d | findstr /i "CaptureCard PluctCoreAPIUnified TranscriptionFlowHandler API Error TTTranscribe"');
             const hasApiSignal = logResult.success;
             if (!hasApiSignal) {
                 this.core.logger.warn('⚠️ [Child-02] No API signals found in logcat yet; proceeding to next step.');

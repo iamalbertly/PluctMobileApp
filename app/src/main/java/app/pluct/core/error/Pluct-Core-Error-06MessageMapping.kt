@@ -3,8 +3,13 @@ package app.pluct.core.error
 /**
  * Pluct-Core-Error-06MessageMapping - Map technical errors to user-friendly messages
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation]-[Responsibility]
- * Single source of truth for error message mappings
+ * 
+ * Technical Debt #3: This is a legacy mapping - use PluctCoreError03UserMessageFormatter instead
+ * Kept for backward compatibility but should migrate to UserMessageFormatter
+ * 
+ * @deprecated Use PluctCoreError03UserMessageFormatter.formatUserMessage() instead
  */
+@Deprecated("Use PluctCoreError03UserMessageFormatter.formatUserMessage() instead")
 object PluctCoreError06MessageMapping {
     
     /**

@@ -1,0 +1,28 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-31UX-17ValidationConsolidation-01Validation.yaml
+# Validates credit validation consolidation improvements
+# Tests: Single source of truth validation, consistent error messages
+
+- launchApp
+- waitForAnimationToEnd
+
+# Test 1: Invalid credit scenario - should show consistent error message
+- tapOn: "Quick Scan"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- tapOn:
+    text: "Extract Script"
+    optional: true
+- assertVisible:
+    text: "Insufficient credits"
+    optional: true
+    timeout: 5000
+
+# Test 2: Network error - should show improved recovery guidance
+- tapOn:
+    text: "Check Connection"
+    optional: true
+- assertVisible:
+    text: "Queue"
+    optional: true
+    timeout: 3000

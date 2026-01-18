@@ -11,7 +11,7 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Auto-Submit Intent Validation');
+        this.core.logger.info('Starting Auto-Submit Intent Validation');
         
         // Step 1: Launch app and verify credits available
         await this.core.launchApp();
@@ -128,7 +128,7 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
             this.logger.info('✅ New video queued when intent received during active transcription');
         }
         
-        await this.log('Auto-Submit Intent Validation Complete');
+        this.core.logger.info('Auto-Submit Intent Validation Complete');
         return { success: true, autoSubmitDetected };
     }
 }

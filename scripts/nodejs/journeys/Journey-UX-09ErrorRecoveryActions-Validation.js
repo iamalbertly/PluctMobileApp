@@ -220,6 +220,18 @@ class JourneyUX09ErrorRecoveryActionsValidation extends BaseJourney {
                 }
             }
             
+            // Cleanup: dismiss errors and clear invalid URL so post-journey checks pass
+            const cleanupDismiss = await this.core.tapByText('Dismiss');
+            if (!cleanupDismiss.success) {
+                await this.core.pressKey('Back');
+            }
+            await this.core.sleep(500);
+            const urlFocus = await this.core.tapByTestTag('url_input_field');
+            if (urlFocus.success) {
+                await this.core.typeText('');
+                await this.core.sleep(300);
+            }
+            
             this.core.logger.info('✅ Completed: Journey-UX-09ErrorRecoveryActions-Validation');
             return { success: true };
             
@@ -231,6 +243,9 @@ class JourneyUX09ErrorRecoveryActionsValidation extends BaseJourney {
 }
 
 module.exports = JourneyUX09ErrorRecoveryActionsValidation;
+
+
+
 
 
 

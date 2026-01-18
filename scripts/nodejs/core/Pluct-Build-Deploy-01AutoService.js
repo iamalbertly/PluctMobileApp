@@ -23,11 +23,13 @@ class PluctBuildDeployAutoService {
         try {
             this.core.logger.info('🔨 Building debug APK...');
             
-            // Build debug APK
-            execSync('./gradlew assembleDebug', {
+            // Build debug APK (Windows uses gradlew.bat, Unix uses ./gradlew)
+            const gradleCommand = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+            execSync(`${gradleCommand} assembleDebug`, {
                 cwd: process.cwd(),
                 stdio: 'inherit',
-                encoding: 'utf-8'
+                encoding: 'utf-8',
+                shell: true
             });
 
             // Verify APK exists

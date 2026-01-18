@@ -1,0 +1,22 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-20UX-06ErrorClarity-01Validation.yaml
+# Validates improved error message clarity with actionable steps
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "invalid-url-test"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "error_message_text"
+- assertVisible:
+    text: "Invalid Input"
+    optional: true
+- assertVisible:
+    text: "Retry"
+    optional: true

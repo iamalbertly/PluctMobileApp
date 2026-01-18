@@ -1,0 +1,30 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-30UX-16ErrorContext-01Validation.yaml
+# Validates UX Improvement #5: Contextual error information
+# Follows naming: [Project]-[Maestro]-[Flow]-[Category]-[Feature]-[Sequence][Validation]
+
+- launchApp
+- waitForAnimationToEnd
+
+# Trigger an error to see contextual information
+- tapOn:
+    id: "url_input_field"
+- inputText: "invalid-url-test"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "extract_script_button"
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+
+# Verify error message appears with context
+- assertVisible:
+    id: "error_message_text"
+    optional: true
+- assertVisible:
+    text: "Invalid"
+    optional: true
+- assertVisible:
+    text: "Failed while"
+    optional: true

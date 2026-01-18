@@ -11,7 +11,7 @@ class JourneyUX11OneTapCopyValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting One-Tap Copy Validation');
+        this.core.logger.info('Starting One-Tap Copy Validation');
         
         // Step 1: Ensure app has a completed transcription
         await this.core.launchApp();
@@ -39,10 +39,20 @@ class JourneyUX11OneTapCopyValidation extends BaseJourney {
             await this.core.sleep(2000);
         }
         
-        // Step 3: Verify copy button exists on completed transcription card
+        // Step 3: Verify copy button exists on completed transcription card (or open details as fallback)
+        let inDetailView = false;
         await this.core.dumpUIHierarchy();
         uiDump = this.core.readLastUIDump() || '';
-        if (!uiDump.includes('copy_transcript_button') && !uiDump.includes('ContentCopy')) {
+        if (!uiDump.includes('copy_transcript_button') && !uiDump.includes('Copy transcript to clipboard')) {
+            const detailsTap = await this.core.tapByText('View Details');
+            if (detailsTap.success) {
+                inDetailView = true;
+                await this.core.sleep(1000);
+                await this.core.dumpUIHierarchy();
+                uiDump = this.core.readLastUIDump() || '';
+            }
+        }
+        if (!uiDump.includes('copy_transcript_button') && !uiDump.includes('Copy transcript to clipboard')) {
             return { success: false, error: 'Copy button not found on transcription card' };
         }
         
@@ -77,6 +87,10 @@ class JourneyUX11OneTapCopyValidation extends BaseJourney {
         
         // Step 7: Verify long-press menu still works (power user feature)
         await this.core.sleep(1000);
+        if (inDetailView) {
+            await this.core.pressKey('Back');
+            await this.core.sleep(1000);
+        }
         // Try to find a completed video card and long-press it
         const longPressResult = await this.core.executeCommand('adb shell input swipe 500 800 500 800 1000');
         if (longPressResult.success) {
@@ -88,12 +102,15 @@ class JourneyUX11OneTapCopyValidation extends BaseJourney {
             }
         }
         
-        await this.log('One-Tap Copy Validation Complete');
+        this.core.logger.info('One-Tap Copy Validation Complete');
         return { success: true };
     }
 }
 
 module.exports = JourneyUX11OneTapCopyValidation;
+
+
+
 
 
 

@@ -4,6 +4,7 @@ import android.util.Log
 import app.pluct.data.dao.PluctVideoDao
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.repository.PluctVideoDataRepository02ErrorHandler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import javax.inject.Inject
@@ -57,25 +58,30 @@ class PluctVideoRepository @Inject constructor(
     
     /**
      * Get a single video by ID
+     * Technical Debt #1: Improved error handling with proper logging
      */
     suspend fun getVideoById(id: String): VideoItem? {
         return try {
             videoDao.getVideoById(id)
         } catch (error: Exception) {
+            // Technical Debt #3: Ensure errors propagate correctly
             Log.e(TAG, "Error getting video by ID $id: ${error.message}", error)
-            null
+            // Use error handler for consistent error processing
+            PluctVideoDataRepository02ErrorHandler.handleError("getVideoById", error, null)
         }
     }
     
     /**
      * Get video by URL (for duplicate prevention)
+     * Technical Debt #1: Improved error handling
      */
     suspend fun getVideoByUrl(url: String): VideoItem? {
         return try {
             videoDao.getVideoByUrl(url)
         } catch (error: Exception) {
             Log.e(TAG, "Error getting video by URL $url: ${error.message}", error)
-            null
+            // Technical Debt #3: Ensure errors propagate correctly
+            PluctVideoDataRepository02ErrorHandler.handleError("getVideoByUrl", error, null)
         }
     }
     

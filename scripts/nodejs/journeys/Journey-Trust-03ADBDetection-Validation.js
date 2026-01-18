@@ -11,7 +11,7 @@ class JourneyTrust03ADBDetectionValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting ADB Detection Validation');
+        this.core.logger.info('Starting ADB Detection Validation');
         
         // Step 1: Check if ADB is connected
         const adbCheck = await this.core.executeCommand('adb shell getprop service.adb.tcp.port');
@@ -104,7 +104,7 @@ class JourneyTrust03ADBDetectionValidation extends BaseJourney {
             }
         }
         
-        await this.log('ADB Detection Validation Complete');
+        this.core.logger.info('ADB Detection Validation Complete');
         return { success: true, isAdbConnected, timeoutDetected: timeoutErrorDetected };
     }
 }

@@ -1,0 +1,52 @@
+{
+  "testSuite": "RefactoringValidation",
+  "description": "Configuration for refactoring validation tests",
+  "terminateOnFirstError": true,
+  "enableAutoFix": false,
+  "enableAutoRebuild": true,
+  "expectedLogPatterns": {
+    "submission": [
+      "OperationStep.SUBMIT",
+      "submit_timeout_retry",
+      "submit_auth_failure",
+      "jobId=.*"
+    ],
+    "polling": [
+      "OperationStep.POLLING",
+      "polling_auth_refresh",
+      "polling_status_received",
+      "transcript_found",
+      "cache_hit_detected",
+      "polling_circuit_open"
+    ],
+    "completion": [
+      "OperationStep.COMPLETED",
+      "cache_hit_detected",
+      "transcript_found"
+    ],
+    "canonicalization": [
+      "OperationStep.CANONICALIZE"
+    ],
+    "metadata": [
+      "OperationStep.METADATA"
+    ],
+    "tokenVending": [
+      "OperationStep.VEND_TOKEN"
+    ]
+  },
+  "excludedErrorPatterns": [
+    "WARN",
+    "expected",
+    "Still starting",
+    "DEBUG"
+  ],
+  "uiValidationEnabled": true,
+  "logcatValidationEnabled": true,
+  "fileSizeLimit": 300,
+  "allowSizeExempt": true,
+  "validateDuplicateElimination": true,
+  "validateHandlerExtraction": true,
+  "maxTestDuration": 180000,
+  "pollingInterval": 3000,
+  "uiDumpInterval": 2000
+}

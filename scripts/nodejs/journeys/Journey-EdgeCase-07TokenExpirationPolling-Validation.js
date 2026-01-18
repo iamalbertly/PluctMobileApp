@@ -13,7 +13,7 @@ class JourneyEdgeCase07TokenExpirationPollingValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Token Expiration During Polling Edge Case Validation');
+        this.core.logger.info('Starting Token Expiration During Polling Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -105,7 +105,7 @@ class JourneyEdgeCase07TokenExpirationPollingValidation extends BaseJourney {
             this.logger.warn('⚠️ Transcription completion not detected, may still be processing');
         }
         
-        await this.log('✅ Token expiration during polling edge case validated');
+        this.core.logger.info('✅ Token expiration during polling edge case validated');
         return true;
     }
 }

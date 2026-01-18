@@ -12,43 +12,85 @@ class JourneyUX07DebugLogsSearchValidation extends BaseJourney {
         try {
             // Step 1: Generate multiple log entries (errors, info, warnings)
             this.core.logger.info('- Step 1: Generate log entries');
-            await this.ensureAppForeground();
+            const foreground = await this.ensureAppForeground();
+            if (!foreground.success) {
+                await this.failWithDiagnostics('Failed to bring app to foreground');
+                return { success: false, error: 'Failed to bring app to foreground' };
+            }
             await this.core.sleep(2000);
-            
+
             // Trigger some actions to generate logs
-            // Try to submit invalid URL to generate error log
-            await this.core.tapByTestTag('capture_component_label');
+            let focusTap = await this.core.tapByTestTag('capture_component_label');
+            if (!focusTap.success) {
+                focusTap = await this.core.tapByText('Paste a TikTok link');
+            }
+            if (!focusTap.success) {
+                focusTap = await this.core.tapFirstEditText();
+            }
+            if (!focusTap.success) {
+                await this.failWithDiagnostics('Could not focus URL input');
+                return { success: false, error: 'Could not focus URL input' };
+            }
             await this.core.sleep(500);
-            await this.core.typeText('invalid-url-test');
+            const typeResult = await this.core.typeText('invalid-url-test');
+            if (!typeResult.success) {
+                await this.failWithDiagnostics('Failed to enter invalid URL');
+                return { success: false, error: 'Failed to enter invalid URL' };
+            }
             await this.core.sleep(1000);
             const submitTap = await this.core.tapByText('Extract Script');
             if (submitTap.success) {
-                await this.core.sleep(2000);
-            }
-            
-            // Navigate to settings to generate info log
-            const settingsTap = await this.core.tapByTestTag('settings_button');
-            if (settingsTap.success) {
-                await this.core.sleep(1000);
-                await this.core.pressKey('Back');
+                await this.core.sleep(1500);
+                const dismissTap = await this.core.tapByText('Dismiss');
+                if (!dismissTap.success) {
+                    const dismissTap2 = await this.core.tapByContentDesc('Dismiss error');
+                    if (!dismissTap2.success) {
+                        await this.core.pressKey('Back');
+                    }
+                }
                 await this.core.sleep(500);
             }
-            
+
             // Step 2: Navigate to debug logs screen
             this.core.logger.info('- Step 2: Navigate to debug logs');
-            const settingsTap2 = await this.core.tapByTestTag('settings_button');
+            const tryOpenSettings = async () => {
+                let tap = await this.core.tapByTestTag('settings_button');
+                if (tap.success) return tap;
+                tap = await this.core.tapByContentDesc('Settings button');
+                if (tap.success) return tap;
+                return this.core.tapByText('Settings');
+            };
+
+            const settingsTap2 = await tryOpenSettings();
             if (!settingsTap2.success) {
-                const settingsTap3 = await this.core.tapByText('Settings');
-                if (!settingsTap3.success) {
-                    this.core.logger.error('❌ Could not open settings');
-                    return { success: false, error: 'Could not navigate to debug logs' };
-                }
+                await this.failWithDiagnostics('Could not open settings');
+                return { success: false, error: 'Could not navigate to debug logs' };
             }
             await this.core.sleep(1000);
-            
-            const debugLogsTap = await this.core.tapByText('View Debug Logs');
+
+            const tryOpenDebugLogs = async () => {
+                const labels = ['View Debug Logs', 'Debug Logs', 'View Logs', 'Logs'];
+                for (const label of labels) {
+                    const tapped = await this.core.tapByText(label);
+                    if (tapped.success) return tapped;
+                }
+                const descs = ['View Debug Logs', 'Debug Logs'];
+                for (const desc of descs) {
+                    const tapped = await this.core.tapByContentDesc(desc);
+                    if (tapped.success) return tapped;
+                }
+                return { success: false };
+            };
+
+            let debugLogsTap = await tryOpenDebugLogs();
             if (!debugLogsTap.success) {
-                this.core.logger.error('❌ Could not open debug logs');
+                await this.core.executeCommand('adb shell input swipe 360 1100 360 300 400');
+                await this.core.sleep(500);
+                debugLogsTap = await tryOpenDebugLogs();
+            }
+
+            if (!debugLogsTap.success) {
+                await this.failWithDiagnostics('Could not open debug logs screen');
                 return { success: false, error: 'Could not open debug logs screen' };
             }
             await this.core.sleep(2000);
@@ -64,7 +106,7 @@ class JourneyUX07DebugLogsSearchValidation extends BaseJourney {
                                initialUI.includes('Search');
             
             if (!hasSearchBar) {
-                this.core.logger.error('❌ FAILURE: Search bar not found');
+                await this.failWithDiagnostics('Search bar not present in debug logs screen');
                 return { success: false, error: 'Search bar not present in debug logs screen' };
             }
             this.core.logger.info('✅ Search bar found');
@@ -72,8 +114,8 @@ class JourneyUX07DebugLogsSearchValidation extends BaseJourney {
             // Try to interact with search (if possible via UI dump)
             // Type search query
             const searchQuery = 'error';
-            await this.core.tapByText('Search logs');
-            if (!(await this.core.tapByText('Search logs')).success) {
+            const searchTap = await this.core.tapByText('Search logs');
+            if (!searchTap.success) {
                 // Try alternative approach
                 await this.core.tapByContentDesc('Search logs');
             }
@@ -187,6 +229,9 @@ class JourneyUX07DebugLogsSearchValidation extends BaseJourney {
 }
 
 module.exports = JourneyUX07DebugLogsSearchValidation;
+
+
+
 
 
 

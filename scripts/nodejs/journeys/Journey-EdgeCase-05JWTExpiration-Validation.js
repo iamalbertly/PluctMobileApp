@@ -13,7 +13,7 @@ class JourneyEdgeCase05JWTExpirationValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting JWT Token Expiration Edge Case Validation');
+        this.core.logger.info('Starting JWT Token Expiration Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -87,7 +87,7 @@ class JourneyEdgeCase05JWTExpirationValidation extends BaseJourney {
             };
         }
         
-        await this.log('✅ JWT token expiration edge case validated');
+        this.core.logger.info('✅ JWT token expiration edge case validated');
         return true;
     }
 }

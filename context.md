@@ -125,6 +125,43 @@ All new files follow 5+ scope layer naming convention:
 - ✅ `Pluct-Build-Deploy-01AutoService.js` (4 scopes - utility)
 - ✅ `Journey-EdgeCase-01RapidIntentReceipt-Validation.js` (4 scopes - Journey is top-level)
 
+## Codebase Refactoring - Duplicate Elimination (2025-01-XX)
+
+### ✅ COMPLETED REFACTORING (2025-01-XX)
+
+#### Phase 1: File Size Compliance ✅
+- **UnifiedService-01Main.kt**: Reduced from 336 lines to 219 lines
+  - Extracted handlers: Balance, Token, Metadata, Status, AuthRetry
+  - Eliminated duplicate 401 retry logic (was in 6+ places)
+  - Improved separation of concerns
+
+#### Phase 2: Error Handling Consolidation ✅
+- **UI Error Handler**: Now uses `PluctCoreError03UserMessageFormatter` as single source of truth
+- **Removed**: Duplicate `determineRetryability()` function
+- **Unified**: All error messages now go through one formatter
+
+#### Phase 3: Auth Retry Handler ✅
+- **Created**: `Pluct-Core-API-01UnifiedService-15AuthRetry-01Handler.kt`
+- **Eliminated**: 6+ duplicate 401 retry implementations
+- **Single Source**: All API methods now use unified auth retry handler
+
+### Files Marked for Deletion
+- `DeleteThisFile_Pluct-Core-API-01UnifiedService-08TranscriptionFlow-03Submission-01Handler.kt` (170 lines)
+  - **Rationale**: Duplicate submission logic already implemented in TranscriptionFlow01Handler (lines 313-427). This file was created as an extraction attempt but never integrated, creating confusion and maintenance burden.
+  - **Status**: Marked for deletion, no references found in codebase
+  
+- `DeleteThisFile_Pluct-Core-API-01UnifiedService-08TranscriptionFlow-04Polling-01UnifiedService.kt` (277 lines)
+  - **Rationale**: Duplicate polling logic already implemented in TranscriptionFlow01Handler (lines 440-634). This file was created as an extraction attempt but never integrated, creating confusion and maintenance burden.
+  - **Status**: Marked for deletion, no references found in codebase
+
+### Refactoring Status
+- **Phase 1**: ✅ File size compliance (UnifiedService refactored)
+- **Phase 2**: ✅ Error handling consolidation (UI handler uses unified formatter)
+- **Phase 3**: ✅ Auth retry handler extraction (eliminated 6+ duplicates)
+- **Phase 4**: ⏳ Validation logic consolidation (pending)
+- **Phase 5**: ⏳ Notification/dialog consolidation (pending)
+- **Phase 6**: ⏳ Naming convention fixes (pending)
+
 ## Logs
 - 2025-10-13..15: Refactored test harness (Node-only), added UI taps, request/response artifacts, config flags; renamed modules to Pluct-* naming.
 - 2025-01-21: UI Cleanup - Removed Capture Video section and FAB button from main home screen for cleaner, more intuitive interface. Updated PluctHomeScreen.kt and MainActivity.kt, cleaned up unused imports and parameters.

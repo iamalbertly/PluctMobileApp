@@ -1,0 +1,19 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-15UX-04ButtonReliability-01Validation.yaml
+# Validates improved button tapping reliability
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "extract_script_button"
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "processing_indicator"
+    optional: true

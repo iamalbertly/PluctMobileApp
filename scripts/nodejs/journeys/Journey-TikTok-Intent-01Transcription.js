@@ -208,52 +208,14 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
                 retries++;
             }
             
-            // Tap the Extract Script button (free tier) using multiple strategies
-            let submitTap = { success: false };
-            
-            // Strategy 1: Try test tag
-            submitTap = await this.core.tapByTestTag('extract_script_action_button');
-            if (!submitTap.success) {
-                submitTap = await this.core.tapByTestTag('extract_script_button');
-            }
-            
-            // Strategy 2: Try by text
-            if (!submitTap.success) {
-                submitTap = await this.core.tapByText('FREE');
-            }
-            if (!submitTap.success) {
-                submitTap = await this.core.tapByText('Extract Script');
-            }
-            
-            // Strategy 3: Try by content description
-            if (!submitTap.success) {
-                submitTap = await this.core.tapByContentDesc('Extract Script');
-            }
-            
-            // Strategy 4: Try coordinates (multiple known locations)
-            if (!submitTap.success) {
-                this.core.logger.warn('⚠️ Button not found by text/tag, trying coordinates...');
-                // Try common button locations
-                const coordinates = [[360, 700], [360, 750], [360, 800], [206, 769]];
-                for (const [x, y] of coordinates) {
-                    await this.core.tapByCoordinates(x, y);
-                    await this.core.sleep(1000);
-                    await this.core.dumpUIHierarchy();
-                    const checkDump = this.core.readLastUIDump();
-                    if (checkDump.includes('Processing') || checkDump.includes('Error') || checkDump.includes('Video item')) {
-                        submitTap = { success: true };
-                        this.core.logger.info(`✅ Button tapped at coordinates (${x}, ${y})`);
-                        break;
-                    }
-                }
-            }
+            // Use consolidated button tapping utility
+            const submitTap = await this.core.buttonTapping.tapExtractScriptButton();
             
             if (!submitTap.success) {
-                this.core.logger.error('❌ Could not tap Extract Script button after all strategies');
-                // Dump UI for debugging
+                this.core.logger.error('❌ Could not tap Extract Script button');
                 await this.core.dumpUIHierarchy();
                 this.core.logger.error('UI dump saved for debugging');
-                return { success: false, error: 'Extract Script button not found or not tappable' };
+                return { success: false, error: submitTap.error || 'Extract Script button not found or not tappable' };
             }
             
             this.core.logger.info('✅ Submit button tapped for pre-filled URL');
@@ -267,14 +229,16 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
                 await this.core.sleep(checkInterval);
                 
                 // Check logcat for processing activity
-                const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "Processing video\|onTierSubmit\|Extract Script\|vend-token\|submitTranscription\|PluctBusinessEngineService"');
+                const logcatResult = await this.core.executeCommand('adb logcat -d | findstr -i "Processing video\|onTierSubmit\|Extract Script\|vend-token\|submitTranscription\|PluctCoreAPIUnified\|TranscriptionFlowHandler\|CaptureCard"');
                 const hasLogcatActivity = logcatResult.success && logcatResult.output && (
                     logcatResult.output.includes('Processing video') ||
                     logcatResult.output.includes('onTierSubmit') ||
                     logcatResult.output.includes('Extract Script') ||
                     logcatResult.output.includes('vend-token') ||
                     logcatResult.output.includes('submitTranscription') ||
-                    logcatResult.output.includes('PluctBusinessEngineService')
+                    logcatResult.output.includes('PluctCoreAPIUnified') ||
+                    logcatResult.output.includes('TranscriptionFlowHandler') ||
+                    logcatResult.output.includes('CaptureCard')
                 );
                 
                 // Check UI for processing indicators
@@ -356,7 +320,7 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
             }
             
             // Last resort: check logcat one more time
-            const finalLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctBusinessEngineService\|vend-token\|submitTranscription"');
+            const finalLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctCoreAPIUnified\|TranscriptionFlowHandler\|vend-token\|submitTranscription"');
             if (finalLogcat.success && finalLogcat.output && finalLogcat.output.trim()) {
                 this.core.logger.info('✅ Processing activity confirmed via final logcat check');
                 return { success: true };

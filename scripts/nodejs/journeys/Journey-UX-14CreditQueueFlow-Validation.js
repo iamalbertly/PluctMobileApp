@@ -11,7 +11,7 @@ class JourneyUX14CreditQueueFlowValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Credit Queue Flow Validation');
+        this.core.logger.info('Starting Credit Queue Flow Validation');
         
         // Step 1: Launch app and check current credits
         await this.core.launchApp();
@@ -111,7 +111,7 @@ class JourneyUX14CreditQueueFlowValidation extends BaseJourney {
             this.logger.info('✅ Queue operations detected in logcat');
         }
         
-        await this.log('Credit Queue Flow Validation Complete');
+        this.core.logger.info('Credit Queue Flow Validation Complete');
         return { success: true, hasQueuePrompt, hasAddCreditsPrompt };
     }
 }

@@ -106,3 +106,4 @@ class JourneyRefactor04ComingSoonDialogRemovalValidation extends BaseJourney {
 
 module.exports = JourneyRefactor04ComingSoonDialogRemovalValidation;
 
+

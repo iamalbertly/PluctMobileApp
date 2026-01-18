@@ -88,14 +88,15 @@ object PluctCoreError03UserMessageFormatter {
                     retryable = false
                 )
             
-            // Connection errors
+            // Connection errors - UX-4: Enhanced with actionable recovery guidance
             message.contains("connection", ignoreCase = true) || 
             message.contains("network", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Connection Error",
-                    message = "Unable to connect to the server. Please check your internet connection and try again. If the problem persists, the video will be saved and processed when your connection is restored.",
-                    action = "Check Connection",
-                    retryable = true
+                    message = "Unable to connect to the server. The video has been saved and will automatically process when your connection is restored. You can check the Queue section to see saved videos.",
+                    action = "View Queue",
+                    retryable = true,
+                    technicalDetails = "Network connectivity issue. Video queued for automatic processing when connection restored."
                 )
             
             // Duplicate processing errors - provide helpful guidance
@@ -156,23 +157,26 @@ object PluctCoreError03UserMessageFormatter {
             message.contains("timeout", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Connection Timeout",
-                    message = "The request took too long. Please check your internet connection and try again.",
-                    action = "Retry",
-                    retryable = true
+                    message = "The request took too long. Your video has been saved and will process automatically when your connection is stable. Check the Queue section for saved videos.",
+                    action = "View Queue",
+                    retryable = true,
+                    technicalDetails = "Network timeout. Video queued for automatic retry."
                 )
             message.contains("host", ignoreCase = true) -> 
                 UserFriendlyMessage(
                     title = "Server Unreachable",
-                    message = "Unable to reach the server. Please check your internet connection.",
-                    action = "Retry",
-                    retryable = true
+                    message = "Unable to reach the server. Please check your internet connection. Your video has been saved and will process when connection is restored.",
+                    action = "Check Connection",
+                    retryable = true,
+                    technicalDetails = "Server unreachable. Video queued for automatic processing."
                 )
             else -> 
                 UserFriendlyMessage(
                     title = "Network Error",
-                    message = "A network error occurred. Please check your internet connection and try again.",
-                    action = "Retry",
-                    retryable = true
+                    message = "A network error occurred. Your video has been saved and will automatically process when your connection is restored. Check the Queue section to see saved videos.",
+                    action = "View Queue",
+                    retryable = true,
+                    technicalDetails = "Network connectivity issue. Video queued for automatic processing."
                 )
         }
     }

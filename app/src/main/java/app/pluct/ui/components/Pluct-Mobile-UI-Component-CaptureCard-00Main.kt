@@ -28,6 +28,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import app.pluct.core.network.PluctNetworkConnectivityChecker
+import app.pluct.ui.components.PluctUIComponent03CaptureCard05State01Manager
+import app.pluct.ui.components.PluctUIComponent03CaptureCard06Queue01Prompt
+import kotlinx.coroutines.delay
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.repository.PluctVideoRepository
@@ -35,7 +38,6 @@ import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreValidationInputSanitizer
 import app.pluct.services.OperationStep
 import app.pluct.ui.models.data.PersistentError
-import app.pluct.core.debug.PluctCoreADBDetection
 import app.pluct.core.credit.PluctCoreCredit01AtomicReservation01Service
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -50,7 +52,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import app.pluct.notification.PluctNotificationHelper
@@ -154,10 +155,9 @@ fun PluctUIComponent03CaptureCard(
             reservationId = reservationResult.reservationId
             Log.d("CaptureCard", "Credit reserved: $reservationId")
             
-            // Show notification when transcription starts from intent
-            if (isPrefilledUrl) {
-                PluctNotificationHelper.showTranscriptionStartedNotification(context, normalizedUrl)
-            }
+            // UX FIX: Removed duplicate notification - Worker handles initial notification
+            // The background worker (Pluct-Core-Background-01TranscriptionWorker) will show
+            // the progress notification when it starts processing, preventing duplicate notifications
         }
 
         val onComplete: () -> Unit = {
@@ -329,95 +329,34 @@ fun PluctUIComponent03CaptureCard(
     
     // Pre-validation: Check network/credits before submission
     LaunchedEffect(urlText, creditBalance, freeUsesRemaining, isSubmitting) {
-        val normalizedUrl = if (urlText.isNotBlank()) {
-            val validationResult = sanitizer.validateUrl(urlText)
-            if (validationResult.isValid) validationResult.sanitizedValue else urlText
-        } else ""
-        
-        if (normalizedUrl.isNotBlank() && !isSubmitting) {
-            val hasNetwork = PluctNetworkConnectivityChecker.isNetworkAvailable(context)
-            val hasCredits = freeUsesRemaining > 0 || creditBalance >= 1
-            
-            when {
-                !hasNetwork -> {
-                    showQueuePrompt = true
-                    queuePromptReason = "No internet connection"
-                }
-                !hasCredits -> {
-                    showQueuePrompt = true
-                    queuePromptReason = "Insufficient credits (need 1 credit or free use)"
-                }
-                else -> {
-                    showQueuePrompt = false
-                    queuePromptReason = null
-                }
-            }
-        } else {
-            showQueuePrompt = false
-        }
+        val (shouldShow, reason) = PluctUIComponent03CaptureCard05State01Manager.shouldShowQueuePrompt(
+            urlText = urlText,
+            creditBalance = creditBalance,
+            freeUsesRemaining = freeUsesRemaining,
+            isSubmitting = isSubmitting,
+            context = context
+        )
+        showQueuePrompt = shouldShow
+        queuePromptReason = reason
     }
 
     // Intelligent timeout: track API progress via step changes
-    val isAdbConnected = remember { PluctCoreADBDetection.isAdbConnected(context) }
-    LaunchedEffect(isSubmitting, debugInfo?.currentStep, isAdbConnected) {
-        if (isSubmitting) {
-            val currentStep = debugInfo?.currentStep
-            
-            // Track step changes
-            if (currentStep != null && currentStep != lastObservedStep) {
-                lastObservedStep = currentStep
-                lastStepChangeTime = System.currentTimeMillis()
-                Log.d("CaptureCard", "Step changed to: $currentStep at ${System.currentTimeMillis()}")
-            }
-            
-            // Only timeout if no step change for 30 seconds AND we're past initial submission
-            val timeSinceLastStep = lastStepChangeTime?.let { 
-                System.currentTimeMillis() - it 
-            } ?: Long.MAX_VALUE
-            
-            // Extended timeout when ADB connected (60s) vs normal (30s)
-            val timeoutThreshold = if (isAdbConnected) 60000L else 30000L
-            
-            if (timeSinceLastStep > timeoutThreshold && lastStepChangeTime != null) {
-                // No progress for timeout threshold - show timeout
-                Log.w("CaptureCard", "Timeout triggered: no step change for ${timeSinceLastStep}ms")
-                persistentError = PersistentError(
-                    message = "Processing is taking longer than expected. Tap Retry if it seems stuck.",
-                    timestamp = System.currentTimeMillis(),
-                    category = "TIMEOUT"
-                )
+    LaunchedEffect(isSubmitting, debugInfo?.currentStep) {
+        PluctUIComponent03CaptureCard05State01Manager.monitorTimeout(
+            isSubmitting = isSubmitting,
+            debugInfo = debugInfo,
+            context = context,
+            onTimeout = { error ->
+                persistentError = error
                 isSubmitting = false
                 processingMessage = null
                 timedOutOnce = true
-            } else if (lastStepChangeTime == null) {
-                // Initial submission, no step info yet - give more time
-                delay(if (isAdbConnected) 30000L else 20000L)
-                if (isSubmitting && lastStepChangeTime == null) {
-                    // Still no step info after initial delay
-                    delay(app.pluct.core.timing.PluctCoreTiming01Constants.TRANSCRIPTION_STEP_TIMEOUT_MS)
-                    if (isSubmitting) {
-                        Log.w("CaptureCard", "Timeout: no step info received")
-                        persistentError = PersistentError(
-                            message = "Starting transcription... If this persists, check your connection.",
-                            timestamp = System.currentTimeMillis(),
-                            category = "TIMEOUT"
-                        )
-                        isSubmitting = false
-                        timedOutOnce = true
-                    }
-                }
-            } else {
-                // Step info exists, monitor for changes
-                delay(app.pluct.core.timing.PluctCoreTiming01Constants.TRANSCRIPTION_STEP_CHECK_INTERVAL_MS)
-                if (isSubmitting) {
-                    // Re-check in next iteration
-                }
-            }
-        } else {
-            // Reset tracking when not submitting
-            lastStepChangeTime = null
-            lastObservedStep = null
-        }
+            },
+            lastStepChangeTime = lastStepChangeTime,
+            lastObservedStep = lastObservedStep,
+            updateLastStepChangeTime = { lastStepChangeTime = it },
+            updateLastObservedStep = { lastObservedStep = it }
+        )
     }
 
     Card(
@@ -504,75 +443,19 @@ fun PluctUIComponent03CaptureCard(
             )
 
             // Queue prompt for offline/no-credit scenarios
-            if (showQueuePrompt && !isSubmitting && urlText.isNotBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = when {
-                                    queuePromptReason?.contains("internet", ignoreCase = true) == true -> Icons.Default.WifiOff
-                                    queuePromptReason?.contains("credits", ignoreCase = true) == true -> Icons.Default.AccountBalanceWallet
-                                    else -> Icons.Filled.Info
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = queuePromptReason ?: "Cannot process now",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    val normalizedUrl = if (urlText.isNotBlank()) {
-                                        val validationResult = sanitizer.validateUrl(urlText)
-                                        if (validationResult.isValid) validationResult.sanitizedValue else urlText
-                                    } else ""
-                                    
-                                    if (normalizedUrl.isNotBlank() && onQueueForLater != null) {
-                                        val reason = when {
-                                            queuePromptReason?.contains("internet", ignoreCase = true) == true -> 
-                                                QueueReason.NO_INTERNET
-                                            queuePromptReason?.contains("credits", ignoreCase = true) == true -> 
-                                                QueueReason.INSUFFICIENT_CREDITS
-                                            else -> QueueReason.SERVICE_UNAVAILABLE
-                                        }
-                                        onQueueForLater(normalizedUrl, reason)
-                                        showQueuePrompt = false
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Save for Later")
-                            }
-                            if (queuePromptReason?.contains("credits", ignoreCase = true) == true && onRequestCredits != null) {
-                                OutlinedButton(
-                                    onClick = { showGetCoinsDialog = true },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Add Credits")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PluctUIComponent03CaptureCard06Queue01Prompt(
+                showQueuePrompt = showQueuePrompt,
+                queuePromptReason = queuePromptReason,
+                urlText = urlText,
+                isSubmitting = isSubmitting,
+                onQueueForLater = { url, reason ->
+                    onQueueForLater?.invoke(url, reason)
+                    showQueuePrompt = false
+                },
+                onRequestCredits = onRequestCredits,
+                onShowGetCoinsDialog = { showGetCoinsDialog = true },
+                sanitizer = sanitizer
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

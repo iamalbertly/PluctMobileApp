@@ -6,9 +6,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 
 /**
  * Pluct-Core-API-01HTTPClient-03ResponseParser - Response parsing logic.
+ * Uses PluctCoreError03UserMessageFormatter as single source of truth for user-friendly error messages.
  */
 class PluctCoreAPIHTTPClientResponseParser {
 
@@ -31,7 +33,7 @@ class PluctCoreAPIHTTPClientResponseParser {
         return try {
             val jsonResponse = json.decodeFromString<JsonObject>(responseBody)
             val errorCode = jsonResponse["code"]?.toString()?.trim('"') ?: "unknown_error"
-            val errorMessage = jsonResponse["message"]?.toString()?.trim('"') ?: statusMessage
+            val technicalMessage = jsonResponse["message"]?.toString()?.trim('"') ?: statusMessage
 
             val details = jsonResponse["details"] as? JsonObject
             val upstreamStatus = details?.get("upstreamStatus")?.toString()?.trim('"')
@@ -44,10 +46,21 @@ class PluctCoreAPIHTTPClientResponseParser {
                 ?: jsonResponse["error"]?.toString()?.trim('"')
                 .takeIf { it != null && it.isNotBlank() }
 
+            // Use unified formatter as single source of truth for user-friendly messages
+            // Note: ErrorInfo still contains technical message for debugging, but user-facing
+            // code should use the formatter to get user-friendly messages
+            val userFriendlyMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+                error = null,
+                technicalMessage = technicalMessage,
+                errorCode = errorCode,
+                httpStatus = statusCode,
+                context = endpoint
+            )
+
             ErrorInfo(
                 statusCode = statusCode,
                 errorCode = errorCode,
-                errorMessage = errorMessage,
+                errorMessage = userFriendlyMessage.message, // Use user-friendly message
                 upstreamStatus = upstreamStatus,
                 upstreamResponse = upstreamResponse,
                 upstreamError = upstreamError,
@@ -57,10 +70,21 @@ class PluctCoreAPIHTTPClientResponseParser {
         } catch (_: Exception) {
             // Fallback: Try to extract any error-like text from raw body
             val extractedError = extractErrorFromRawBody(responseBody)
+            val fallbackMessage = extractedError ?: statusMessage
+            
+            // Use unified formatter even for parse errors
+            val userFriendlyMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+                error = null,
+                technicalMessage = fallbackMessage,
+                errorCode = "parse_error",
+                httpStatus = statusCode,
+                context = endpoint
+            )
+            
             ErrorInfo(
                 statusCode = statusCode,
                 errorCode = "parse_error",
-                errorMessage = extractedError ?: statusMessage,
+                errorMessage = userFriendlyMessage.message, // Use user-friendly message
                 upstreamStatus = null,
                 upstreamResponse = null,
                 upstreamError = extractedError,

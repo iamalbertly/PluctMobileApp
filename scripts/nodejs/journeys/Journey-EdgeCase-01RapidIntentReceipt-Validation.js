@@ -13,7 +13,7 @@ class JourneyEdgeCase01RapidIntentReceiptValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Rapid Intent Receipt Edge Case Validation');
+        this.core.logger.info('Starting Rapid Intent Receipt Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -109,7 +109,7 @@ class JourneyEdgeCase01RapidIntentReceiptValidation extends BaseJourney {
             }
         }
         
-        await this.log('✅ Rapid intent receipt edge case validated');
+        this.core.logger.info('✅ Rapid intent receipt edge case validated');
         return true;
     }
 }

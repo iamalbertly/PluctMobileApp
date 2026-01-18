@@ -9,6 +9,7 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import app.pluct.core.api.PluctCoreAPI00Constants
 
 /**
  * Pluct-Core-API-01HTTPClient-02RequestBuilder - Request construction helper.
@@ -17,8 +18,6 @@ class PluctCoreAPIHTTPClientRequestBuilder {
 
     companion object {
         private const val TAG = "PluctCoreAPIHTTPClient"
-        private const val BASE_URL = "https://pluct-business-engine.romeo-lya2.workers.dev"
-        private const val TIMEOUT_MS = 60000L
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -37,13 +36,13 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         } else {
             endpoint
         }
-        val fullUrl = "$BASE_URL$normalizedEndpoint"
+        val fullUrl = "${PluctCoreAPI00Constants.BASE_URL}$normalizedEndpoint"
         val url = URL(fullUrl)
         val connection = url.openConnection() as HttpURLConnection
 
         connection.doInput = true
         connection.useCaches = false
-        val timeoutMs = timeoutOverrideMs ?: TIMEOUT_MS
+        val timeoutMs = timeoutOverrideMs ?: PluctCoreAPI00Constants.DEFAULT_TIMEOUT_MS
         connection.requestMethod = method
         connection.connectTimeout = timeoutMs.toInt()
         connection.readTimeout = timeoutMs.toInt()

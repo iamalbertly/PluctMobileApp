@@ -13,7 +13,7 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Journey: TikTok Manual URL Transcription');
+        this.core.logger.info('Starting Journey: TikTok Manual URL Transcription');
 
         // Ensure app is launched and foreground before UI checks
         const launchResult = await this.core.launchApp();
@@ -41,7 +41,7 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         }
 
         // Step 1: Enter URL with validation
-        await this.log('Step 1: Entering TikTok URL');
+        this.core.logger.info('Step 1: Entering TikTok URL');
         let tapUrl = await this.core.tapByTestTag('url_input_field');
         if (!tapUrl.success) {
             tapUrl = await this.core.tapByText('Paste a TikTok link');
@@ -78,7 +78,7 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         }
 
         // Step 2: Tap Extract with validation
-        await this.log('Step 2: Tapping Extract Script');
+        this.core.logger.info('Step 2: Tapping Extract Script');
         let tapExtract = await this.core.tapByTestTag('extract_script_button');
         if (!tapExtract.success) {
             tapExtract = await this.core.tapByText('Extract Script');
@@ -88,13 +88,13 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         }
 
         // Step 3: Monitor API calls via logcat
-        await this.log('Step 3: Monitoring API calls');
+        this.core.logger.info('Step 3: Monitoring API calls');
         const apiLogsBefore = await this.core.captureAPILogs(50);
         
         await this.core.sleep(1500);
 
         // Step 4: Wait for completion with API validation
-        await this.log('Step 4: Waiting for transcript completion');
+        this.core.logger.info('Step 4: Waiting for transcript completion');
         const result = await this.core.waitForTranscriptResult(120000, 2000);
         
         // Validate no API errors occurred
@@ -111,14 +111,14 @@ class JourneyTikTokManualURL01Transcription extends BaseJourney {
         }
 
         // Step 5: Validate transcript UI appears
-        await this.log('Step 5: Validating transcript UI');
+        this.core.logger.info('Step 5: Validating transcript UI');
         await this.core.dumpUIHierarchy();
         const finalUI = this.core.readLastUIDump() || '';
         if (!finalUI.includes('transcript') && !finalUI.includes('Transcription')) {
             this.logger.warn('ƒsÿ‹,? Transcript UI not found, but API reported success');
         }
 
-        await this.log('Journey Complete: Transcription Successful');
+        this.core.logger.info('Journey Complete: Transcription Successful');
         return { success: true };
     }
 }

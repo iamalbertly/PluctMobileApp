@@ -20,7 +20,7 @@ class PluctCoreAPIJWTGenerator {
         private const val TAG = "PluctCoreAPIJWTGenerator"
         private const val JWT_SECRET = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
         private const val ALGORITHM = "HS256"
-        private const val TOKEN_EXPIRY_SECONDS = 3600L // 1 hour (for long-lived user JWT used in polling)
+        private const val TOKEN_EXPIRY_SECONDS = 900L // 15 minutes (per Business Engine documentation - max 15 min for JWT tokens)
         private const val AUDIENCE = "pluct-business-engine"
     }
 
@@ -36,20 +36,22 @@ class PluctCoreAPIJWTGenerator {
         val json = Json { ignoreUnknownKeys = true }
         Log.d(TAG, "Generating JWT token for user: $userId")
 
-        // Use current epoch seconds for JWT timestamps, but ensure `iat` is safely in the past
-        // to satisfy Business Engine validation while staying within normal clock skew bounds.
-        val now = System.currentTimeMillis() / 1000
-        val issuedAt = now - 60 // 60 seconds in the past to avoid future-skew rejections
+        // Use current epoch seconds for JWT timestamps
+        // Calculate exp from current time to avoid clock skew issues
+        val now = PluctCoreAPIServerTimeSync.nowEpochSeconds()
+        val issuedAt = now // Use current time for iat
+        val expirationTime = now + TOKEN_EXPIRY_SECONDS // Calculate exp from now, not iat
+        
         Log.d(TAG, "Current timestamp (now): $now")
         Log.d(TAG, "Issued-at timestamp (iat): $issuedAt")
-        Log.d(TAG, "Expiration timestamp: ${issuedAt + TOKEN_EXPIRY_SECONDS}")
+        Log.d(TAG, "Expiration timestamp (exp): $expirationTime")
 
         val payload = buildJsonObject {
             put("sub", JsonPrimitive(userId))
             put("aud", JsonPrimitive(AUDIENCE)) // Required by Business Engine
             put("scope", JsonPrimitive("ttt:transcribe")) // Required for /ttt/ endpoints
             put("iat", JsonPrimitive(issuedAt))
-            put("exp", JsonPrimitive(issuedAt + TOKEN_EXPIRY_SECONDS))
+            put("exp", JsonPrimitive(expirationTime)) // Use expirationTime calculated from now
         }
         
         val header = buildJsonObject {

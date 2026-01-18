@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import app.pluct.services.PluctCoreAPIDetailedError
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -269,17 +270,32 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                     else -> message.take(140) + if (message.length > 140) "..." else ""
                 }
 
+                // UX IMPROVEMENT #5: Add contextual error information
+                val contextualMessage = if (error != null && error is PluctCoreAPIDetailedError) {
+                    val operation = error.technicalDetails.operation ?: "operation"
+                    val attemptedAction = when {
+                        operation.contains("vend", ignoreCase = true) -> "claiming credits"
+                        operation.contains("submit", ignoreCase = true) -> "submitting transcription"
+                        operation.contains("status", ignoreCase = true) -> "checking status"
+                        operation.contains("metadata", ignoreCase = true) -> "fetching video details"
+                        else -> "processing video"
+                    }
+                    "$shortMessage (Failed while $attemptedAction)"
+                } else {
+                    shortMessage
+                }
+                
                 Text(
-                    text = shortMessage,
+                    text = contextualMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier
                         .weight(1f)
                         .semantics {
-                            contentDescription = "Error message: $shortMessage"
+                            contentDescription = "Error message: $contextualMessage"
                             testTag = "error_message_text"
                         }
-                        .heightIn(max = 72.dp)
+                        .heightIn(max = 96.dp) // Increased height for contextual info
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 

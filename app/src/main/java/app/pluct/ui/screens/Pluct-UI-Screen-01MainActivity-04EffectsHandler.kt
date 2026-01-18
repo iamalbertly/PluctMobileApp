@@ -39,6 +39,7 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     clipboardManager: android.content.ClipboardManager,
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager,
+    validator: app.pluct.services.PluctCoreValidationInputSanitizer,
     onBalanceUpdate: (Int, Int) -> Unit,
     onQueueProcessed: (Int) -> Unit
 ) {
@@ -60,7 +61,8 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                         PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller.pollTranscriptionProgress(
                             video = video,
                             apiService = apiService,
-                            videoRepository = videoRepository
+                            videoRepository = videoRepository,
+                            context = context
                         )
                     }
                 }
@@ -91,7 +93,8 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                     onProcess = { video ->
                         PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(
                             apiService, video.url, video.tier, creditBalance, freeUsesRemaining,
-                            videoRepository, clipboardManager, debugLogManager, context
+                            videoRepository, clipboardManager, debugLogManager, context,
+                            validator
                         ) { success, newBalance, newFreeUses, _, _ ->
                             onBalanceUpdate(newBalance, newFreeUses)
                             if (success) {
@@ -128,7 +131,8 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                         onProcess = { video ->
                             PluctUIScreen01MainActivityTranscriptionOrchestrator.processVideo(
                                 apiService, video.url, video.tier, creditBalance, freeUsesRemaining,
-                                videoRepository, clipboardManager, debugLogManager, context
+                                videoRepository, clipboardManager, debugLogManager, context,
+                                validator
                             ) { success, newBalance, newFreeUses, _, _ ->
                                 onBalanceUpdate(newBalance, newFreeUses)
                                 if (success) {

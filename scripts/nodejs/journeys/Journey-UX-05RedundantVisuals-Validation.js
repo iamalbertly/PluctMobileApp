@@ -12,22 +12,45 @@ class JourneyUX05RedundantVisualsValidation extends BaseJourney {
         try {
             // Step 1: Launch app and enter valid TikTok URL
             this.core.logger.info('- Step 1: Launch app and enter TikTok URL');
-            await this.ensureAppForeground();
+            const foreground = await this.ensureAppForeground();
+            if (!foreground.success) {
+                await this.failWithDiagnostics('Failed to bring app to foreground');
+                return { success: false, error: 'Failed to bring app to foreground' };
+            }
             await this.core.sleep(2000);
-            
+
             const testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
-            await this.core.tapByTestTag('capture_component_label');
+            let focusTap = await this.core.tapByTestTag('capture_component_label');
+            if (!focusTap.success) {
+                focusTap = await this.core.tapByText('Paste TikTok URL');
+            }
+            if (!focusTap.success) {
+                focusTap = await this.core.tapFirstEditText();
+            }
+            if (!focusTap.success) {
+                await this.failWithDiagnostics('Could not focus URL input');
+                return { success: false, error: 'Could not focus URL input' };
+            }
+            const clearTap = await this.core.tapByContentDesc('Clear URL');
+            if (clearTap.success) {
+                await this.core.sleep(300);
+                await this.core.tapFirstEditText();
+            }
             await this.core.sleep(500);
-            await this.core.typeText(testUrl);
+            const typeResult = await this.core.typeText(testUrl);
+            if (!typeResult.success) {
+                await this.failWithDiagnostics('Failed to enter TikTok URL');
+                return { success: false, error: 'Failed to enter TikTok URL' };
+            }
             await this.core.sleep(1000);
-            
+
             // Step 2: Tap "Extract Script" button
             this.core.logger.info('- Step 2: Tap Extract Script button');
             const submitTap = await this.core.tapByTestTag('extract_script_button');
             if (!submitTap.success) {
                 const submitTap2 = await this.core.tapByText('Extract Script');
                 if (!submitTap2.success) {
-                    this.core.logger.error('❌ Could not tap Extract Script button');
+                    await this.failWithDiagnostics('Could not tap Extract Script button');
                     return { success: false, error: 'Could not start processing' };
                 }
             }
@@ -150,6 +173,9 @@ class JourneyUX05RedundantVisualsValidation extends BaseJourney {
 }
 
 module.exports = JourneyUX05RedundantVisualsValidation;
+
+
+
 
 
 

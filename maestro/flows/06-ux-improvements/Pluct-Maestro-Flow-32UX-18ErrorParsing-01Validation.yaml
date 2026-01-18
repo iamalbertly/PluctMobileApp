@@ -1,0 +1,19 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-32UX-18ErrorParsing-01Validation.yaml
+# Validates unified error parsing improvements
+# Tests: Consistent error messages from ResponseParser using unified formatter
+
+- launchApp
+- waitForAnimationToEnd
+
+# Test: Error messages should be user-friendly and consistent
+- tapOn: "Quick Scan"
+- inputText: "invalid-url-test"
+- tapOn:
+    text: "Extract Script"
+    optional: true
+- assertVisible:
+    text: "Invalid"
+    optional: true
+    timeout: 5000

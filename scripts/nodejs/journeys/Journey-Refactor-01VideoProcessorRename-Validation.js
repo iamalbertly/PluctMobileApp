@@ -119,3 +119,4 @@ class JourneyRefactor01VideoProcessorRenameValidation extends BaseJourney {
 
 module.exports = JourneyRefactor01VideoProcessorRenameValidation;
 
+

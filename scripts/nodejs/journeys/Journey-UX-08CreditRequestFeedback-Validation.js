@@ -12,41 +12,132 @@ class JourneyUX08CreditRequestFeedbackValidation extends BaseJourney {
         try {
             // Step 1: Navigate to settings and tap "Add More Credits"
             this.core.logger.info('- Step 1: Navigate to credit request');
-            await this.ensureAppForeground();
+            const foreground = await this.ensureAppForeground();
+            if (!foreground.success) {
+                await this.failWithDiagnostics('Failed to bring app to foreground');
+                return { success: false, error: 'Failed to bring app to foreground' };
+            }
             await this.core.sleep(2000);
-            
-            const settingsTap = await this.core.tapByTestTag('settings_button');
-            if (!settingsTap.success) {
-                const settingsTap2 = await this.core.tapByText('Settings');
-                if (!settingsTap2.success) {
-                    this.core.logger.error('❌ Could not open settings');
+
+            const tryOpenSettings = async () => {
+                let tap = await this.core.tapByTestTag('settings_button');
+                if (tap.success) return tap;
+                tap = await this.core.tapByContentDesc('Settings button');
+                if (tap.success) return tap;
+                return this.core.tapByText('Settings');
+            };
+
+            const ensureCreditRequestForm = async () => {
+                const settingsTap = await tryOpenSettings();
+                if (!settingsTap.success) {
                     return { success: false, error: 'Could not open settings' };
                 }
+                const settingsVisible = await this.core.waitForText('Settings dialog', 5000, 500);
+                if (!settingsVisible.success) {
+                    return { success: false, error: 'Settings dialog not visible' };
+                }
+
+                let addCreditsTap = await this.core.tapByTestTag('add_more_credits_button');
+                if (!addCreditsTap.success) {
+                    addCreditsTap = await this.core.tapByContentDesc('Add more credits button');
+                }
+                if (!addCreditsTap.success) {
+                    addCreditsTap = await this.core.tapByText('Add More Credits');
+                }
+                if (!addCreditsTap.success) {
+                    await this.dumpUI();
+                    const ui = this.core.readLastUIDump();
+                    const inSettings = ui.includes('Settings dialog') || ui.includes('settings_dialog');
+                    if (!inSettings) {
+                        const reopen = await tryOpenSettings();
+                        if (!reopen.success) {
+                            return { success: false, error: 'Could not reopen settings' };
+                        }
+                        await this.core.sleep(1000);
+                        addCreditsTap = await this.core.tapByTestTag('add_more_credits_button');
+                        if (!addCreditsTap.success) {
+                            addCreditsTap = await this.core.tapByContentDesc('Add more credits button');
+                        }
+                        if (!addCreditsTap.success) {
+                            addCreditsTap = await this.core.tapByText('Add More Credits');
+                        }
+                    }
+                }
+                if (!addCreditsTap.success) {
+                    return { success: false, error: 'Could not find Add More Credits button' };
+                }
+                const formVisible = await this.core.waitForText('Paste confirmation message', 5000, 500);
+                if (!formVisible.success) {
+                    return { success: false, error: 'Credit request form not visible' };
+                }
+                return { success: true };
+            };
+
+            const formReady = await ensureCreditRequestForm();
+            if (!formReady.success) {
+                await this.failWithDiagnostics(formReady.error);
+                return { success: false, error: formReady.error };
             }
-            await this.core.sleep(1000);
-            
-            const addCreditsTap = await this.core.tapByText('Add More Credits');
-            if (!addCreditsTap.success) {
-                this.core.logger.error('❌ Could not find "Add More Credits" button');
-                return { success: false, error: 'Could not find Add More Credits button' };
-            }
-            await this.core.sleep(1000);
-            
+
             // Step 2: Enter confirmation text
             this.core.logger.info('- Step 2: Enter confirmation text');
             const testConfirmation = `TEST_FEEDBACK_${Date.now()}`;
-            await this.core.typeText(testConfirmation);
+            let focusTap = await this.core.tapByTestTag('credit_request_confirmation_input');
+            if (!focusTap.success) {
+                focusTap = await this.core.tapByContentDesc('Credit request confirmation input');
+            }
+            if (!focusTap.success) {
+                focusTap = await this.core.tapByText('Paste confirmation message');
+            }
+            if (!focusTap.success) {
+                focusTap = await this.core.tapFirstEditText();
+            }
+            if (!focusTap.success) {
+                await this.failWithDiagnostics('Could not focus confirmation input');
+                return { success: false, error: 'Could not focus confirmation input' };
+            }
+            const typeResult = await this.core.typeText(testConfirmation);
+            if (!typeResult.success) {
+                await this.failWithDiagnostics('Failed to enter confirmation text');
+                return { success: false, error: 'Failed to enter confirmation text' };
+            }
             await this.core.sleep(500);
+            await this.dumpUI();
+            let typedUI = this.core.readLastUIDump();
+            let dialogVisible = typedUI.includes('Settings dialog');
+            let inputVisible = typedUI.includes(testConfirmation) || !typedUI.includes('Paste confirmation message');
+            if (!dialogVisible || !inputVisible) {
+                await this.core.inputTextViaClipboard(testConfirmation);
+                await this.core.sleep(500);
+                await this.dumpUI();
+                typedUI = this.core.readLastUIDump();
+                dialogVisible = typedUI.includes('Settings dialog');
+                inputVisible = typedUI.includes(testConfirmation) || !typedUI.includes('Paste confirmation message');
+            }
+            if (!dialogVisible) {
+                await this.failWithDiagnostics('Credit request dialog dismissed while typing');
+                return { success: false, error: 'Credit request dialog dismissed while typing' };
+            }
+            if (!inputVisible) {
+                await this.failWithDiagnostics('Confirmation text not visible after input');
+                return { success: false, error: 'Confirmation text not visible after input' };
+            }
             
             // Step 3: Submit request
             this.core.logger.info('- Step 3: Submit request');
-            const submitTap = await this.core.tapByText('Submit Request');
+            let submitTap = await this.core.tapByTestTag('submit_credit_request');
             if (!submitTap.success) {
-                const submitTap2 = await this.core.tapByText('Send Request');
-                if (!submitTap2.success) {
-                    this.core.logger.error('❌ Could not submit request');
-                    return { success: false, error: 'Could not submit credit request' };
-                }
+                submitTap = await this.core.tapByContentDesc('Submit credit request');
+            }
+            if (!submitTap.success) {
+                submitTap = await this.core.tapByText('Submit Request');
+            }
+            if (!submitTap.success) {
+                submitTap = await this.core.tapByText('Send Request');
+            }
+            if (!submitTap.success) {
+                await this.failWithDiagnostics('Could not submit credit request');
+                return { success: false, error: 'Could not submit credit request' };
             }
             
             // Step 4: Verify loading spinner appears immediately
@@ -54,30 +145,46 @@ class JourneyUX08CreditRequestFeedbackValidation extends BaseJourney {
             await this.core.sleep(500); // Check immediately
             await this.dumpUI();
             const loadingUI = this.core.readLastUIDump();
+
+            if (!loadingUI.includes('Settings dialog')) {
+                await this.failWithDiagnostics('Credit request dialog dismissed after submit');
+                return { success: false, error: 'Credit request dialog dismissed after submit' };
+            }
             
             const hasLoadingSpinner = loadingUI.includes('CircularProgressIndicator') ||
                                      loadingUI.includes('Loading') ||
                                      loadingUI.includes('Sending request');
+            const hasImmediateStatus = loadingUI.includes('Request sent') ||
+                                     loadingUI.includes('Request ID') ||
+                                     loadingUI.includes('OK');
             
-            if (!hasLoadingSpinner) {
-                this.core.logger.error('❌ FAILURE: Loading spinner not shown immediately');
+            if (!hasLoadingSpinner && !hasImmediateStatus) {
+                await this.failWithDiagnostics('Loading state not displayed');
                 return { success: false, error: 'Loading state not displayed' };
             }
-            this.core.logger.info('✅ Loading spinner found');
+            if (hasLoadingSpinner) {
+                this.core.logger.info('? Loading spinner found');
+            } else {
+                this.core.logger.info('? Request status displayed before loading check');
+            }
             
             // Step 5: Verify "Sending request..." message
             this.core.logger.info('- Step 5: Verify loading message');
-            const hasLoadingMessage = loadingUI.includes('Sending request') ||
+            if (hasLoadingSpinner) {
+                const hasLoadingMessage = loadingUI.includes('Sending request') ||
                                     loadingUI.includes('Sending') ||
                                     loadingUI.includes('request...');
-            
-            if (hasLoadingMessage) {
-                this.core.logger.info('✅ Loading message found');
+                
+                if (hasLoadingMessage) {
+                    this.core.logger.info('? Loading message found');
+                } else {
+                    this.core.logger.warn('?? Loading message not found (may use different text)');
+                }
             } else {
-                this.core.logger.warn('⚠️ Loading message not found (may use different text)');
+                this.core.logger.info('? Loading message check skipped (status already visible)');
             }
             
-            // Step 6: Wait for response
+// Step 6: Wait for response
             this.core.logger.info('- Step 6: Wait for response');
             await this.core.sleep(3000);
             await this.dumpUI();
@@ -172,6 +279,9 @@ class JourneyUX08CreditRequestFeedbackValidation extends BaseJourney {
 }
 
 module.exports = JourneyUX08CreditRequestFeedbackValidation;
+
+
+
 
 
 

@@ -1,0 +1,74 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-35Onboarding-03Skip-01Validation.yaml
+# Validates that skipping onboarding tutorial works correctly
+#
+# Test Flow:
+# 1. Clear app data
+# 2. Launch app
+# 3. Complete welcome and permissions
+# 4. Skip tutorial at Step 3
+# 5. Verify home screen shown
+# 6. Restart app - verify tutorial not shown again
+
+- clearState
+- launchApp
+- waitForAnimationToEnd
+
+# Dismiss welcome dialog
+- tapOn:
+    text: "Get Started"
+    optional: true
+- waitForAnimationToEnd
+
+# Skip permission dialogs
+- tapOn:
+    text: "Skip"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: "Skip"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Progress through tutorial
+- tapOn:
+    text: "Next"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: "Got It"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Skip at Step 3
+- tapOn:
+    text: "Skip for Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Verify home screen is visible
+- assertVisible:
+    text: "Credits"
+    optional: true
+
+# Stop and restart app to verify persistence
+- stopApp
+- launchApp
+- waitForAnimationToEnd
+
+# Verify tutorial NOT shown again (home screen visible immediately)
+- assertNotVisible:
+    text: "3 Taps"
+    optional: true
+- assertNotVisible:
+    text: "Open TikTok"
+    optional: true
+- assertVisible:
+    text: "Credits"
+    optional: true

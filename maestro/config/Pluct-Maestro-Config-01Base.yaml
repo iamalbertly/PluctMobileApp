@@ -1,0 +1,4 @@
+appId: app.pluct
+---
+# Base configuration for all Maestro tests
+# This file is included in all flow files via runFlow

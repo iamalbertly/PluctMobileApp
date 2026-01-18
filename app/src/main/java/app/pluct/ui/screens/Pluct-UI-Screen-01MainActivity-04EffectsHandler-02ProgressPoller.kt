@@ -1,12 +1,15 @@
 package app.pluct.ui.screens
 
+import android.content.Context
 import android.util.Log
 import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.preferences.PluctUserPreferences
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 
 /**
  * Pluct-UI-Screen-01MainActivity-04EffectsHandler-02ProgressPoller
@@ -33,7 +36,8 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
     suspend fun pollTranscriptionProgress(
         video: app.pluct.data.entity.VideoItem,
         apiService: PluctCoreAPIUnifiedService,
-        videoRepository: PluctVideoRepository
+        videoRepository: PluctVideoRepository,
+        context: Context? = null
     ) {
         if (video.jobId == null || video.jobId.isBlank()) {
             Log.d(TAG, "Video ${video.url} has no jobId yet, skipping poll")
@@ -52,7 +56,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
         var consecutiveFailures = 0
         var lastProgress = 0
         
-        while (isActive && consecutiveFailures < MAX_RETRY_FAILURES) {
+        while (coroutineContext.isActive && consecutiveFailures < MAX_RETRY_FAILURES) {
             try {
                 // Check database status before each poll
                 val currentVideo = videoRepository.getVideoByUrl(video.url)
@@ -94,7 +98,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                         break
                     }
                     // UX IMPROVEMENT #2: Exponential backoff on failures
-                    delay(10000 * consecutiveFailures)
+                    delay(10000L * consecutiveFailures)
                     continue
                 }
                 
@@ -108,6 +112,14 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                 
                 val updatedVideo = when {
                     status.status == "completed" && transcript != null -> {
+                        // Track first transcript completion for onboarding milestone
+                        context?.let { ctx ->
+                            val prefs = PluctUserPreferences(ctx)
+                            if (!prefs.isFirstTranscriptCompleted()) {
+                                prefs.markFirstTranscriptCompleted()
+                                Log.d(TAG, "First transcript completed - onboarding milestone achieved")
+                            }
+                        }
                         video.copy(
                             status = ProcessingStatus.COMPLETED,
                             progress = 100,
@@ -149,7 +161,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                     Log.w(TAG, "Max failures reached due to exceptions, stopping poll for ${video.url}")
                     break
                 }
-                delay(10000 * consecutiveFailures) // Exponential backoff
+                delay(10000L * consecutiveFailures) // Exponential backoff
             }
         }
         

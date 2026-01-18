@@ -11,7 +11,7 @@ class JourneyUX13PreValidationQueueValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Pre-Validation Queue Validation');
+        this.core.logger.info('Starting Pre-Validation Queue Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -106,12 +106,15 @@ class JourneyUX13PreValidationQueueValidation extends BaseJourney {
             this.logger.info('Pre-validation logs found in logcat');
         }
         
-        await this.log('Pre-Validation Queue Validation Complete');
+        this.core.logger.info('Pre-Validation Queue Validation Complete');
         return { success: true };
     }
 }
 
 module.exports = JourneyUX13PreValidationQueueValidation;
+
+
+
 
 
 

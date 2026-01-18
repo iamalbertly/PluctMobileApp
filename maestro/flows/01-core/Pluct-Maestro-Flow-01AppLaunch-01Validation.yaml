@@ -1,0 +1,20 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-01AppLaunch-01Validation.yaml
+# Validates app launch and main screen elements
+
+- launchApp
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Welcome to Pluct"
+    optional: true
+- assertVisible:
+    text: "Credits:"
+    optional: true
+- assertVisible:
+    text: "Settings"
+    optional: true
+- assertVisible:
+    text: "Pluct"
+    optional: true
+# Script execution removed - use adb logcat monitoring instead

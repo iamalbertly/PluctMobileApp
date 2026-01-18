@@ -1,0 +1,26 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-14UX-03NetworkRecovery-01Validation.yaml
+# Validates improved network error recovery messaging
+
+- launchApp
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "error_message_text"
+- assertVisible:
+    text: "Connection"
+    optional: true
+- assertVisible:
+    text: "Check Connection"
+    optional: true
+# Script execution removed - use adb logcat monitoring instead

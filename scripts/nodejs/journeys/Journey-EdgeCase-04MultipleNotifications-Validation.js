@@ -13,7 +13,7 @@ class JourneyEdgeCase04MultipleNotificationsValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Multiple Notifications Edge Case Validation');
+        this.core.logger.info('Starting Multiple Notifications Edge Case Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -62,30 +62,32 @@ class JourneyEdgeCase04MultipleNotificationsValidation extends BaseJourney {
             };
         }
         
-        // Step 5: Verify only one job in WorkManager (check logcat)
-        const workManagerLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 50 | findstr /i "WorkManager\|enqueue\|job"'
+        // Step 5: Verify only one job in WorkManager (check logcat using shared validator)
+        const duplicateEnqueueCheck = await this.core.logcatValidator.checkForDuplicateCalls(
+            'enqueue|WorkManager.*enqueue',
+            5,
+            1
         );
         
-        const enqueueCount = (workManagerLogcat.output || '').split('enqueue').length - 1;
-        if (enqueueCount > 1) {
-            this.logger.warn(`⚠️ Multiple WorkManager enqueues detected: ${enqueueCount}`);
+        if (duplicateEnqueueCheck.isDuplicate) {
+            this.logger.warn(`⚠️ Multiple WorkManager enqueues detected: ${duplicateEnqueueCheck.count}`);
         }
         
         // Step 6: Verify no duplicate processing
-        const processingLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 50 | findstr /i "Starting transcription\|Submitting job"'
+        const duplicateProcessingCheck = await this.core.logcatValidator.checkForDuplicateCalls(
+            'Starting transcription|Submitting job|processTikTokVideo.*Starting',
+            5,
+            1
         );
         
-        const processingCount = (processingLogcat.output || '').split('Starting transcription').length - 1;
-        if (processingCount > 1) {
+        if (duplicateProcessingCheck.isDuplicate) {
             return {
                 success: false,
-                error: `Duplicate processing detected: ${processingCount} starts`
+                error: `Duplicate processing detected: ${duplicateProcessingCheck.count} starts`
             };
         }
         
-        await this.log('✅ Multiple notifications edge case validated');
+        this.core.logger.info('✅ Multiple notifications edge case validated');
         return true;
     }
 }

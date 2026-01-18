@@ -54,8 +54,16 @@ fun PluctDebugLogViewer(
         logs.map { it.category }.distinct().sorted()
     }
     
-    // Filter logs
-    val filteredLogs = remember(logs, searchQuery, selectedCategory, selectedLevel) {
+    // UX FIX: Track errors-only filter
+    var showErrorsOnly by remember { mutableStateOf(false) }
+    
+    // Calculate error count for prominence
+    val errorCount = remember(logs) {
+        logs.count { it.level == LogLevel.ERROR }
+    }
+    
+    // Filter logs with errors-first sorting
+    val filteredLogs = remember(logs, searchQuery, selectedCategory, selectedLevel, showErrorsOnly) {
         logs.filter { log ->
             val matchesSearch = searchQuery.isBlank() || 
                 log.message.contains(searchQuery, ignoreCase = true) ||
@@ -65,9 +73,10 @@ fun PluctDebugLogViewer(
             
             val matchesCategory = selectedCategory == null || log.category == selectedCategory
             val matchesLevel = selectedLevel == null || log.level == selectedLevel
+            val matchesErrorFilter = !showErrorsOnly || log.level == LogLevel.ERROR
             
-            matchesSearch && matchesCategory && matchesLevel
-        }
+            matchesSearch && matchesCategory && matchesLevel && matchesErrorFilter
+        }.sortedByDescending { it.level == LogLevel.ERROR } // UX FIX: Sort errors first for prominence
     }
     
     AlertDialog(
@@ -79,7 +88,17 @@ fun PluctDebugLogViewer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Debug Logs (${filteredLogs.size}/${logs.size})")
+                    // UX FIX: Show error count prominently
+                    Column {
+                        Text("Debug Logs (${filteredLogs.size}/${logs.size})")
+                        if (errorCount > 0) {
+                            Text(
+                                text = "$errorCount error(s)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                     if (logs.isNotEmpty()) {
                         IconButton(
                             onClick = {
@@ -137,6 +156,27 @@ fun PluctDebugLogViewer(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                // UX FIX: Prominent "Errors Only" toggle
+                if (errorCount > 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Show Errors Only",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (showErrorsOnly) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = showErrorsOnly,
+                            onCheckedChange = { showErrorsOnly = it }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
                 // Level filter chips
                 Row(
                     modifier = Modifier
@@ -145,14 +185,23 @@ fun PluctDebugLogViewer(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = selectedLevel == null,
-                        onClick = { selectedLevel = null },
+                        selected = selectedLevel == null && !showErrorsOnly,
+                        onClick = { 
+                            selectedLevel = null
+                            showErrorsOnly = false
+                        },
                         label = { Text("All Levels") }
                     )
                     FilterChip(
-                        selected = selectedLevel == LogLevel.ERROR,
+                        selected = selectedLevel == LogLevel.ERROR || showErrorsOnly,
                         onClick = { 
-                            selectedLevel = if (selectedLevel == LogLevel.ERROR) null else LogLevel.ERROR
+                            if (showErrorsOnly) {
+                                showErrorsOnly = false
+                                selectedLevel = null
+                            } else {
+                                selectedLevel = LogLevel.ERROR
+                                showErrorsOnly = true
+                            }
                         },
                         label = { Text("ERROR") }
                     )

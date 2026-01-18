@@ -11,7 +11,7 @@ class JourneyTrust02ErrorDeduplicationValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Error Deduplication Validation');
+        this.core.logger.info('Starting Error Deduplication Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -43,18 +43,15 @@ class JourneyTrust02ErrorDeduplicationValidation extends BaseJourney {
             };
         }
         
-        // Step 5: Check logcat for duplicate error logs
-        const logcatResult = await this.core.executeCommand(
-            'adb logcat -d -t 100 | findstr /i "USER_FACING_ERROR\|captureCardError"'
-        );
-        
-        const errorLogLines = (logcatResult.output || '').split('\n').filter(line => 
-            line.includes('USER_FACING_ERROR') || line.includes('captureCardError')
+        // Step 5: Check logcat for duplicate error logs using shared validator
+        const errorCheck = await this.core.logcatValidator.checkForErrors(
+            ['warn', 'expected'], // Exclude warnings and expected errors
+            100
         );
         
         // Should have at least one error log, but not excessive duplicates
-        if (errorLogLines.length > 5) {
-            this.logger.warn(`⚠️ Multiple error logs detected: ${errorLogLines.length}`);
+        if (errorCheck.errorCount > 5) {
+            this.logger.warn(`⚠️ Multiple error logs detected: ${errorCheck.errorCount}`);
         }
         
         // Step 6: Test queue prompt suppresses error banner
@@ -107,7 +104,7 @@ class JourneyTrust02ErrorDeduplicationValidation extends BaseJourney {
             };
         }
         
-        await this.log('Error Deduplication Validation Complete');
+        this.core.logger.info('Error Deduplication Validation Complete');
         return { success: true };
     }
 }

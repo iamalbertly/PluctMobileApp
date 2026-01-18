@@ -13,7 +13,7 @@ class JourneyEdgeCase02CreditDepletionValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Credit Depletion Edge Case Validation');
+        this.core.logger.info('Starting Credit Depletion Edge Case Validation');
         
         // Step 1: Set credits to 1 (via API or mock)
         // Note: This would require API access or mock setup
@@ -90,7 +90,7 @@ class JourneyEdgeCase02CreditDepletionValidation extends BaseJourney {
             };
         }
         
-        await this.log('✅ Credit depletion edge case validated');
+        this.core.logger.info('✅ Credit depletion edge case validated');
         return true;
     }
 }

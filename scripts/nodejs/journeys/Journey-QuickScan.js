@@ -58,86 +58,12 @@ class QuickScanJourney extends BaseJourney {
         this.core.logger.info('📱 Current UI state (first 500 chars):');
         this.core.logger.info(xml1.substring(0, 500) + '...');
         
-        // Try multiple approaches to find and tap the Start Transcription button
-        let quickTap = { success: false };
-        
-        // Method 1: Try by test tag (new approach)
-        this.core.logger.info('🔍 Method 1: Trying to tap by test tag "extract_script_button"...');
-        quickTap = await this.core.tapByTestTag('extract_script_button');
-        if (quickTap.success) {
-            this.core.logger.info('✅ Successfully tapped by test tag');
-        } else {
-            this.core.logger.warn('⚠️ Could not tap by test tag');
-        }
-        
-        // Method 2: Try by text (with actual button text)
-        if (!quickTap.success) {
-            this.core.logger.info('🔍 Method 2: Trying to tap by text "Extract Script"...');
-            quickTap = await this.core.tapByText('Extract Script');
-            if (quickTap.success) {
-                this.core.logger.info('✅ Successfully tapped by text "Extract Script"');
-            } else {
-                this.core.logger.warn('⚠️ Could not tap by text "Extract Script"');
-            }
-        }
-        
-        // Method 3: Try by text (with emoji)
-        if (!quickTap.success) {
-            this.core.logger.info('🔍 Method 3: Trying to tap by text "📄 Extract Script"...');
-            quickTap = await this.core.tapByText('📄 Extract Script');
-            if (quickTap.success) {
-                this.core.logger.info('✅ Successfully tapped by text with emoji');
-            } else {
-                this.core.logger.warn('⚠️ Could not tap by text with emoji');
-            }
-        }
-        
-        // Method 4: Try by text (without emoji)
-        if (!quickTap.success) {
-            this.core.logger.info('🔍 Method 4: Trying to tap by text "Extract Script"...');
-            quickTap = await this.core.tapByText('Extract Script');
-            if (quickTap.success) {
-                this.core.logger.info('✅ Successfully tapped by text without emoji');
-            } else {
-                this.core.logger.warn('⚠️ Could not tap by text without emoji');
-            }
-        }
-        
-        // Method 5: Try by content description
-        if (!quickTap.success) {
-            this.core.logger.info('🔍 Method 5: Trying to tap by content description "Extract Script button"...');
-            quickTap = await this.core.tapByContentDesc('Extract Script button');
-            if (quickTap.success) {
-                this.core.logger.info('✅ Successfully tapped by content description');
-            } else {
-                this.core.logger.warn('⚠️ Could not tap by content description');
-            }
-        }
-        
-        // Method 6: Try to find any button in the UI dump
-        if (!quickTap.success) {
-            this.core.logger.info('🔍 Method 6: Searching for Extract Script button in UI dump...');
-            // Look for the actual button text from UI dump (with HTML entity)
-            const buttonMatch = xml1.match(/text="&#128196; Extract Script"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-            if (buttonMatch) {
-                const [, x1, y1, x2, y2] = buttonMatch;
-                const cx = Math.floor((parseInt(x1) + parseInt(x2)) / 2);
-                const cy = Math.floor((parseInt(y1) + parseInt(y2)) / 2);
-                this.core.logger.info(`📍 Found Extract Script button at coordinates: ${cx}, ${cy}`);
-                quickTap = await this.core.executeCommand(`adb shell input tap ${cx} ${cy}`);
-                if (quickTap.success) {
-                    this.core.logger.info('✅ Successfully tapped found Extract Script button');
-                } else {
-                    this.core.logger.warn('⚠️ Could not tap found Extract Script button');
-                }
-            } else {
-                this.core.logger.warn('⚠️ Extract Script button not found in UI dump');
-            }
-        }
+        // Use consolidated button tapping utility
+        const quickTap = await this.core.ui.buttonTapping.tapExtractScriptButton();
         
         if (!quickTap.success) {
-            this.core.logger.error('❌ All methods failed to find Extract Script button');
-            return { success: false, error: 'Extract Script button not found' };
+            this.core.logger.error('❌ Failed to tap Extract Script button');
+            return { success: false, error: quickTap.error || 'Extract Script button not found' };
         }
         
         this.core.logger.info('✅ Extract Script button tapped successfully');
@@ -186,7 +112,7 @@ class QuickScanJourney extends BaseJourney {
             }
             
             // Check if the failure is due to a backend service issue (TTTranscribe 404)
-            const tttErrorLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctBusinessEngineService.*404"');
+            const tttErrorLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctCoreAPIUnified.*404\|TranscriptionFlowHandler.*404"');
             if (tttErrorLogcat.success && tttErrorLogcat.output.includes('404')) {
                 this.core.logger.warn('⚠️ TTTranscribe service returned 404 - backend service issue');
                 this.core.logger.info('✅ Frontend is working correctly, backend service is down');

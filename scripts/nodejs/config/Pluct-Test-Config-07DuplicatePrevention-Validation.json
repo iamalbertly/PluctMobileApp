@@ -1,0 +1,171 @@
+{
+  "features": {
+    "duplicate-processing-prevention": {
+      "description": "Prevent duplicate processing of same URL across all entry points using global processing lock",
+      "tests": [
+        "Journey-Duplicate-01ProcessingLock-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-04ProcessingLock-01Manager.kt",
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-01Main.kt"
+      ],
+      "validationSteps": [
+        "Submit same URL twice rapidly",
+        "Verify only one processing job created",
+        "Check logcat for duplicate prevention messages",
+        "Verify database has single PROCESSING entry"
+      ]
+    },
+    "background-worker-deduplication": {
+      "description": "Background worker checks for existing video before creating duplicate DB entry",
+      "tests": [
+        "Journey-Duplicate-02BackgroundWorker-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-Background-01TranscriptionWorker.kt"
+      ],
+      "validationSteps": [
+        "Start foreground processing",
+        "Minimize app to trigger background worker",
+        "Verify no duplicate DB entry created",
+        "Check logcat for deduplication messages"
+      ]
+    },
+    "mainactivity-polling-optimization": {
+      "description": "MainActivity skips polling when processTikTokVideo is already polling",
+      "tests": [
+        "Journey-Duplicate-03PollingOptimization-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/PluctUIScreen01MainActivity.kt"
+      ],
+      "validationSteps": [
+        "Start transcription",
+        "Verify MainActivity doesn't poll until jobId available",
+        "Check logcat for polling skip messages",
+        "Verify single polling loop active"
+      ]
+    },
+    "transcript-extraction-enhancement": {
+      "description": "Enhanced transcript extraction with multiple field fallbacks and better error logging",
+      "tests": [
+        "Journey-Duplicate-04TranscriptExtraction-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-01Main.kt",
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-02TranscriptionOrchestrator.kt"
+      ],
+      "validationSteps": [
+        "Process video with transcript",
+        "Verify transcript extracted from multiple possible fields",
+        "Check logcat for extraction source logging",
+        "Verify user-friendly message if extraction fails"
+      ]
+    },
+    "orchestrator-duplicate-check": {
+      "description": "Orchestrator checks for existing processing before starting transcription",
+      "tests": [
+        "Journey-Duplicate-05OrchestratorCheck-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-02TranscriptionOrchestrator.kt"
+      ],
+      "validationSteps": [
+        "Start processing via orchestrator",
+        "Attempt duplicate via orchestrator",
+        "Verify duplicate rejected with user message",
+        "Check logcat for orchestrator duplicate prevention"
+      ]
+    },
+    "ux-duplicate-error-message": {
+      "description": "User-friendly error message when duplicate processing detected",
+      "tests": [
+        "Journey-Duplicate-06UXErrorMessage-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/components/Pluct-UI-Component-03CaptureCard-02APIFlow.kt",
+        "app/src/main/java/app/pluct/core/error/Pluct-Core-Error-03UserMessageFormatter.kt"
+      ],
+      "validationSteps": [
+        "Attempt duplicate processing",
+        "Verify user sees friendly message",
+        "Check UI shows 'Already Processing' error",
+        "Verify error is not retryable"
+      ]
+    },
+    "transcript-extraction-fallback": {
+      "description": "Enhanced transcript extraction with multiple fallback fields",
+      "tests": [
+        "Journey-Duplicate-07TranscriptFallback-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-02TranscriptionOrchestrator.kt"
+      ],
+      "validationSteps": [
+        "Process video",
+        "Verify transcript extracted from status.transcript, result.transcription, text, result.text",
+        "Check logcat for extraction source",
+        "Verify user message if all fields empty"
+      ]
+    },
+    "progress-persistence-stale-cleanup": {
+      "description": "Filter out stale processing entries older than 1 hour on app resume",
+      "tests": [
+        "Journey-Duplicate-08StaleCleanup-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/background/status/Pluct-Core-Service-Background-Status-03Resumer.kt"
+      ],
+      "validationSteps": [
+        "Create stale processing entry (simulate old timestamp)",
+        "Resume app",
+        "Verify stale entry marked as failed",
+        "Check logcat for cleanup messages"
+      ]
+    },
+    "technical-debt-cleanup": {
+      "description": "Removed deprecated preWarmVideoProcessing and unused code",
+      "tests": [
+        "Journey-Duplicate-09TechnicalDebt-Validation.js"
+      ],
+      "kotlinFiles": [
+        "app/src/main/java/app/pluct/services/Pluct-Core-API-01UnifiedService-01Main.kt",
+        "app/src/main/java/app/pluct/ui/components/Pluct-Mobile-UI-Component-CaptureCard-00Main.kt"
+      ],
+      "validationSteps": [
+        "Verify preWarmVideoProcessing calls removed",
+        "Check no unused imports",
+        "Verify no deprecated function calls",
+        "Check compilation succeeds"
+      ]
+    }
+  },
+  "testGroups": {
+    "all-duplicate-prevention": [
+      "duplicate-processing-prevention",
+      "background-worker-deduplication",
+      "mainactivity-polling-optimization",
+      "orchestrator-duplicate-check"
+    ],
+    "all-transcript-improvements": [
+      "transcript-extraction-enhancement",
+      "transcript-extraction-fallback"
+    ],
+    "all-ux-improvements": [
+      "ux-duplicate-error-message",
+      "transcript-extraction-fallback",
+      "progress-persistence-stale-cleanup"
+    ],
+    "all-fixes-complete": [
+      "duplicate-processing-prevention",
+      "background-worker-deduplication",
+      "mainactivity-polling-optimization",
+      "transcript-extraction-enhancement",
+      "orchestrator-duplicate-check",
+      "ux-duplicate-error-message",
+      "transcript-extraction-fallback",
+      "progress-persistence-stale-cleanup",
+      "technical-debt-cleanup"
+    ]
+  }
+}

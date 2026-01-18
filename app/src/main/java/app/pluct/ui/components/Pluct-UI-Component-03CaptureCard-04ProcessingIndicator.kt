@@ -42,6 +42,10 @@ import app.pluct.services.TranscriptionDebugInfo
 /**
  * Pluct-UI-Component-03CaptureCard-04ProcessingIndicator - Processing indicator component.
  */
+/**
+ * UX IMPROVEMENT #4: Ensure progress indicators persist correctly when app is backgrounded
+ * Progress state is managed by LaunchedEffect and persists across configuration changes
+ */
 @Composable
 fun PluctProcessingIndicator(
     currentJobId: String? = null,
@@ -51,6 +55,9 @@ fun PluctProcessingIndicator(
     showTimeoutWarning: Boolean = false,
     debugInfo: TranscriptionDebugInfo? = null
 ) {
+    // Remember progress to persist across recompositions
+    val rememberedProgress = remember(progress) { progress }
+    val rememberedOperation = remember(currentOperation) { currentOperation }
     var isDebugExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     Card(
@@ -78,11 +85,12 @@ fun PluctProcessingIndicator(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (progress > 0) {
+                val displayProgress = rememberedProgress.coerceAtLeast(progress)
+                if (displayProgress > 0) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
-                        progress = progress / 100f
+                        progress = displayProgress / 100f
                     )
                 } else {
                     CircularProgressIndicator(
@@ -95,20 +103,21 @@ fun PluctProcessingIndicator(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = currentOperation ?: "Processing...",
+                        text = rememberedOperation ?: currentOperation ?: "Processing...",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     // UX IMPROVEMENT #2: Clearer progress information with phase context
-                    if (progress > 0) {
+                    // UX IMPROVEMENT #4: Use remembered progress to persist state
+                    if (displayProgress > 0) {
                         Text(
-                            text = "$progress% complete",
+                            text = "$displayProgress% complete",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.semantics {
-                                contentDescription = "Progress: $progress percent complete"
+                                contentDescription = "Progress: $displayProgress percent complete"
                                 testTag = "progress_percentage"
                             }
                         )

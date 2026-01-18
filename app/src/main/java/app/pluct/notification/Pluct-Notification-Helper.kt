@@ -19,6 +19,24 @@ object PluctNotificationHelper {
     private const val CHANNEL_ID_ERROR = "pluct_error"
     const val CHANNEL_ID_QUEUE = "pluct_queue" // Exposed for QueueNotificationManager
     
+    /**
+     * UX FIX: Safe icon retrieval with fallback
+     * Returns app icon if available, falls back to system icon with error logging
+     */
+    private fun getNotificationIcon(context: Context): Int {
+        return try {
+            // Verify icon resource exists
+            context.resources.getResourceName(R.mipmap.ic_launcher)
+            R.mipmap.ic_launcher
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            Log.w("PluctNotificationHelper", "App icon resource not found, using fallback: ${e.message}")
+            android.R.drawable.ic_dialog_info // Fallback to system icon
+        } catch (e: Exception) {
+            Log.w("PluctNotificationHelper", "Error loading app icon, using fallback: ${e.message}")
+            android.R.drawable.ic_dialog_info // Fallback to system icon
+        }
+    }
+    
     private const val CHANNEL_NAME_PROGRESS = "Pluct Processing"
     private const val CHANNEL_NAME_COMPLETE = "Pluct Complete"
     private const val CHANNEL_NAME_ERROR = "Pluct Errors"
@@ -92,7 +110,7 @@ object PluctNotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Using system icon for now
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("✨ Your AI Analysis is Ready!")
             .setContentText("$videoTitle - $processingTier analysis completed")
             .setContentIntent(pendingIntent)
@@ -120,7 +138,7 @@ object PluctNotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Using system icon for now
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("✅ Quick Scan Complete")
             .setContentText("$videoTitle - Transcript ready")
             .setContentIntent(pendingIntent)
@@ -155,7 +173,7 @@ object PluctNotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("Transcribing...")
             .setContentText(message)
             .setProgress(100, progress, false)
@@ -215,7 +233,7 @@ object PluctNotificationHelper {
         val preview = transcript.take(100) + if (transcript.length > 100) "..." else ""
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("✨ Transcription Complete!")
             .setContentText(preview)
             .setStyle(NotificationCompat.BigTextStyle().bigText(transcript.take(500)))
@@ -271,7 +289,7 @@ object PluctNotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_ERROR)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("❌ Transcription Failed")
             .setContentText(error)
             .setContentIntent(pendingIntent)
@@ -292,55 +310,29 @@ object PluctNotificationHelper {
     /**
      * Show notification when transcription starts from intent
      * Checks permission first and falls back to toast if permission denied
+     * 
+     * @deprecated This method creates duplicate notifications. The background worker
+     * handles showing the initial progress notification. Use showTranscriptionProgressNotification
+     * with progress=0 instead.
      */
+    @Deprecated(
+        message = "Creates duplicate notifications. Use showTranscriptionProgressNotification instead.",
+        replaceWith = ReplaceWith("showTranscriptionProgressNotification(context, url, 0, \"Starting transcription...\", url.hashCode().and(0x7FFFFFFF))")
+    )
     fun showTranscriptionStartedNotification(
         context: Context,
         url: String
     ) {
-        // Check permission first
-        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
-            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
-            // Fall back to toast notification when app is in foreground
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionStarted(context, url)
-            return
-        }
-        
-        // Ensure notification channels are created
-        createNotificationChannels(context)
-        
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("url", url)
-        }
-        
-        val notificationId = url.hashCode()
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        // UX FIX: Redirect to progress notification to avoid duplicates
+        // The background worker will handle showing the initial notification
+        val notificationId = url.hashCode().and(0x7FFFFFFF) // Ensure positive
+        showTranscriptionProgressNotification(
+            context = context,
+            url = url,
+            progress = 0,
+            message = "Starting transcription...",
+            notificationId = notificationId
         )
-        
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Transcription Started")
-            .setContentText("Processing TikTok video...")
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        try {
-            notificationManager.notify(notificationId, notification)
-            Log.d("PluctNotificationHelper", "Transcription started notification shown for URL: $url")
-        } catch (e: SecurityException) {
-            // Notification permission denied (Android 13+)
-            Log.w("PluctNotificationHelper", "Failed to show notification: ${e.message}")
-            // Fall back to toast
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionStarted(context, url)
-        }
     }
     
     /**
@@ -365,7 +357,7 @@ object PluctNotificationHelper {
         )
         
         return NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("Transcribing...")
             .setContentText(message)
             .setProgress(100, progress, false)

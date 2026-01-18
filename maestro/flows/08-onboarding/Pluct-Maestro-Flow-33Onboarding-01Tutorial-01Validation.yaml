@@ -1,0 +1,78 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-33Onboarding-01Tutorial-01Validation.yaml
+# Validates onboarding tutorial flow with 3-step walkthrough
+#
+# Test Flow:
+# 1. Clear app data (first-time user simulation)
+# 2. Launch app
+# 3. Verify/dismiss welcome dialog
+# 4. Skip permission dialogs (if shown)
+# 5. Verify tutorial Step 1 appears (3 Taps explanation)
+# 6. Progress through Step 2 (Share button instructions)
+# 7. Progress through Step 3 (TikTok CTA)
+# 8. Skip tutorial
+# 9. Verify home screen shows
+
+- clearState
+- launchApp
+- waitForAnimationToEnd
+
+# Wait for welcome dialog and dismiss
+- extendedWaitUntil:
+    visible:
+      text: "Welcome"
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: "Get Started"
+    optional: true
+- waitForAnimationToEnd
+
+# Skip permission dialogs if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: "Skip"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Verify Tutorial Step 1 appears
+- extendedWaitUntil:
+    visible:
+      text: "3 Taps"
+    timeout: 5000
+    optional: true
+
+# Progress through tutorial
+- tapOn:
+    text: "Next"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Step 2 - Share button instructions
+- tapOn:
+    text: "Got It"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Step 3 - Skip to home screen
+- tapOn:
+    text: "Skip for Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Verify home screen is visible (app functional after tutorial)
+- assertVisible:
+    text: "Credits"
+    optional: true
+- assertVisible:
+    id: "app.pluct:id/.*"
+    optional: true

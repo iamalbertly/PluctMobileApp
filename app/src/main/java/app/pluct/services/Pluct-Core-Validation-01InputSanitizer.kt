@@ -331,6 +331,49 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
             .replace(Regex("\\s+"), " ")
             .trim()
     }
+    
+    /**
+     * Validate user has sufficient credits/free uses for requested processing tier
+     * Single source of truth for credit validation logic
+     * 
+     * @param tier The processing tier requested
+     * @param currentBalance Current credit balance
+     * @param currentFreeUses Current free uses remaining
+     * @return ValidationResult with validation outcome
+     */
+    fun validateCredits(
+        tier: app.pluct.data.entity.ProcessingTier,
+        currentBalance: Int,
+        currentFreeUses: Int
+    ): ValidationResult {
+        val hasEnoughCredits = when (tier) {
+            app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT -> currentFreeUses > 0 || currentBalance >= 1
+            app.pluct.data.entity.ProcessingTier.GENERATE_INSIGHTS -> currentBalance >= 2
+            else -> false // Other tiers not supported yet
+        }
+        
+        if (hasEnoughCredits) {
+            return ValidationResult(
+                isValid = true,
+                sanitizedValue = ""
+            )
+        }
+        
+        // Insufficient credits - return user-friendly error message
+        val errorMessage = when (tier) {
+            app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT -> 
+                "Insufficient credits. You need 1 credit or a free use remaining. Current: $currentBalance credits, $currentFreeUses free uses."
+            app.pluct.data.entity.ProcessingTier.GENERATE_INSIGHTS -> 
+                "Insufficient credits. You need 2 credits for AI Insights. Current: $currentBalance credits."
+            else -> 
+                "Insufficient credits for this tier. Current: $currentBalance credits, $currentFreeUses free uses."
+        }
+        
+        return ValidationResult(
+            isValid = false,
+            errorMessage = errorMessage
+        )
+    }
 }
 
 /**

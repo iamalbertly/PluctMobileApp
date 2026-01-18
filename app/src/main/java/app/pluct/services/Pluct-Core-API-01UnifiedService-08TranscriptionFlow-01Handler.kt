@@ -2,13 +2,8 @@ package app.pluct.services
 
 import android.util.Log
 import app.pluct.core.debug.PluctCoreDebug01LogManager
-import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
+import app.pluct.data.entity.ProcessingStatus
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import java.net.URLEncoder
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -157,7 +152,7 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         }
 
         // Helper to ensure cleanup on all exit paths
-        fun cleanupAndReturn(result: Result<TranscriptionStatusResponse>): Result<TranscriptionStatusResponse> {
+        suspend fun cleanupAndReturn(result: Result<TranscriptionStatusResponse>): Result<TranscriptionStatusResponse> {
             deduplicationCoordinator.unregisterProcessing(sanitizedUrl, clientRequestId)
             return result
         }
@@ -187,91 +182,20 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
             )
         }
 
-        fun isSubmitTimeout(error: Throwable?): Boolean {
-            if (error == null) return false
-            val msg = error.message ?: ""
-            if (error is PluctCoreAPIDetailedError) {
-                val status = error.technicalDetails.responseStatusCode
-                if (status == 408 || status == 504) return true
-                if (error.technicalDetails.errorCode.contains("timeout", ignoreCase = true)) return true
-                if (error.userMessage.contains("timed out", ignoreCase = true)) return true
-            }
-            return msg.contains("timeout", ignoreCase = true) || msg.contains("timed out", ignoreCase = true)
-        }
+        // Helper functions moved to PluctCoreAPI01UnifiedService08TranscriptionFlow05Helpers
 
-        fun extractJobIdFromError(error: Throwable?): String? {
-            if (error !is PluctCoreAPIDetailedError) return null
-            val body = error.technicalDetails.responseBody.takeIf { it.isNotBlank() } ?: return null
-            return try {
-                val json = Json { ignoreUnknownKeys = true }
-                val obj = json.parseToJsonElement(body).jsonObject
-                obj["jobId"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
-            } catch (_: Exception) {
-                Regex("""jobId"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
-            }
-        }
-
-
-        // Canonicalize short TikTok links
-        val canonicalizeStart = System.currentTimeMillis()
-        updateDebug(
-            OperationStep.CANONICALIZE,
-            newEntry = OperationTimelineEntry(
-                step = OperationStep.CANONICALIZE,
-                startTime = canonicalizeStart,
-                endTime = null,
-                duration = null,
-                request = RequestDebugDetails("RESOLVE", sanitizedUrl, "resolve", "None", """{"originalUrl":"$sanitizedUrl"}""", canonicalizeStart),
-                response = null,
-                error = null,
-                expected = "Resolve vm.tiktok.com shortlink to canonical @user/video/{id}",
-                received = null,
-                nextAction = "Use resolved URL for metadata/submit"
-            )
+        // Canonicalize short TikTok links using extracted handler
+        val (canonicalizedUrl, _) = PluctCoreAPI01UnifiedService08TranscriptionFlow05Canonicalization01Handler.canonicalizeUrl(
+            sanitizedUrl = sanitizedUrl,
+            validator = validator,
+            flowRequestId = flowRequestId,
+            updateDebug = { step, jobId, pollingAttempt, maxPolling, entry -> updateDebug(step, jobId, pollingAttempt, maxPolling, entry) }
         )
-        val resolutionResult = validator.resolveTikTokRedirect(sanitizedUrl)
-        val resolvedUrl = resolutionResult.resolvedUrl
-        val resolutionEnd = System.currentTimeMillis()
-        if (!resolvedUrl.isNullOrBlank()) {
-            sanitizedUrl = resolvedUrl
-            updateDebug(
-                OperationStep.CANONICALIZE,
-                newEntry = OperationTimelineEntry(
-                    step = OperationStep.CANONICALIZE,
-                    startTime = canonicalizeStart,
-                    endTime = resolutionEnd,
-                    duration = resolutionEnd - canonicalizeStart,
-                    request = RequestDebugDetails("RESOLVE", resolutionResult.originalUrl, "resolve", "None", """{"redirectChain":${resolutionResult.redirectChain}}""", canonicalizeStart),
-                    response = ResponseDebugDetails(200, "Canonicalized", "Resolved to $sanitizedUrl", resolutionEnd, resolutionEnd - canonicalizeStart, flowRequestId),
-                    error = null,
-                    expected = "Canonical TikTok URL ready",
-                    received = sanitizedUrl,
-                    nextAction = "Proceed to metadata",
-                    correlationId = flowRequestId
-                )
-            )
-        } else {
-            updateDebug(
-                OperationStep.CANONICALIZE,
-                newEntry = OperationTimelineEntry(
-                    step = OperationStep.CANONICALIZE,
-                    startTime = canonicalizeStart,
-                    endTime = resolutionEnd,
-                    duration = resolutionEnd - canonicalizeStart,
-                    request = null,
-                    response = null,
-                    error = resolutionResult.error,
-                    expected = "Attempt redirect resolution",
-                    received = resolutionResult.redirectChain.joinToString(" -> ").ifBlank { "No redirects" },
-                    nextAction = "Proceed with original URL; resolution_missed=true",
-                    correlationId = flowRequestId
-                )
-            )
-        }
+        sanitizedUrl = canonicalizedUrl
 
         // Parallel metadata fetch and token vending
         val parallelStart = System.currentTimeMillis()
-        updateDebug(OperationStep.METADATA)
+        updateDebug(OperationStep.METADATA, null, null, null, null)
         
         val tokenVendingHandler = createTokenVendingHandler(flowRequestId)
         val (metadataResult, tokenResult) = coroutineScope {
@@ -292,7 +216,8 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
             val metadata = metadataResult.getOrNull()!!
             updateDebug(
                 OperationStep.METADATA,
-                newEntry = OperationTimelineEntry(
+                null, null, null,
+                OperationTimelineEntry(
                     step = OperationStep.METADATA,
                     startTime = parallelStart,
                     endTime = System.currentTimeMillis(),
@@ -311,7 +236,8 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
             val message = metaError?.message ?: "Metadata unavailable (timeout/fallback)"
             updateDebug(
                 OperationStep.METADATA,
-                newEntry = OperationTimelineEntry(
+                null, null, null,
+                OperationTimelineEntry(
                     step = OperationStep.METADATA,
                     startTime = parallelStart,
                     endTime = System.currentTimeMillis(),
@@ -330,331 +256,59 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         if (tokenResult.isFailure) {
             return cleanupAndReturn(tokenResult.map { throw Exception("unreachable") })
         }
-        var vendToken = tokenResult.getOrNull()!!
-        var hasRefreshedAuth = false
-        var recoveredJobId: String? = null
+        val vendToken = tokenResult.getOrNull()!!
 
-        // Submit transcription
-        val submitStart = System.currentTimeMillis()
-        updateDebug(OperationStep.SUBMIT)
-        var submitResult = submitTranscriptionJob(sanitizedUrl, vendToken, clientRequestId)
-        if (submitResult.isFailure) {
-            val submitError = submitResult.exceptionOrNull()
-            val timeoutSubmit = isSubmitTimeout(submitError)
-
-            if (timeoutSubmit) {
-                debugLogManager.logWarning(
-                    category = "TRANSCRIPTION",
-                    operation = "submit_timeout_retry",
-                    message = submitError?.message ?: "Submit timed out; retrying with same clientRequestId",
-                    details = "URL=$sanitizedUrl; requestId=$clientRequestId"
-                )
-                delay(1000)
-                val retry = submitTranscriptionJob(sanitizedUrl, vendToken, clientRequestId)
-                if (retry.isSuccess) {
-                    submitResult = retry
-                } else {
-                    recoveredJobId = extractJobIdFromError(retry.exceptionOrNull())
-                        ?: extractJobIdFromError(submitError)
-                }
-            }
-            val authSubmit = submitError?.message?.contains("401", true) == true ||
-                submitError?.message?.contains("auth", true) == true
-            val tokenExpired = submitError?.message?.contains("token_expired", true) == true ||
-                submitError?.message?.contains("session has expired", true) == true
-
-            if (tokenExpired) {
-                tokenCache.clearToken()
-                updateDebug(
-                    OperationStep.FAILED,
-                    newEntry = OperationTimelineEntry(
-                        OperationStep.SUBMIT,
-                        submitStart,
-                        System.currentTimeMillis(),
-                        null, null, null,
-                        "Business Engine returned token_expired; please retry after backend refresh"
-                    )
-                )
-                return cleanupAndReturn(Result.failure(
-                    Exception("Business Engine session expired. Please retry in a moment while we refresh access.")
-                ))
-            }
-            if (authSubmit) {
-                tokenCache.clearToken()
-                val retryTokenVendingHandler = createTokenVendingHandler(flowRequestId)
-                val retryToken = retryTokenVendingHandler.vendAndLog(
-                    label = "Submit Auth Retry",
-                    clientRequestId = clientRequestId,
-                    flowRequestId = flowRequestId,
-                    jobId = null,
-                    force = true
-                )
-                if (retryToken.isSuccess) {
-                    vendToken = retryToken.getOrNull()!!
-                    hasRefreshedAuth = true
-                    submitResult = submitTranscriptionJob(sanitizedUrl, vendToken, clientRequestId)
-                }
-                if (submitResult.isFailure) {
-                    val secondError = submitResult.exceptionOrNull()
-                    debugLogManager.logWarning(
-                        category = "TRANSCRIPTION",
-                        operation = "submit_auth_failure",
-                        message = secondError?.message ?: "Submit 401 after retry",
-                        details = "URL=$sanitizedUrl; user=${userIdentification.userId}; Note: Only one auth retry attempted"
-                    )
-                }
-            }
-        }
-        if (submitResult.isFailure && recoveredJobId.isNullOrBlank()) {
-            updateDebug(
-                OperationStep.FAILED,
-                newEntry = OperationTimelineEntry(
-                    OperationStep.SUBMIT,
-                    submitStart,
-                    System.currentTimeMillis(),
-                    null, null, null,
-                    submitResult.exceptionOrNull()?.message,
-                    expected = "202 Accepted with jobId",
-                    received = submitResult.exceptionOrNull()?.message ?: "No response",
-                    nextAction = "Surface submit failure; suggest retry after session refresh",
-                    correlationId = flowRequestId
-                )
-            )
-            return cleanupAndReturn(Result.failure(submitResult.exceptionOrNull() ?: Exception("Submit failed")))
-        }
-        val jobId = recoveredJobId ?: submitResult.getOrNull()!!.jobId
-        updateDebug(
-            OperationStep.SUBMIT,
-            jobId = jobId,
-            newEntry = OperationTimelineEntry(
-                step = OperationStep.SUBMIT,
-                startTime = submitStart,
-                endTime = System.currentTimeMillis(),
-                duration = System.currentTimeMillis() - submitStart,
-                request = RequestDebugDetails("POST", "$baseUrl/ttt/transcribe", "/ttt/transcribe", "Authorization: Bearer ...", """{"url":"$sanitizedUrl"}""", submitStart),
-                response = ResponseDebugDetails(202, if (recoveredJobId != null) "Accepted (Recovered)" else "Accepted", "jobId=$jobId", System.currentTimeMillis(), System.currentTimeMillis() - submitStart),
-                error = null,
-                expected = "202 Accepted + jobId",
-                received = "jobId=$jobId",
-                nextAction = "Begin polling",
-                correlationId = flowRequestId
-            )
+        // Submit transcription using extracted submission handler
+        val submissionHandler = PluctCoreAPI01UnifiedService08TranscriptionFlow06Submission02Handler(
+            debugLogManager = debugLogManager,
+            tokenCache = tokenCache,
+            baseUrl = baseUrl,
+            userIdentification = userIdentification
         )
-        val submitDuration = System.currentTimeMillis() - submitStart
-        if (submitDuration > 20000) {
-            debugLogManager.logWarning(
-                category = "TRANSCRIPTION",
-                operation = "submit_duration_warning",
-                message = "Submit took ${submitDuration}ms",
-                details = "JobId=$jobId; URL=$sanitizedUrl"
-            )
-        }
-
-        // Use /ttt/poll/:id endpoint with user JWT
-        var pollAuthToken = jwtGenerator.generateUserJWT(userIdentification.userId)
-
-        val getPollInterval = { attempt: Int ->
-            if (isBackground) {
-                pollIntervalMsSlow * 2
-            } else {
-                if (attempt <= fastPollAttempts) pollIntervalMsFast else pollIntervalMsSlow
-            }
-        }
-
-        // Poll for completion
-        repeat(maxPollAttempts) { attempt ->
-            val pollingAttempt = attempt + 1
-            val currentPollInterval = getPollInterval(pollingAttempt)
-
-            if (circuitBreaker.isOpen()) {
-                debugLogManager.logWarning(
-                    category = "TRANSCRIPTION",
-                    operation = "polling_circuit_open",
-                    message = "Circuit breaker open during polling; waiting to retry",
-                    details = "Attempt $pollingAttempt of $maxPollAttempts"
-                )
-                delay(currentPollInterval)
-                return@repeat
-            }
-            updateDebug(OperationStep.POLLING, jobId = jobId, pollingAttempt = pollingAttempt, maxPolling = maxPollAttempts)
-            delay(currentPollInterval)
-            val statusResult = pollTranscriptionStatus(jobId, pollAuthToken)
-            if (statusResult.isFailure) {
-                val cause = statusResult.exceptionOrNull()
-                val authError = cause?.message?.contains("401", ignoreCase = true) == true ||
-                    cause?.message?.contains("authentication failed", ignoreCase = true) == true ||
-                    (cause?.message?.contains("500", ignoreCase = true) == true && cause.message?.contains("authentication", ignoreCase = true) == true)
-
-                if (authError) {
-                    if (!hasRefreshedAuth) {
-                        debugLogManager.logWarning(
-                            category = "TRANSCRIPTION",
-                            operation = "polling_auth_refresh",
-                            message = "Polling auth expired; regenerating user JWT",
-                            details = "JobId=$jobId; Attempt=$pollingAttempt"
-                        )
-                        pollAuthToken = jwtGenerator.generateUserJWT(userIdentification.userId)
-                        hasRefreshedAuth = true
-                        return@repeat
-                    }
-                    return@repeat
-                } else {
-                    if (pollingAttempt < maxPollAttempts) {
-                        debugLogManager.logWarning(
-                            category = "TRANSCRIPTION",
-                            operation = "polling_transient_failure",
-                            message = cause?.message ?: "Polling failed; retrying",
-                            details = "Attempt $pollingAttempt of $maxPollAttempts"
-                        )
-                        return@repeat
-                    }
-                }
-
-                updateDebug(
-                    OperationStep.FAILED,
-                    jobId = jobId,
-                    newEntry = OperationTimelineEntry(
-                        OperationStep.POLLING,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        null, null, null,
-                        cause?.message,
-                        expected = "2xx status with transcript or in-progress",
-                        received = cause?.message ?: "Polling failure",
-                        nextAction = "Stop polling; surface error",
-                        correlationId = flowRequestId,
-                        retryCount = pollingAttempt
-                    )
-                )
-                return cleanupAndReturn(Result.failure(cause ?: Exception("Status check failed")))
-            }
-            val status = statusResult.getOrNull()
-            if (status == null) {
-                debugLogManager.logError(
-                    category = "TRANSCRIPTION",
-                    operation = "polling_null_status",
-                    message = "Status result was null despite successful HTTP response - JobId=$jobId; Attempt=$pollingAttempt"
-                )
-                // Continue polling instead of failing immediately - may be transient
-                if (pollingAttempt >= maxPollAttempts) {
-                    return cleanupAndReturn(Result.failure(Exception("Status check returned null after $maxPollAttempts attempts")))
-                }
-                return@repeat
-            }
-
-            debugLogManager.logInfo(
-                category = "TRANSCRIPTION",
-                operation = "polling_status_received",
-                message = "Received status from server",
-                details = "JobId=$jobId; Status=${status.status}; Progress=${status.progress}; " +
-                    "HasTranscript=${status.transcript != null}; " +
-                    "HasResult=${status.result != null}; " +
-                    "HasResultTranscription=${status.result?.transcription != null}"
-            )
-
-            val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
-            val transcript = extraction.transcript
-
-            if (transcript == null && (status.status.equals("completed", ignoreCase = true) || status.status.equals("done", ignoreCase = true))) {
-        debugLogManager.logError(
-            category = "TRANSCRIPTION",
-            operation = "transcript_extraction_failed",
-            message = "Job marked completed but transcript not found in any expected field",
-            responseBody = buildString {
-                        appendLine("JobId=$jobId; Attempt=$pollingAttempt")
-                        appendLine("Status=${status.status}")
-                        appendLine("HasTranscript=${status.transcript != null}")
-                        appendLine("HasResult=${status.result != null}")
-                        appendLine("HasResultTranscription=${status.result?.transcription != null}")
-                        appendLine("HasText=${status.text != null}")
-                        appendLine("TranscriptSource=${extraction.source}")
-                    },
-                    requestUrl = "$baseUrl/ttt/poll/$jobId"
-                )
-            }
-
-            if (transcript != null) {
-                debugLogManager.logInfo(
-                    category = "TRANSCRIPTION",
-                    operation = "transcript_found",
-                    message = "Transcript extracted successfully",
-                    details = "JobId=$jobId; Length=${transcript.length}; Source=${extraction.source}"
-                )
-            }
-
-            val isCompleted = status.status.equals("completed", ignoreCase = true)
-                || status.status.equals("done", ignoreCase = true)
-                || transcript != null
-                || status._cacheHit == true
-
-            if (isCompleted) {
-                if (status._cacheHit == true) {
-                    debugLogManager.logInfo(
-                        category = "TRANSCRIPTION",
-                        operation = "cache_hit_detected",
-                        message = "Job already completed and cached (instant result)",
-                        details = "JobId=$jobId; Attempt=$pollingAttempt; TranscriptLength=${transcript?.length ?: 0}"
-                    )
-                }
-
-                val normalizedStatus = status.copy(
-                    transcript = transcript ?: status.transcript,
-                    status = "completed"
-                )
-                updateDebug(
-                    OperationStep.COMPLETED,
-                    jobId = jobId,
-                    newEntry = OperationTimelineEntry(
-                        OperationStep.POLLING,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        null, null, null, null,
-                        expected = "status=completed with transcript",
-                        received = "status=${status.status}; hasTranscript=${transcript != null}; cacheHit=${status._cacheHit}",
-                        nextAction = "Render transcript",
-                        correlationId = flowRequestId,
-                        retryCount = pollingAttempt
-                    )
-                )
-                return cleanupAndReturn(Result.success(normalizedStatus))
-            }
-            if (status.status.equals("failed", ignoreCase = true)) {
-                updateDebug(
-                    OperationStep.FAILED,
-                    jobId = jobId,
-                    newEntry = OperationTimelineEntry(
-                        OperationStep.POLLING,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        null, null, null,
-                        "Remote status failed",
-                        expected = "status=completed or transcript",
-                        received = "status=${status.status}",
-                        nextAction = "Stop polling; surface remote failure",
-                        correlationId = flowRequestId,
-                        retryCount = pollingAttempt
-                    )
-                )
-                return cleanupAndReturn(Result.failure(Exception("Transcription failed remotely")))
-            }
-        }
-
-        updateDebug(
-            OperationStep.FAILED,
-            jobId = jobId,
-            newEntry = OperationTimelineEntry(
-                OperationStep.POLLING,
-                System.currentTimeMillis(),
-                System.currentTimeMillis(),
-                null, null, null,
-                "Polling timeout",
-                expected = "status=completed within ${maxPollAttempts * pollIntervalMsSlow}ms",
-                received = "Timed out at attempt $maxPollAttempts",
-                nextAction = "Stop; ask user to retry",
-                correlationId = flowRequestId,
-                retryCount = maxPollAttempts
-            )
+        
+        val submissionResult = submissionHandler.submitWithRetry(
+            url = sanitizedUrl,
+            vendToken = vendToken,
+            clientRequestId = clientRequestId,
+            flowRequestId = flowRequestId,
+            sanitizedUrl = sanitizedUrl,
+            submitTranscriptionJob = submitTranscriptionJob,
+            createTokenVendingHandler = { createTokenVendingHandler(it) },
+            updateDebug = { step, jobIdParam, entry -> updateDebug(step, jobIdParam, null, null, entry) }
         )
-        return cleanupAndReturn(Result.failure(Exception("Transcription timed out. Please retry in a moment.")))
+        
+        if (submissionResult.isFailure) {
+            return cleanupAndReturn(submissionResult.map { throw Exception("unreachable") })
+        }
+        
+        val (jobId, hasRefreshedAuth) = submissionResult.getOrNull()!!
+
+        // Poll for completion using extracted polling handler
+        val pollingHandler = PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
+            debugLogManager = debugLogManager,
+            circuitBreaker = circuitBreaker,
+            jwtGenerator = jwtGenerator,
+            userIdentification = userIdentification,
+            baseUrl = baseUrl
+        )
+        
+        val pollAuthToken = jwtGenerator.generateUserJWT(userIdentification.userId)
+        
+        return pollingHandler.pollUntilComplete(
+            jobId = jobId,
+            pollAuthToken = pollAuthToken,
+            sanitizedUrl = sanitizedUrl,
+            flowRequestId = flowRequestId,
+            clientRequestId = clientRequestId,
+            isBackground = isBackground,
+            pollIntervalMsFast = pollIntervalMsFast,
+            pollIntervalMsSlow = pollIntervalMsSlow,
+            fastPollAttempts = fastPollAttempts,
+            maxPollAttempts = maxPollAttempts,
+            hasRefreshedAuth = hasRefreshedAuth,
+            pollTranscriptionStatus = pollTranscriptionStatus,
+            updateDebug = { step, jobId, pollingAttempt, maxPolling, entry -> updateDebug(step, jobId, pollingAttempt, maxPolling, entry) },
+            cleanupAndReturn = { result -> cleanupAndReturn(result) }
+        )
     }
 }

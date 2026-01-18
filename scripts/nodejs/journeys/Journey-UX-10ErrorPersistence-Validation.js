@@ -11,7 +11,7 @@ class JourneyUX10ErrorPersistenceValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Error Persistence Validation');
+        this.core.logger.info('Starting Error Persistence Validation');
         
         // Step 1: Launch app and clear state
         await this.core.launchApp();
@@ -64,12 +64,15 @@ class JourneyUX10ErrorPersistenceValidation extends BaseJourney {
             }
         }
         
-        await this.log('Error Persistence Validation Complete');
+        this.core.logger.info('Error Persistence Validation Complete');
         return { success: true };
     }
 }
 
 module.exports = JourneyUX10ErrorPersistenceValidation;
+
+
+
 
 
 

@@ -76,6 +76,12 @@ class PluctJourneyOrchestrator {
             'Journey-UX-17BackgroundProcessing-01Validation.js',
             'Journey-UX-18StaleStatus-01Validation.js',
             'Journey-UX-19ReProcessingPrevention-01Validation.js',
+            // UX Critical Fixes Validation Journeys (New)
+            'Journey-UX-20NotificationConsolidation-Validation.js',
+            'Journey-UX-21RedundantBadgeRemoval-Validation.js',
+            'Journey-UX-22VideoTitleFallback-Validation.js',
+            'Journey-UX-23ErrorLogConsolidation-Validation.js',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
             // Edge Case Validation Journeys
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
             'Journey-EdgeCase-02CreditDepletion-Validation.js',
@@ -98,6 +104,7 @@ class PluctJourneyOrchestrator {
             'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js',
             'Journey-Refactor-05NamingConsistency-Validation.js',
             'Journey-Refactor-06PreWarmingOptimization-Validation.js'
+            // Note: Onboarding tests migrated to Maestro YAML format
             // Add other journeys here in the desired order
         ];
         
@@ -163,6 +170,12 @@ class PluctJourneyOrchestrator {
             'Journey-UX-17BackgroundProcessing-01Validation.js': 'UX-17BackgroundProcessing-01Validation',
             'Journey-UX-18StaleStatus-01Validation.js': 'UX-18StaleStatus-01Validation',
             'Journey-UX-19ReProcessingPrevention-01Validation.js': 'UX-19ReProcessingPrevention-01Validation',
+            // UX Critical Fixes Validation Journey Mappings (New)
+            'Journey-UX-20NotificationConsolidation-Validation.js': 'UX-20NotificationConsolidation-Validation',
+            'Journey-UX-21RedundantBadgeRemoval-Validation.js': 'UX-21RedundantBadgeRemoval-Validation',
+            'Journey-UX-22VideoTitleFallback-Validation.js': 'UX-22VideoTitleFallback-Validation',
+            'Journey-UX-23ErrorLogConsolidation-Validation.js': 'UX-23ErrorLogConsolidation-Validation',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js': 'UX-24BatteryOptimizationRefresh-Validation',
             // Edge Case Validation Journey Mappings
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
             'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
@@ -179,6 +192,7 @@ class PluctJourneyOrchestrator {
             'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js': 'Refactor-04ComingSoonDialogRemoval-Validation',
             'Journey-Refactor-05NamingConsistency-Validation.js': 'Refactor-05NamingConsistency-Validation',
             'Journey-Refactor-06PreWarmingOptimization-Validation.js': 'Refactor-06PreWarmingOptimization-Validation'
+            // Note: Onboarding tests migrated to Maestro YAML format
         };
     }
 

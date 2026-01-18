@@ -8,8 +8,10 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import app.pluct.PluctUIScreen01MainActivity
+import app.pluct.R
 import app.pluct.data.entity.QueueReason
 import app.pluct.notification.PluctNotificationHelper
+import android.util.Log
 
 /**
  * Pluct-Notification-02QueueManager
@@ -18,6 +20,22 @@ import app.pluct.notification.PluctNotificationHelper
  */
 object PluctQueueNotificationManager {
     private const val CHANNEL_ID_QUEUE = "pluct_queue"
+    
+    /**
+     * UX FIX: Safe icon retrieval with fallback (same as PluctNotificationHelper)
+     */
+    private fun getNotificationIcon(context: android.content.Context): Int {
+        return try {
+            context.resources.getResourceName(R.mipmap.ic_launcher)
+            R.mipmap.ic_launcher
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            Log.w("PluctQueueNotificationManager", "App icon resource not found, using fallback: ${e.message}")
+            android.R.drawable.ic_dialog_info
+        } catch (e: Exception) {
+            Log.w("PluctQueueNotificationManager", "Error loading app icon, using fallback: ${e.message}")
+            android.R.drawable.ic_dialog_info
+        }
+    }
     private const val CHANNEL_NAME_QUEUE = "Pluct Queue"
     private const val CHANNEL_DESCRIPTION_QUEUE = "Notifications for queued videos"
     private const val NOTIFICATION_ID_QUEUE = 9999 // Persistent ID
@@ -83,7 +101,7 @@ object PluctQueueNotificationManager {
         }
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_QUEUE)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("📋 Pluct Queue")
             .setContentText(message)
             .setContentIntent(pendingIntent)
@@ -150,7 +168,7 @@ object PluctQueueNotificationManager {
                 )
                 
                 val notification = NotificationCompat.Builder(context, CHANNEL_ID_QUEUE)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
                     .setContentTitle("📋 $queuedCount video(s) queued")
                     .setContentText(notificationText)
                     .setContentIntent(pendingIntent)
@@ -174,7 +192,7 @@ object PluctQueueNotificationManager {
                 )
                 
                 val notification = NotificationCompat.Builder(context, PluctNotificationHelper.CHANNEL_ID_COMPLETE)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
                     .setContentTitle("✅ Queued video processed")
                     .setContentText("Tap to view transcript")
                     .setContentIntent(pendingIntent)

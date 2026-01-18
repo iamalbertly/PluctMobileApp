@@ -1,0 +1,21 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-11EdgeCase-02NetworkLoss-01Validation.yaml
+# Tests network loss during processing
+
+- launchApp
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "processing_indicator"
+    optional: true
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 3000
+# Script execution removed - use adb logcat monitoring instead
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 5000
+# Script execution removed - use adb logcat monitoring instead

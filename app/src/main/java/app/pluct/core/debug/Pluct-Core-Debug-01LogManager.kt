@@ -25,6 +25,8 @@ class PluctCoreDebug01LogManager @Inject constructor(
     private val DEDUP_WINDOW_MS = 5 * 60 * 1000L // 5 minutes
     private val MAX_LOGS = 10000 // Maximum logs to keep
     private val AUTO_CLEANUP_AGE_DAYS = 3 // Auto-delete logs older than 3 days
+    private val DUPLICATE_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 hours
+    @Volatile private var lastDuplicateCleanupMs = 0L
     
     /**
      * Log an API error with full details (with deduplication)
@@ -206,17 +208,46 @@ class PluctCoreDebug01LogManager @Inject constructor(
     }
     
     /**
-     * Auto-cleanup: Remove old logs and limit total count
+     * Auto-cleanup: Remove old logs, duplicates, and limit total count
      */
     private suspend fun performAutoCleanupIfNeeded() {
         try {
             val logCount = debugLogDAO.getLogCount()
             
-            // If we have too many logs, clean up old ones
+            // If we have too many logs, clean up old ones and duplicates
             if (logCount > MAX_LOGS) {
                 val cutoffTime = System.currentTimeMillis() - (AUTO_CLEANUP_AGE_DAYS * 24 * 60 * 60 * 1000L)
-                val deleted = debugLogDAO.deleteOldLogsBatch(cutoffTime, maxDelete = logCount - MAX_LOGS / 2)
-                Log.d("DebugLogManager", "Auto-cleaned $deleted old log entries (total was $logCount)")
+                val deletedOld = debugLogDAO.deleteOldLogsBatch(cutoffTime, maxDelete = logCount - MAX_LOGS / 2)
+                Log.d("DebugLogManager", "Auto-cleaned $deletedOld old log entries (total was $logCount)")
+                
+                // Also clean up duplicates from last 24 hours if still over limit
+                val remainingCount = debugLogDAO.getLogCount()
+                if (remainingCount > MAX_LOGS) {
+                    // Clean duplicates for common operations
+                    val duplicateWindow = System.currentTimeMillis() - (24 * 60 * 60 * 1000L) // Last 24 hours
+                    val commonOperations = listOf(
+                        "CREDIT_CHECK" to "loadInitialData",
+                        "CREDIT_CHECK" to "checkUserBalance",
+                        "API_CALL" to "execute",
+                        "TRANSCRIPTION" to "processTikTokVideo",
+                        "PREWARM" to "metadata_prewarm"
+                    )
+                    var totalDuplicatesDeleted = 0
+                    
+                    for ((category, operation) in commonOperations) {
+                        // Delete duplicates keeping only the most recent
+                        val deleted = debugLogDAO.deleteDuplicateLogsByCategoryAndOperation(
+                            category = category,
+                            operation = operation,
+                            beforeTimestamp = duplicateWindow
+                        )
+                        totalDuplicatesDeleted += deleted
+                    }
+                    
+                    if (totalDuplicatesDeleted > 0) {
+                        Log.d("DebugLogManager", "Auto-cleaned $totalDuplicatesDeleted duplicate log entries")
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e("DebugLogManager", "Failed to perform auto-cleanup: ${e.message}", e)
@@ -230,11 +261,43 @@ class PluctCoreDebug01LogManager @Inject constructor(
         scope.launch {
             try {
                 clearOldLogs(AUTO_CLEANUP_AGE_DAYS)
+                removeCommonDuplicatesIfNeeded()
                 val logCount = debugLogDAO.getLogCount()
                 Log.d("DebugLogManager", "Initialized. Current log count: $logCount")
             } catch (e: Exception) {
                 Log.e("DebugLogManager", "Failed to initialize: ${e.message}", e)
             }
+        }
+    }
+
+    /**
+     * Periodically remove common duplicate logs (lightweight cleanup)
+     */
+    private suspend fun removeCommonDuplicatesIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (now - lastDuplicateCleanupMs < DUPLICATE_CLEANUP_INTERVAL_MS) return
+        lastDuplicateCleanupMs = now
+
+        val cutoffTime = System.currentTimeMillis() - (24 * 60 * 60 * 1000L)
+        val commonOperations = listOf(
+            "CREDIT_CHECK" to "loadInitialData",
+            "CREDIT_CHECK" to "checkUserBalance",
+            "API_CALL" to "execute",
+            "API_REQUEST" to "/health",
+            "TRANSCRIPTION" to "processTikTokVideo",
+            "PREWARM" to "metadata_prewarm"
+        )
+        var totalDuplicatesDeleted = 0
+        for ((category, operation) in commonOperations) {
+            val deleted = debugLogDAO.deleteDuplicateLogsByCategoryAndOperation(
+                category = category,
+                operation = operation,
+                beforeTimestamp = cutoffTime
+            )
+            totalDuplicatesDeleted += deleted
+        }
+        if (totalDuplicatesDeleted > 0) {
+            Log.d("DebugLogManager", "Periodic duplicate cleanup removed $totalDuplicatesDeleted logs")
         }
     }
     

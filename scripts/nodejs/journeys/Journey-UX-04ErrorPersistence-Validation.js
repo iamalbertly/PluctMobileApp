@@ -70,9 +70,10 @@ class JourneyUX04ErrorPersistenceValidation extends BaseJourney {
                                      afterDismissUI.includes('Error message'));
             
             if (errorStillVisible) {
-                this.core.logger.warn('⚠️ Error still visible after dismiss');
+                await this.failWithDiagnostics('Error still visible after dismiss');
+                return { success: false, error: 'Error still visible after dismiss' };
             } else {
-                this.core.logger.info('✅ Error dismissed from UI');
+                this.core.logger.info('?o. Error dismissed from UI');
             }
             
             // Step 4: Navigate to debug logs screen
@@ -86,10 +87,29 @@ class JourneyUX04ErrorPersistenceValidation extends BaseJourney {
                 }
             }
             await this.core.sleep(1000);
-            
-            const debugLogsTap = await this.core.tapByText('View Debug Logs');
+            const tryOpenDebugLogs = async () => {
+                const labels = ['View Debug Logs', 'Debug Logs', 'View Logs', 'Logs'];
+                for (const label of labels) {
+                    const tapped = await this.core.tapByText(label);
+                    if (tapped.success) return tapped;
+                }
+                const descs = ['View Debug Logs', 'Debug Logs'];
+                for (const desc of descs) {
+                    const tapped = await this.core.tapByContentDesc(desc);
+                    if (tapped.success) return tapped;
+                }
+                return { success: false };
+            };
+
+            let debugLogsTap = await tryOpenDebugLogs();
             if (!debugLogsTap.success) {
-                this.core.logger.error('❌ Could not open debug logs');
+                await this.core.executeCommand('adb shell input swipe 360 1100 360 300 400');
+                await this.core.sleep(500);
+                debugLogsTap = await tryOpenDebugLogs();
+            }
+
+            if (!debugLogsTap.success) {
+                await this.failWithDiagnostics('Could not open debug logs screen');
                 return { success: false, error: 'Could not open debug logs screen' };
             }
             await this.core.sleep(2000);
@@ -168,6 +188,9 @@ class JourneyUX04ErrorPersistenceValidation extends BaseJourney {
 }
 
 module.exports = JourneyUX04ErrorPersistenceValidation;
+
+
+
 
 
 

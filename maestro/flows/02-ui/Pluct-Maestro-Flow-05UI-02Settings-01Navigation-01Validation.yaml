@@ -1,0 +1,17 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-05UI-02Settings-01Navigation-01Validation.yaml
+# Tests settings navigation
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "settings_button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Settings"
+- assertVisible:
+    id: "settings_dialog_title"
+- tapOn:
+    id: "settings_dialog_close"
+- waitForAnimationToEnd

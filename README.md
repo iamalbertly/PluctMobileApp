@@ -91,18 +91,25 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
    ```
 
 4. **Run Tests**
-   ```bash
-   npm install
-   npm run test:all
+   ```powershell
+   .\run_tests.ps1
    ```
+   See [TESTING.md](TESTING.md) for complete testing documentation.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
-### **Automated Test Orchestration**
-The app includes a comprehensive Node.js-based testing framework that validates:
+All tests use **Maestro**, a YAML-based UI testing framework. See [TESTING.md](TESTING.md) for complete documentation.
+
+### **Quick Start**
+```powershell
+.\run_tests.ps1
+```
+
+### **Legacy Node.js Tests (Deprecated)**
+The app previously used Node.js-based testing. These tests are deprecated in favor of Maestro:
 
 - **🎯 App Launch**: UI component validation and initialization
 - **📤 Share Intent**: TikTok URL handling and capture sheet display

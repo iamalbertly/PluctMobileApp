@@ -12,6 +12,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.io.IOException
 import javax.net.ssl.SSLException
+import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 
 /**
  * Error information data class for structured error handling
@@ -70,7 +71,16 @@ class PluctCoreAPIHTTPClientImpl(
     private val apiLogger = PluctCoreAPIHTTPClientLogger()
     
     private fun buildUserFacingErrorMessage(errorInfo: ErrorInfo, statusCode: Int): String {
-        // Priority 1: Upstream error (most specific)
+        // Use unified error message formatter
+        val errorMessage = errorInfo.upstreamError ?: errorInfo.errorMessage
+        val formatted = PluctCoreError03UserMessageFormatter.formatUserMessage(
+            error = null,
+            technicalMessage = errorMessage,
+            errorCode = errorInfo.errorCode,
+            httpStatus = statusCode
+        )
+        
+        // For upstream errors, provide more specific context
         if (errorInfo.upstreamError != null) {
             return when {
                 errorInfo.upstreamError.contains("timeout", ignoreCase = true) ->
@@ -83,20 +93,11 @@ class PluctCoreAPIHTTPClientImpl(
                     "The transcription service is temporarily unavailable. Please try again in a few moments."
                 errorInfo.upstreamError.contains("too long", ignoreCase = true) ->
                     "This video is too long to transcribe. Please try a shorter video."
-                else -> "Transcription failed: ${errorInfo.upstreamError}. Please try again."
+                else -> formatted.message
             }
         }
         
-        // Priority 2: HTTP status code with context
-        return when (statusCode) {
-            500 -> "The transcription service encountered an error. Please try again in a moment."
-            502, 503 -> "The service is temporarily unavailable. Please try again shortly."
-            504 -> "The request timed out. Please check your connection and try again."
-            401 -> "Authentication failed. Tap refresh session and retry."
-            402 -> "Insufficient credits. Please add credits to continue."
-            429 -> "Too many requests. Please wait a moment before trying again."
-            else -> "Request failed ($statusCode). ${errorInfo.errorMessage}"
-        }
+        return formatted.message
     }
     
     suspend fun executeRequest(
@@ -109,7 +110,7 @@ class PluctCoreAPIHTTPClientImpl(
         return withContext(Dispatchers.IO) {
             val requestId = "req_${System.currentTimeMillis()}"
             val timestamp = System.currentTimeMillis()
-            val fullUrl = "https://pluct-business-engine.romeo-lya2.workers.dev$endpoint"
+            val fullUrl = "${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}$endpoint"
             val userId = userIdentification.userId
             
             // Log request using unified logger
@@ -135,9 +136,11 @@ class PluctCoreAPIHTTPClientImpl(
                 val responseMessage = connection.responseMessage ?: ""
                 val responseTimestamp = System.currentTimeMillis()
                 val requestDuration = responseTimestamp - timestamp
+                PluctCoreAPIServerTimeSync.updateFromHttpDate(connection.getHeaderField("Date"))
                 
                 val responseBody = if (responseCode in 200..299) {
                     val body = requestBuilder.readResponseBody(connection)
+                    PluctCoreAPIServerTimeSync.updateFromHttpDate(connection.getHeaderField("Date"))
                     apiLogger.logResponse(
                         requestId, responseTimestamp, requestDuration,
                         responseCode, responseMessage, body, connection.headerFields

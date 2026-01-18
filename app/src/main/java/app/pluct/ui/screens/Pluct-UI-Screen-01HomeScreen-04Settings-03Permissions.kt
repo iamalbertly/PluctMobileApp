@@ -55,13 +55,33 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    // UX IMPROVEMENT #3: Track battery optimization status
+    // UX FIX: Track battery optimization status with proper refresh
     var isBatteryOptimized by remember { 
         mutableStateOf(PluctCorePermission01Manager.isBatteryOptimizationExempt(context)) 
     }
     
+    // UX FIX: Refresh battery optimization status on initial load with error handling
     LaunchedEffect(Unit) {
-        isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+        try {
+            PluctCorePermission01Manager.invalidateCache() // Clear cache for fresh check
+            isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+        } catch (e: Exception) {
+            android.util.Log.w("PluctSettings", "Failed to check battery optimization: ${e.message}")
+            // Keep current state on error
+        }
+    }
+    
+    // UX FIX: Refresh battery optimization status when returning from system settings
+    LaunchedEffect(hasNotificationPermission, hasOverlayPermission) {
+        try {
+            // Refresh after a delay to catch system setting changes when user returns
+            delay(500)
+            PluctCorePermission01Manager.invalidateCache() // Clear cache to force refresh
+            isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+        } catch (e: Exception) {
+            android.util.Log.w("PluctSettings", "Failed to refresh battery optimization: ${e.message}")
+            // Keep current state on error
+        }
     }
     
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -248,9 +268,25 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                 Button(
                     onClick = {
                         PluctCorePermission01Manager.openBatteryOptimizationSettings(context)
+                        // UX FIX: Refresh status after user returns from settings
                         scope.launch {
-                            delay(1000)
-                            isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+                            try {
+                                delay(1000) // Wait for settings to open
+                                // Refresh multiple times to catch when user returns
+                                repeat(3) {
+                                    delay(2000) // Check every 2 seconds
+                                    try {
+                                        PluctCorePermission01Manager.invalidateCache()
+                                        isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+                                        if (isBatteryOptimized) return@repeat // Stop if optimized
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("PluctSettings", "Error checking battery optimization: ${e.message}")
+                                        // Continue trying
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("PluctSettings", "Error in battery optimization refresh: ${e.message}")
+                            }
                         }
                     },
                     modifier = Modifier.semantics {

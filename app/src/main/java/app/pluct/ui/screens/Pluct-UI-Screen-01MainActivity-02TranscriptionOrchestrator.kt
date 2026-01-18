@@ -1,19 +1,15 @@
 package app.pluct.ui.screens
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
-import android.content.ClipData
-import android.content.ClipboardManager
 import app.pluct.core.network.PluctNetworkConnectivityChecker
-import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
-import app.pluct.services.MetadataResponse
 import app.pluct.services.PluctQueueManager
-import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 
 /**
@@ -163,6 +159,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
         clipboardManager: ClipboardManager,
         debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager?,
         context: Context?,
+        validator: app.pluct.services.PluctCoreValidationInputSanitizer,
         onResult: (Boolean, Int, Int, String?, Throwable?) -> Unit
     ) {
         try {
@@ -209,43 +206,17 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 return
             }
             
-            // Check if user has enough credits/free uses
-            val hasEnoughCredits = when (tier) {
-                ProcessingTier.EXTRACT_SCRIPT -> currentFreeUses > 0 || currentBalance >= 1
-                ProcessingTier.GENERATE_INSIGHTS -> currentBalance >= 2
-                else -> false // Other tiers not supported yet
-            }
+            // Check if user has enough credits/free uses using unified validator
+            // Single source of truth: InputSanitizer.validateCredits()
+            val creditValidator = PluctUIScreen01MainActivityTranscriptionOrchestratorCreditValidator(validator)
+            val creditValidation = creditValidator.validateCredits(
+                tier = tier,
+                currentBalance = currentBalance,
+                currentFreeUses = currentFreeUses
+            )
             
-            if (!hasEnoughCredits) {
-                val technicalMsg = when (tier) {
-                    ProcessingTier.EXTRACT_SCRIPT -> "Insufficient credits. You need 1 credit or a free use remaining."
-                    ProcessingTier.GENERATE_INSIGHTS -> "Insufficient credits. You need 2 credits for AI Insights."
-                    else -> "Insufficient credits for this tier."
-                }
-                Log.w("TranscriptionOrchestrator", "Insufficient credits for tier: $tier")
-                val userMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
-                    error = null,
-                    technicalMessage = technicalMsg,
-                    errorCode = "INSUFFICIENT_CREDITS",
-                    httpStatus = 402,
-                    context = "video processing"
-                )
-                
-                // Create a detailed error for the handler
-                val error = app.pluct.services.PluctCoreAPIDetailedError(
-                    userMessage = userMessage.message,
-                    technicalDetails = app.pluct.services.TechnicalErrorDetails(
-                        serviceName = "TranscriptionOrchestrator",
-                        operation = "Check Credits",
-                        endpoint = "local",
-                        requestMethod = "CHECK",
-                        requestUrl = "local",
-                        responseStatusCode = 402,
-                        errorCode = "INSUFFICIENT_CREDITS"
-                    )
-                )
-                
-                onResult(false, currentBalance, currentFreeUses, userMessage.message, error)
+            if (!creditValidation.hasEnoughCredits) {
+                onResult(false, currentBalance, currentFreeUses, creditValidation.userMessage, creditValidation.error)
                 return
             }
             
@@ -279,175 +250,36 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 Log.w("TranscriptionOrchestrator", "Failed to fetch metadata: ${metadataResult.exceptionOrNull()?.message}")
             }
             
-            transcriptionResult.fold(
+            // Process transcription result using extracted result processor
+            val processResult = transcriptionResult.fold(
                 onSuccess = { statusResponse ->
-                    Log.d("TranscriptionOrchestrator", "Transcription completed successfully")
-                    
-                    val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(statusResponse)
-                    val transcriptText = extraction.transcript
-
-                    // CRITICAL: Validate transcript exists before saving
-                    // UX IMPROVEMENT #2: Enhanced transcript extraction with multiple fallbacks
-                    
-                    if (transcriptText == null) {
-                        Log.e("TranscriptionOrchestrator", "WARNING: Transcript is null or empty in response")
-                        debugLogManager?.logWarning(
-                            category = "TRANSCRIPTION",
-                            operation = "processVideo_missing_transcript",
-                            message = "Transcription completed but transcript field is empty",
-                            details = buildString {
-                                appendLine("Response structure:")
-                                appendLine("  transcript=${statusResponse.transcript != null}")
-                                appendLine("  result.transcription=${statusResponse.result?.transcription != null}")
-                                appendLine("  text=${statusResponse.text != null}")
-                                appendLine("  status=${statusResponse.status}")
-                                appendLine("  jobId=${statusResponse.jobId}")
-                                appendLine("  transcriptSource=${extraction.source}")
-                            }
-                        )
-                        // UX IMPROVEMENT #3: User-friendly message when transcript extraction fails
-                        val userMessage = "Transcription completed but no text was found. The video may be silent or the audio quality was too low. Please try another video."
-                        onResult(false, currentBalance, currentFreeUses, userMessage, Exception("Transcript extraction failed"))
-                        return
-                    }
-                    
-                    // Get or create video item for saving transcript
-                    val existingVideo = videoRepository.getVideoByUrl(url) ?: app.pluct.data.entity.VideoItem(
-                        id = System.currentTimeMillis().toString(),
+                    PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor.processSuccess(
+                        statusResponse = statusResponse,
                         url = url,
-                        title = currentVideoItem?.title ?: "",
-                        thumbnailUrl = "",
-                        author = currentVideoItem?.author ?: "",
-                        duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
-                        status = ProcessingStatus.COMPLETED,
-                        progress = 100,
-                        transcript = transcriptText, // Use validated transcript
-                        timestamp = System.currentTimeMillis(),
                         tier = tier,
-                        jobId = statusResponse.jobId // Store jobId for status resumption
+                        currentBalance = currentBalance,
+                        currentFreeUses = currentFreeUses,
+                        currentVideoItem = currentVideoItem,
+                        videoRepository = videoRepository,
+                        clipboardManager = clipboardManager,
+                        debugLogManager = debugLogManager
                     )
-                    
-                    // Update video item with completed status and transcript
-                    val completedItem = existingVideo.copy(
-                        status = ProcessingStatus.COMPLETED,
-                        progress = 100,
-                        transcript = transcriptText, // Use validated transcript
-                        duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
-                        jobId = statusResponse.jobId, // Store jobId for status resumption
-                        title = currentVideoItem?.title ?: existingVideo.title,
-                        author = currentVideoItem?.author ?: existingVideo.author
-                    )
-                    
-                    // Use insertVideo to ensure transcript is saved (handles both insert and update)
-                    val updateResult = videoRepository.insertVideo(completedItem)
-                    if (updateResult.isFailure) {
-                        Log.e("TranscriptionOrchestrator", "Failed to save transcript: ${updateResult.exceptionOrNull()?.message}")
-                    } else {
-                        Log.d("TranscriptionOrchestrator", "Transcript saved successfully: ${transcriptText?.length ?: 0} chars")
-                    }
-                    
-                    // AUTO-COPY TO CLIPBOARD (Simplicity)
-                    transcriptText?.let { transcript ->
-                        try {
-                            val clipData = ClipData.newPlainText("Pluct Transcript", transcript)
-                            clipboardManager.setPrimaryClip(clipData)
-                            Log.d("TranscriptionOrchestrator", "Transcript auto-copied to clipboard (${transcript.length} chars)")
-                        } catch (e: Exception) {
-                            Log.w("TranscriptionOrchestrator", "Failed to auto-copy to clipboard: ${e.message}")
-                        }
-                    }
-                    
-                    // Update credits based on tier
-                    val newBalance = when (tier) {
-                        ProcessingTier.EXTRACT_SCRIPT -> if (currentFreeUses > 0) currentBalance else currentBalance - 1
-                        ProcessingTier.GENERATE_INSIGHTS -> currentBalance - 2
-                        else -> currentBalance
-                    }
-                    val newFreeUses = if (tier == ProcessingTier.EXTRACT_SCRIPT && currentFreeUses > 0) currentFreeUses - 1 else currentFreeUses
-                    
-                    Log.d("TranscriptionOrchestrator", "Transcript saved: ${transcriptText?.length ?: 0} characters")
-                    debugLogManager?.logInfo(
-                        category = "TRANSCRIPTION",
-                        operation = "processVideo_complete",
-                        message = "Transcription completed",
-                        details = buildString {
-                            appendLine("URL: $url")
-                            appendLine("Tier: $tier")
-                            appendLine("Transcript chars: ${transcriptText?.length ?: 0}")
-                            appendLine("New balance: $newBalance")
-                            appendLine("Free uses remaining: $newFreeUses")
-                        }
-                    )
-                    
-                    // Check for low balance warning
-                    var successMessage: String? = null
-                    if (newBalance <= 2 && newBalance > 0) {
-                        successMessage = "Transcription complete. Warning: You only have $newBalance credits left."
-                    }
-                    
-                    onResult(true, newBalance, newFreeUses, successMessage, null)
                 },
                 onFailure = { error ->
-                    Log.e("TranscriptionOrchestrator", "Transcription failed: ${error.message}")
-                    
-                    // Log transcription failure to debug system with full details
-                    debugLogManager?.logError(
-                        category = "TRANSCRIPTION",
-                        operation = "processTikTokVideo",
-                        message = "Transcription failed for URL: $url",
-                        exception = error,
-                        requestUrl = url,
-                        requestPayload = buildString {
-                            appendLine("REQUEST CONTEXT:")
-                            appendLine("  Video URL: $url")
-                            appendLine("  Processing Tier: $tier")
-                            appendLine("  Current Balance: $currentBalance")
-                            appendLine("  Free Uses Remaining: $currentFreeUses")
-                            appendLine()
-                            appendLine("FLOW DETAILS:")
-                            appendLine("  Expected Flow: Metadata → Vend Token → Submit → Poll → Complete")
-                            appendLine("  Cost: ${if (tier == ProcessingTier.EXTRACT_SCRIPT) "1 credit" else "2 credits"}")
-                        },
-                        responseBody = buildString {
-                            appendLine("ERROR DETAILS:")
-                            appendLine("  Error Type: ${error::class.simpleName}")
-                            appendLine("  Error Message: ${error.message}")
-                            if (error is app.pluct.services.PluctCoreAPIDetailedError) {
-                                appendLine()
-                                appendLine("DETAILED API ERROR:")
-                                appendLine(error.getDetailedMessage())
-                            }
-                            appendLine()
-                            appendLine("STACK TRACE:")
-                            appendLine(error.stackTraceToString())
-                        }
-                    )
-                    
-                    // Update video item with failure status
-                    videoRepository.updateVideo(currentVideoItem.copy(
-                        status = ProcessingStatus.FAILED,
-                        failureReason = "Transcription failed: ${error.message}"
-                    ))
-                    
-                    val isAuth = error.message?.contains("auth", ignoreCase = true) == true || 
-                                 error.message?.contains("401") == true ||
-                                 error.message?.contains("token_expired", ignoreCase = true) == true ||
-                                 error.message?.contains("session has expired", ignoreCase = true) == true
-                    
-                    val friendly = when {
-                        isAuth -> "Authentication expired. We'll refresh and retry automatically."
-                        else -> null
-                    }
-
-                    val userMessage = PluctCoreError03UserMessageFormatter.formatUserMessage(
+                    PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor.processFailure(
                         error = error,
-                        technicalMessage = error.message,
-                        errorCode = "TRANSCRIPTION_FAILED",
-                        context = "complete transcription flow"
+                        url = url,
+                        tier = tier,
+                        currentBalance = currentBalance,
+                        currentFreeUses = currentFreeUses,
+                        currentVideoItem = currentVideoItem,
+                        videoRepository = videoRepository,
+                        debugLogManager = debugLogManager
                     )
-                    onResult(false, currentBalance, currentFreeUses, friendly ?: userMessage.message, error)
                 }
             )
+            
+            onResult(processResult.success, processResult.newBalance, processResult.newFreeUses, processResult.message, processResult.error)
         } catch (e: Exception) {
             // UX IMPROVEMENT #4: Catch and surface silent failures with proper error handling
             Log.e("TranscriptionOrchestrator", "Error orchestrating transcription: ${e.message}", e)

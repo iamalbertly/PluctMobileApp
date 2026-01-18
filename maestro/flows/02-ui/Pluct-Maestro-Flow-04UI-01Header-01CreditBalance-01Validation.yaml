@@ -1,0 +1,20 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-04UI-01Header-01CreditBalance-01Validation.yaml
+# Validates credit balance display in header
+
+- launchApp
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Credits:"
+    optional: true
+- assertVisible:
+    text: "10"
+    optional: true
+- tapOn:
+    text: "Credits:"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Settings"
+    optional: true

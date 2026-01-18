@@ -3,6 +3,8 @@
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation of Concern][CoreResponsibility]
  * Handles UI interactions, element detection, and user input
  */
+const PluctCoreFoundationUIButtonTappingConsolidated = require('./Pluct-Core-01Foundation-03UI-02ButtonTapping-01Consolidated');
+
 class PluctCoreFoundationUI {
 
     constructor(config, logger, commands) {
@@ -10,6 +12,7 @@ class PluctCoreFoundationUI {
         this.logger = logger;
         this.commands = commands;
         this.lastUIDump = '';
+        this.buttonTapping = new PluctCoreFoundationUIButtonTappingConsolidated(this, logger);
     }
 
     /**
@@ -351,11 +354,20 @@ class PluctCoreFoundationUI {
         try {
             await this.dumpUIHierarchy();
 
-            const textRegex = new RegExp(`text="${text}"[^>]*bounds="([^"]*)"`, 'g');
+            const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const textRegex = new RegExp(`text="${escaped}"[^>]*bounds="([^"]*)"`, 'g');
             const match = textRegex.exec(this.lastUIDump);
 
             if (match) {
                 const bounds = match[1];
+                const coords = this.parseBounds(bounds);
+                return await this.tapByCoordinates(coords.x, coords.y);
+            }
+
+            const containsRegex = new RegExp(`text="[^"]*${escaped}[^"]*"[^>]*bounds="([^"]*)"`, 'g');
+            const containsMatch = containsRegex.exec(this.lastUIDump);
+            if (containsMatch) {
+                const bounds = containsMatch[1];
                 const coords = this.parseBounds(bounds);
                 return await this.tapByCoordinates(coords.x, coords.y);
             }
@@ -422,6 +434,7 @@ class PluctCoreFoundationUI {
             try {
                 // Clear existing text first
                 await this.executeCommand('adb shell input keyevent KEYCODE_MOVE_END', undefined, undefined, { allowFailure: true });
+                await this.executeCommand('adb shell input keyevent --longpress KEYCODE_DEL', undefined, undefined, { allowFailure: true });
                 await this.executeCommand('adb shell input keyevent KEYCODE_DEL', undefined, undefined, { allowFailure: true });
                 await this.sleep(100);
 
@@ -431,6 +444,16 @@ class PluctCoreFoundationUI {
 
                 if (directResult && directResult.success) {
                     return directResult;
+                }
+
+                // If text already appears in the UI, avoid double-inserting via clipboard.
+                try {
+                    await this.dumpUIHierarchy();
+                    if (this.lastUIDump && this.lastUIDump.includes(rawText)) {
+                        return { success: true, output: 'Text detected in UI after direct input' };
+                    }
+                } catch (_) {
+                    // Ignore UI dump errors and fall back to clipboard.
                 }
                 this.logger.warn('Direct text input did not report success, falling back to clipboard');
             } catch (directError) {
@@ -588,7 +611,8 @@ class PluctCoreFoundationUI {
             
             const contentDesc = contentDescMap[testTag];
             if (contentDesc) {
-                const descRegex = new RegExp(`content-desc="${contentDesc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*bounds="([^"]*)"`, 'g');
+                const escapedDesc = contentDesc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const descRegex = new RegExp(`content-desc="[^"]*${escapedDesc}[^"]*"[^>]*bounds="([^"]*)"`, 'g');
                 match = descRegex.exec(this.lastUIDump);
                 
                 if (match) {

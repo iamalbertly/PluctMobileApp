@@ -1,8 +1,9 @@
 const PluctCoreFoundationCommands = require('./Pluct-Core-01Foundation-02Commands');
 const PluctCoreFoundationUI = require('./Pluct-Core-01Foundation-03UI');
 const PluctCoreFoundationValidation = require('./Pluct-Core-01Foundation-04Validation');
+const PluctCoreFoundationLogcatValidator = require('./Pluct-Core-01Foundation-05Logcat-01Validator');
 const PluctCoreFoundationUtils = require('./Pluct-Core-01Foundation-05Utils');
-const { logInfo, logSuccess, logWarn, logError } = require('./Logger');
+const { logInfo, logSuccess, logWarn, logError, isVerbose } = require('./Logger');
 
 /**
  * Pluct-Core-01Foundation - Core foundation functionality orchestrator
@@ -19,16 +20,23 @@ class PluctCoreFoundation {
             url: shortUrl,
             testUrls: [shortUrl, longUrl],
             businessEngineUrl: 'https://pluct-business-engine.romeo-lya2.workers.dev',
-            timeouts: { default: 5000, short: 2000, long: 10000 },
+            timeouts: { default: 10000, short: 2000, long: 15000 },
             retry: { maxAttempts: 3, delay: 1000 },
             skipAppDataClear
         };
-        this.logger = { info: logInfo, success: logSuccess, warn: logWarn, error: logError };
+        this.logger = {
+            info: logInfo,
+            success: logSuccess,
+            warn: logWarn,
+            error: logError,
+            isVerbose
+        };
 
         // Initialize specialized modules
         this.commands = new PluctCoreFoundationCommands(this.config, this.logger);
         this.ui = new PluctCoreFoundationUI(this.config, this.logger, this.commands);
         this.validation = new PluctCoreFoundationValidation(this.config, this.logger, this.commands);
+        this.logcatValidator = new PluctCoreFoundationLogcatValidator(this.commands, this.logger);
         this.utils = new PluctCoreFoundationUtils(this.config, this.logger);
     }
 
@@ -95,8 +103,44 @@ class PluctCoreFoundation {
         return this.ui.tapByCoordinates(x, y);
     }
 
-    async inputText(rawText) {
-        return this.ui.inputText(rawText);
+    async inputText(targetOrText, maybeText) {
+        if (typeof maybeText === 'string') {
+            await this.focusInputTarget(targetOrText);
+            return this.ui.inputText(maybeText);
+        }
+        return this.ui.inputText(targetOrText);
+    }
+
+    async typeText(targetOrText, maybeText) {
+        if (typeof maybeText === 'string') {
+            // Target provided (element, test tag, or text)
+            await this.focusInputTarget(targetOrText);
+            return this.ui.inputText(maybeText);
+        }
+        await this.focusInputTarget(null);
+        return this.ui.inputText(targetOrText);
+    }
+
+    async inputTextField(target, text) {
+        await this.focusInputTarget(target);
+        return this.ui.inputText(text);
+    }
+
+    async focusInputTarget(target) {
+        if (!target) {
+            return this.tapFirstEditText();
+        }
+        if (typeof target === 'string') {
+            const tapped = await this.tapByTestTag(target);
+            if (tapped.success) return tapped;
+            const tappedByText = await this.tapByText(target);
+            if (tappedByText.success) return tappedByText;
+            return this.tapFirstEditText();
+        }
+        if (typeof target === 'object' && target.x != null && target.y != null) {
+            return this.tapByCoordinates(target.x, target.y);
+        }
+        return this.tapFirstEditText();
     }
 
     async clearLogcat() {
@@ -113,6 +157,11 @@ class PluctCoreFoundation {
 
     async tapByTestTag(testTag) {
         return this.ui.tapByTestTag(testTag);
+    }
+
+    // Consolidated button tapping utilities
+    get buttonTapping() {
+        return this.ui.buttonTapping;
     }
 
     async inputTextViaClipboard(text) {
@@ -139,7 +188,8 @@ class PluctCoreFoundation {
                     responses: [],
                     errors: [],
                     retries: [],
-                    circuitBreaker: []
+                    circuitBreaker: [],
+                    info: []
                 };
 
                 for (const line of lines) {
@@ -157,6 +207,10 @@ class PluctCoreFoundation {
                         apiLogs.retries.push(line);
                     } else if (line.includes('Circuit breaker') || line.includes('circuit breaker')) {
                         apiLogs.circuitBreaker.push(line);
+                    } else if (line.includes('CREDIT_REQUEST')) {
+                        apiLogs.info.push(line);
+                    } else if (line.includes('PluctAPI') || line.includes('PluctCoreAPIHTTPClient')) {
+                        apiLogs.info.push(line);
                     }
                 }
 
@@ -169,7 +223,8 @@ class PluctCoreFoundation {
                         responses: apiLogs.responses.length,
                         errors: apiLogs.errors.length,
                         retries: apiLogs.retries.length,
-                        circuitBreakerEvents: apiLogs.circuitBreaker.length
+                        circuitBreakerEvents: apiLogs.circuitBreaker.length,
+                        info: apiLogs.info.length
                     }
                 };
             }
@@ -299,6 +354,67 @@ class PluctCoreFoundation {
 
     async pressMenuButton() {
         return await this.commands.executeCommand('adb shell input keyevent KEYCODE_MENU');
+    }
+
+    async pressKey(keyName) {
+        const keyMap = {
+            Enter: 'KEYCODE_ENTER',
+            Back: 'KEYCODE_BACK',
+            Home: 'KEYCODE_HOME',
+            Menu: 'KEYCODE_MENU'
+        };
+        const keyCode = keyMap[keyName] || keyName;
+        return await this.commands.executeCommand(`adb shell input keyevent ${keyCode}`);
+    }
+
+    parseBounds(bounds) {
+        const coords = bounds.split('][');
+        const topLeft = coords[0].replace('[', '').split(',');
+        const bottomRight = coords[1].replace(']', '').split(',');
+        return {
+            x: Math.floor((parseInt(topLeft[0], 10) + parseInt(bottomRight[0], 10)) / 2),
+            y: Math.floor((parseInt(topLeft[1], 10) + parseInt(bottomRight[1], 10)) / 2)
+        };
+    }
+
+    findElementByText(uiDump, text) {
+        if (!uiDump) return null;
+        const textRegex = new RegExp(`text="${text.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}"[^>]*bounds="([^"]*)"`, 'g');
+        const match = textRegex.exec(uiDump);
+        if (!match) return null;
+        return this.parseBounds(match[1]);
+    }
+
+    findElementByHint(uiDump, hint) {
+        if (!uiDump) return null;
+        const escaped = hint.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+        const patterns = [
+                /api error/,
+                /transcription failed/,
+                /session expired/,
+                /timed out/,
+                /insufficient credits/,
+                /unauthorized/,
+                /invalid url/
+            ];
+        for (const pattern of patterns) {
+            const match = pattern.exec(uiDump);
+            if (match) return this.parseBounds(match[1]);
+        }
+        return null;
+    }
+
+    async clickElement(target) {
+        if (!target) return { success: false, error: 'No target provided' };
+        if (typeof target === 'string') {
+            const tapped = await this.tapByTestTag(target);
+            if (tapped.success) return tapped;
+            return this.tapByText(target);
+        }
+        if (typeof target === 'object' && target.x != null && target.y != null) {
+            return this.tapByCoordinates(target.x, target.y);
+        }
+        return { success: false, error: 'Unsupported target type' };
     }
 
     // UI interaction methods
@@ -531,9 +647,15 @@ class PluctCoreFoundation {
                 /timed out/,
                 /insufficient credits/,
                 /unauthorized/,
-                /invalid url/,
-                /retry/i
+                /invalid url/
             ];
+            const retryVisible = /retry/.test(lowered);
+            if (retryVisible) {
+                const retryContext = [/error/, /failed/, /try again/, /something went wrong/];
+                if (retryContext.some(p => p.test(lowered))) {
+                    patterns.push(/retry/);
+                }
+            }
             const matched = patterns.filter(p => p.test(lowered));
             if (matched.length > 0) {
                 return {

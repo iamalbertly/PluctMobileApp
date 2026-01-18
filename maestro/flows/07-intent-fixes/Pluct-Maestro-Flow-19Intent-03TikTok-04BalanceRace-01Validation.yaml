@@ -1,0 +1,18 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-19Intent-03TikTok-04BalanceRace-01Validation.yaml
+# Validates that auto-submit waits for balance to load before deciding
+
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 500
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 1000
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+# Script execution removed - use adb logcat monitoring instead
+- assertVisible:
+    id: "processing_indicator"
+    optional: true

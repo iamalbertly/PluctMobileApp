@@ -157,3 +157,4 @@ class JourneyRefactor05NamingConsistencyValidation extends BaseJourney {
 
 module.exports = JourneyRefactor05NamingConsistencyValidation;
 
+

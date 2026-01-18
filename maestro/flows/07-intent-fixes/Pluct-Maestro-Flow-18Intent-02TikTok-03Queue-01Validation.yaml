@@ -1,0 +1,19 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-18Intent-02TikTok-03Queue-01Validation.yaml
+# Validates that TikTok intents are queued when credits are insufficient
+
+- launchApp
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "url_input_field"
+- waitForAnimationToEnd:
+    timeout: 2000
+# Script execution removed - use adb logcat monitoring instead
+      - "onQueueForLater"
+- assertVisible:
+    text: "queued"
+    optional: true

@@ -1,0 +1,27 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-08Queue-01Network-01Connectivity-01Validation.yaml
+# Tests offline queue functionality
+
+- launchApp
+- waitForAnimationToEnd
+# Network control script removed - use adb shell svc wifi/data instead
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Save for Later"
+- tapOn:
+    text: "Save for Later"
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- assertVisible:
+    text: "queued"
+    optional: true
+# Network control script removed - use adb shell svc wifi/data instead

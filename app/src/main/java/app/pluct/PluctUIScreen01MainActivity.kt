@@ -31,6 +31,8 @@ import app.pluct.ui.screens.PluctUIScreen01MainActivityIntentHandlerQueueManager
 import app.pluct.ui.screens.PluctUIScreen01MainActivity04EffectsHandler
 import app.pluct.ui.screens.PluctUIScreen01MainActivity05CreditManager
 import app.pluct.ui.screens.PluctUIScreen01MainActivity06EventHandlers
+import app.pluct.ui.screens.PluctUIScreen01MainActivity07CreditRequestHandler
+import app.pluct.ui.screens.PluctUIScreen01MainActivity08Dialogs
 import app.pluct.ui.screens.PluctVideoDetailScreen
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import app.pluct.ui.components.PluctDebugLogViewer
@@ -48,6 +50,7 @@ import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import app.pluct.ui.components.PluctUIComponent06Permission01Onboarding01Dialog
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
+import app.pluct.ui.components.PluctUIComponent07Onboarding01Tutorial01Flow
 
 /**
  * Pluct-Main-01Activity - Simplified main activity for core UI testing
@@ -122,6 +125,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                         onPrefilledUrlConsumed = { prefilledUrlState.value = null },
                         debugLogManager = debugLogManager,
                         queueManager = queueManager,
+                        validator = validator,
                         isLoadingCreditBalance = isLoadingCreditBalanceState.value,
                         onLoadingCreditBalanceChange = { isLoadingCreditBalanceState.value = it },
                         permissionLauncherHelper = permissionLauncherHelper
@@ -181,6 +185,7 @@ fun PluctMainContent(
     onPrefilledUrlConsumed: () -> Unit = {},
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager,
     queueManager: app.pluct.services.PluctQueueManager,
+    validator: app.pluct.services.PluctCoreValidationInputSanitizer,
     isLoadingCreditBalance: Boolean = false,
     onLoadingCreditBalanceChange: (Boolean) -> Unit = {},
     permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null
@@ -201,10 +206,11 @@ fun PluctMainContent(
     var showWelcomeDialog by remember { mutableStateOf(false) }
     var prefilledUrl by remember { mutableStateOf<String?>(prefilledUrlExternal) }
     val userName = remember { userIdentification.userId }
-    var creditRequestLog by remember { mutableStateOf<String?>(null) }
+    // creditRequestLog removed - no longer needed after extracting credit request handler
     var ctaHelperMessage by remember { mutableStateOf<String?>(null) }
     var hasVendTokenAttempted by remember { mutableStateOf(false) }
     var showPermissionOnboarding by remember { mutableStateOf(false) }
+    var showOnboardingTutorial by remember { mutableStateOf(false) }
     
     // Track queued and processing videos for notifications
     val queuedVideos = videoRepository.getVideosByStatus(ProcessingStatus.QUEUED)
@@ -216,6 +222,7 @@ fun PluctMainContent(
     
     // Use extracted effects handler
     PluctUIScreen01MainActivity04EffectsHandler(
+        validator = validator,
         scope = scope,
         apiService = apiService,
         videoRepository = videoRepository,
@@ -316,6 +323,23 @@ fun PluctMainContent(
             if ((!hasNotificationPermission && !hasSeenNotificationOnboarding) ||
                 (!hasOverlayPermission && !hasSeenOverlayOnboarding)) {
                 showPermissionOnboarding = true
+            } else {
+                // Permissions already done, check if tutorial needed
+                if (!prefs.hasSeenOnboardingTutorial()) {
+                    showOnboardingTutorial = true
+                }
+            }
+        }
+    }
+
+    // Show tutorial after permission onboarding completes
+    LaunchedEffect(showPermissionOnboarding) {
+        if (!showPermissionOnboarding) {
+            // Permission onboarding completed, now check for tutorial
+            delay(300) // Small delay for smooth transition
+            val prefs = PluctUserPreferences(context)
+            if (!prefs.hasSeenOnboardingTutorial()) {
+                showOnboardingTutorial = true
             }
         }
     }
@@ -415,6 +439,7 @@ fun PluctMainContent(
     // Use extracted event handlers
     val eventHandlers = remember {
         PluctUIScreen01MainActivity06EventHandlers(
+            validator = validator,
             scope = scope,
             apiService = apiService,
             videoRepository = videoRepository,
@@ -464,76 +489,11 @@ fun PluctMainContent(
             isLoading = isLoading,
             errorMessage = errorMessage,
             userName = userName,
-            onRequestCredits = { confirmation ->
-                val requestId = "credit_req_${System.currentTimeMillis()}"
-                val userId = userIdentification.userId
-                val timestamp = System.currentTimeMillis()
-
-                Log.d("PluctAPI", "CREDIT_REQUEST requestCredits id=$requestId userId=$userId confirmation=$confirmation timestamp=$timestamp")
-                
-                // Log BEFORE request
-                debugLogManager.logInfo(
-                    category = "CREDIT_REQUEST",
-                    operation = "requestCredits",
-                    message = "Credit request initiated",
-                    details = buildString {
-                        appendLine("Request ID: $requestId")
-                        appendLine("User ID: $userId")
-                        appendLine("Confirmation Text: $confirmation")
-                        appendLine("Timestamp: $timestamp")
-                    },
-                    requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/user/balance",
-                    requestMethod = "POST",
-                    requestPayload = buildString {
-                        appendLine("{")
-                        appendLine("  \"userId\": \"$userId\",")
-                        appendLine("  \"confirmation\": \"$confirmation\",")
-                        appendLine("  \"clientRequestId\": \"$requestId\",")
-                        appendLine("  \"timestamp\": $timestamp")
-                        appendLine("}")
-                    }
-                )
-                
-                // Record the manual request for validation
-                creditRequestLog = confirmation
-                
-                // Log success (since this is a manual confirmation flow)
-                scope.launch {
-                    delay(100) // Small delay to ensure log is written
-                    debugLogManager.logInfo(
-                        category = "CREDIT_REQUEST",
-                        operation = "requestCredits",
-                        message = "Credit request acknowledged",
-                        details = buildString {
-                            appendLine("Request ID: $requestId")
-                            appendLine("Status: Acknowledged (manual processing)")
-                            appendLine("User will be notified when credits are applied")
-                            appendLine()
-                            appendLine("Response:")
-                            appendLine("{")
-                            appendLine("  \"status\": \"acknowledged\",")
-                            appendLine("  \"message\": \"Request received for manual processing\",")
-                            appendLine("  \"requestId\": \"$requestId\"")
-                            appendLine("}")
-                        },
-                        requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/user/balance",
-                        requestMethod = "POST",
-                        requestPayload = buildString {
-                            appendLine("{")
-                            appendLine("  \"userId\": \"$userId\",")
-                            appendLine("  \"confirmation\": \"$confirmation\",")
-                            appendLine("  \"clientRequestId\": \"$requestId\"")
-                            appendLine("}")
-                        }
-                    )
-                    
-                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                        scope,
-                        snackbarHostState,
-                        "Request sent (ID: ${requestId.take(8)}). We'll verify your payment and apply credits."
-                    )
-                }
-            },
+            onRequestCredits = PluctUIScreen01MainActivity07CreditRequestHandler.createOnRequestCredits(
+                userIdentification = userIdentification,
+                debugLogManager = debugLogManager,
+                snackbarHostState = snackbarHostState
+            ),
             onTierSubmit = onTierSubmit,
             onRetryVideo = onRetryVideo,
             onDeleteVideo = onDeleteVideo,
@@ -579,25 +539,34 @@ fun PluctMainContent(
         onQueueForLater = onQueueForLater
     )
     
-    // Welcome Dialog
-    if (showWelcomeDialog) {
-        app.pluct.ui.components.PluctWelcomeDialog(
-            onDismiss = { showWelcomeDialog = false },
-            onGetStarted = {
-                PluctUserPreferences.markUserAsReturning(context)
-                showWelcomeDialog = false
-                // Refresh balance to show free credits
-                refreshCreditBalance()
-            }
-        )
-    }
+    // Welcome and Permission Dialogs
+    PluctUIScreen01MainActivity08Dialogs.WelcomeDialog(
+        showWelcomeDialog = showWelcomeDialog,
+        onDismiss = { showWelcomeDialog = false },
+        onGetStarted = {
+            showWelcomeDialog = false
+            refreshCreditBalance()
+        }
+    )
     
-    // Permission Onboarding Dialog
-    if (showPermissionOnboarding) {
-        PluctUIComponent06Permission01Onboarding01Dialog(
-            onDismiss = { showPermissionOnboarding = false },
-            onComplete = { showPermissionOnboarding = false },
-            permissionLauncherHelper = permissionLauncherHelper
+    PluctUIScreen01MainActivity08Dialogs.PermissionOnboardingDialog(
+        showPermissionOnboarding = showPermissionOnboarding,
+        onDismiss = { showPermissionOnboarding = false },
+        onComplete = { showPermissionOnboarding = false },
+        permissionLauncherHelper = permissionLauncherHelper
+    )
+
+    // Onboarding Tutorial Dialog - shows after permissions complete
+    if (showOnboardingTutorial) {
+        PluctUIComponent07Onboarding01Tutorial01Flow(
+            onComplete = {
+                showOnboardingTutorial = false
+                Log.d("MainActivity", "Onboarding tutorial completed - user opening TikTok")
+            },
+            onSkip = {
+                showOnboardingTutorial = false
+                Log.d("MainActivity", "Onboarding tutorial skipped")
+            }
         )
     }
 }

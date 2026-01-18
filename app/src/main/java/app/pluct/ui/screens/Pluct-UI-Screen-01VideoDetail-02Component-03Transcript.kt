@@ -37,12 +37,24 @@ fun PluctVideoDetailTranscript(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            Text(
-                text = video.transcript ?: "No transcript available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.5f
-            )
+            when {
+                video.transcript.isNullOrBlank() -> {
+                    Text(
+                        text = "No transcript available. The video may be silent, or transcription is still processing.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.5f
+                    )
+                }
+                else -> {
+                    Text(
+                        text = video.transcript,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.5f
+                    )
+                }
+            }
         }
     }
 }

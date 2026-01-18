@@ -1,0 +1,21 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-10EdgeCase-01RapidIntent-01Validation.yaml
+# Tests rapid intent receipt edge case
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- waitForAnimationToEnd
+- tapOn:
+    id: "extract_script_button"
+- waitForAnimationToEnd
+# Script execution removed - use adb logcat monitoring instead
+- waitForAnimationToEnd:
+    timeout: 2000
+# Script execution removed - use adb logcat monitoring instead
+- assertVisible:
+    text: "queued"
+    optional: true

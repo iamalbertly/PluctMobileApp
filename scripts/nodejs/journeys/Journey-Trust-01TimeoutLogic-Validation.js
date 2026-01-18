@@ -11,7 +11,7 @@ class JourneyTrust01TimeoutLogicValidation extends BaseJourney {
     }
 
     async execute() {
-        await this.log('Starting Timeout Logic Validation');
+        this.core.logger.info('Starting Timeout Logic Validation');
         
         // Step 1: Launch app
         await this.core.launchApp();
@@ -89,7 +89,7 @@ class JourneyTrust01TimeoutLogicValidation extends BaseJourney {
         // Step 6: Edge case - API completes in 25s, no timeout should occur
         // This is validated by the fact we didn't see "Still starting" before 25s
         
-        await this.log('Timeout Logic Validation Complete');
+        this.core.logger.info('Timeout Logic Validation Complete');
         return { success: true, stepChanges };
     }
     

@@ -127,7 +127,9 @@ class PluctSmartTestRunner {
                         hasFailures = true;
                         
                         // Generate detailed failure report
-                        await this.generateDetailedFailureReport(testName, result);
+                        if (this.core.logger.isVerbose && this.core.logger.isVerbose()) {
+                            await this.generateDetailedFailureReport(testName, result);
+                        }
                         
                         // Terminate immediately on failure in development mode
                         this.core.logger.error('❌ TERMINATING TEST EXECUTION DUE TO FAILURE');
@@ -146,7 +148,9 @@ class PluctSmartTestRunner {
                     hasFailures = true;
                     
                     // Generate detailed failure report
-                    await this.generateDetailedFailureReport(testName, { success: false, error: error.message });
+                    if (this.core.logger.isVerbose && this.core.logger.isVerbose()) {
+                        await this.generateDetailedFailureReport(testName, { success: false, error: error.message });
+                    }
                     
                     // Terminate immediately on failure
                     this.core.logger.error('❌ TERMINATING TEST EXECUTION DUE TO EXCEPTION');
@@ -185,6 +189,10 @@ class PluctSmartTestRunner {
      * Generate detailed failure report
      */
     async generateDetailedFailureReport(failedTest, result) {
+        if (!this.core.logger.isVerbose || !this.core.logger.isVerbose()) {
+            return;
+        }
+
         try {
             this.core.logger.info('🔍 === DETAILED FAILURE ANALYSIS ===');
             this.core.logger.info(`🔍 Failed Test: ${failedTest}`);

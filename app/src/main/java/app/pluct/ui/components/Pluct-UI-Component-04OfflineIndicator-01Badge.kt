@@ -13,32 +13,18 @@ import app.pluct.data.entity.VideoItem
 /**
  * Pluct-UI-Component-04OfflineIndicator-01Badge - Offline availability badge
  * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Sequence][Responsibility]
- * Shows when transcripts are cached locally and available offline
+ * 
+ * @deprecated All transcripts are saved offline by default (stored in local Room database).
+ * This badge was redundant information that appeared on every completed video, creating
+ * visual clutter without adding value. Can be re-implemented if cloud sync feature is added.
  */
+@Deprecated(
+    message = "All transcripts are saved offline by default. Badge removed to reduce UI clutter.",
+    level = DeprecationLevel.HIDDEN
+)
 @Composable
 fun PluctOfflineBadge(video: VideoItem) {
-    if (video.transcript != null && video.status == ProcessingStatus.COMPLETED) {
-        Surface(
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            shape = MaterialTheme.shapes.small,
-            modifier = Modifier.padding(top = 4.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CloudDone,
-                    contentDescription = "Cached offline",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Text(
-                    text = "Saved Offline",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            }
-        }
-    }
+    // UX FIX: Removed - all videos are saved offline by default
+    // No need to show redundant information
+    // Component kept for API compatibility but renders nothing
 }
