@@ -90,6 +90,7 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                 2 -> {
                     val isTikTokInstalled = remember {
                         try {
+                            // Use getLaunchIntentForPackage - more reliable than getPackageInfo
                             // Check multiple possible TikTok package names
                             val packageNames = listOf(
                                 "com.zhiliaoapp.musically",  // Standard TikTok
@@ -97,9 +98,15 @@ fun PluctUIComponent07Onboarding01Tutorial01Flow(
                             )
                             packageNames.any { packageName ->
                                 try {
-                                    context.packageManager.getPackageInfo(packageName, 0)
-                                    true
+                                    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                                    if (launchIntent != null) {
+                                        Log.d(TAG, "TikTok detected via getLaunchIntentForPackage: $packageName")
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 } catch (e: Exception) {
+                                    Log.d(TAG, "TikTok check failed for $packageName: ${e.message}")
                                     false
                                 }
                             }
@@ -295,6 +302,7 @@ private fun TutorialStep3OpenTikTok() {
     val context = LocalContext.current
     val isTikTokInstalled = remember {
         try {
+            // Use getLaunchIntentForPackage - more reliable than getPackageInfo
             // Check multiple possible TikTok package names
             val packageNames = listOf(
                 "com.zhiliaoapp.musically",  // Standard TikTok
@@ -302,9 +310,15 @@ private fun TutorialStep3OpenTikTok() {
             )
             packageNames.any { packageName ->
                 try {
-                    context.packageManager.getPackageInfo(packageName, 0)
-                    true
+                    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                    if (launchIntent != null) {
+                        Log.d("OnboardingTutorial", "TikTok detected via getLaunchIntentForPackage: $packageName")
+                        true
+                    } else {
+                        false
+                    }
                 } catch (e: Exception) {
+                    Log.d("OnboardingTutorial", "TikTok check failed for $packageName: ${e.message}")
                     false
                 }
             }
@@ -422,12 +436,12 @@ private fun TutorialStepItem(number: String, text: String) {
 
 /**
  * Launch TikTok app or Play Store if not installed
- * Checks multiple possible TikTok package names
+ * Uses getLaunchIntentForPackage for reliable detection and launching
  */
 private fun launchTikTok(context: android.content.Context) {
     Log.d(TAG, "TikTok launch intent triggered")
     
-    // Try multiple TikTok package names
+    // Try multiple TikTok package names using getLaunchIntentForPackage (most reliable method)
     val packageNames = listOf(
         "com.zhiliaoapp.musically",  // Standard TikTok
         "com.ss.android.ugc.aweme"   // Alternative package name
@@ -436,26 +450,25 @@ private fun launchTikTok(context: android.content.Context) {
     var launched = false
     for (packageName in packageNames) {
         try {
-            val intent = Intent(Intent.ACTION_MAIN).apply {
-                setPackage(packageName)
-                addCategory(Intent.CATEGORY_LAUNCHER)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-
-            if (intent.resolveActivity(context.packageManager) != null) {
+            // Use getLaunchIntentForPackage - this is the most reliable way to check and launch
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent != null) {
                 Log.d(TAG, "Launching TikTok app with package: $packageName")
-                context.startActivity(intent)
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(launchIntent)
                 launched = true
                 break
+            } else {
+                Log.d(TAG, "No launch intent found for package: $packageName")
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Failed to launch TikTok with package $packageName: ${e.message}")
+            Log.e(TAG, "Failed to launch TikTok with package $packageName: ${e.message}", e)
         }
     }
     
     if (!launched) {
         // TikTok not installed - open Play Store
-        Log.d(TAG, "TikTok not found, opening Play Store")
+        Log.d(TAG, "TikTok not found via getLaunchIntentForPackage, opening Play Store")
         try {
             val playStoreIntent = Intent(
                 Intent.ACTION_VIEW,
@@ -465,7 +478,7 @@ private fun launchTikTok(context: android.content.Context) {
             }
             context.startActivity(playStoreIntent)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to open Play Store: ${e.message}")
+            Log.e(TAG, "Failed to open Play Store: ${e.message}", e)
             // Fallback to web Play Store
             try {
                 val webIntent = Intent(
@@ -476,7 +489,7 @@ private fun launchTikTok(context: android.content.Context) {
                 }
                 context.startActivity(webIntent)
             } catch (e2: Exception) {
-                Log.e(TAG, "Failed to open web Play Store: ${e2.message}")
+                Log.e(TAG, "Failed to open web Play Store: ${e2.message}", e2)
             }
         }
     }
