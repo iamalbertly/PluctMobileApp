@@ -108,39 +108,23 @@ fun PluctProcessingIndicator(
                         fontWeight = FontWeight.Bold
                     )
 
-                    // UX IMPROVEMENT #2: Clearer progress information with phase context
-                    // UX IMPROVEMENT #4: Use remembered progress to persist state
+                    // UX IMPROVEMENT: Clean, international-friendly progress display
+                    // Uses visual percentage + minimal text for global users
                     if (displayProgress > 0) {
                         Text(
-                            text = "$displayProgress% complete",
+                            text = "$displayProgress%",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.semantics {
-                                contentDescription = "Progress: $displayProgress percent complete"
+                                contentDescription = "Progress: $displayProgress percent"
                                 testTag = "progress_percentage"
                             }
                         )
-                        if (estimatedTimeRemaining == null) {
-                            // UX IMPROVEMENT: Duolingo-style friendly, encouraging progress messages
-                            Text(
-                                text = when {
-                                    progress < 15 -> "Getting things ready..."
-                                    progress < 30 -> "Listening to your video..."
-                                    progress < 50 -> "You're making great progress!"
-                                    progress < 70 -> "Almost halfway there..."
-                                    progress < 85 -> "The AI is working its magic!"
-                                    progress < 95 -> "Just a few more seconds..."
-                                    else -> "Putting the finishing touches!"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     } else {
-                        // UX IMPROVEMENT: Friendly starting message
+                        // Simple starting indicator
                         Text(
-                            text = "Hang tight! We're getting your transcript ready...",
+                            text = "Starting...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
@@ -169,7 +153,7 @@ fun PluctProcessingIndicator(
                 }
             }
 
-            // UX IMPROVEMENT #5: Helpful guidance when transcription takes longer than expected
+            // UX IMPROVEMENT: Simplified timeout warning - less text, clearer message
             if (showTimeoutWarning) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
@@ -183,21 +167,22 @@ fun PluctProcessingIndicator(
                             testTag = "timeout_warning"
                         }
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Still working on it!",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "This one's taking a bit longer - don't worry, we've got this! Feel free to come back later, we'll keep working in the background.",
+                            text = "Still processing...",
                             style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }

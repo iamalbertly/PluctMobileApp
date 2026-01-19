@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.sp
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
-// UX FIX: Removed PluctOfflineBadge import - component deprecated
 import app.pluct.ui.components.PluctProcessingIndicator
 import kotlinx.coroutines.launch
 
@@ -108,7 +107,6 @@ fun PluctVideoItemCard(
                         fontWeight = FontWeight.Bold,
                         maxLines = 2
                     )
-                    // UX FIX: Removed PluctOfflineBadge - all transcripts are saved offline by default
                 }
 
                 IconButton(onClick = onDelete) {
@@ -374,8 +372,8 @@ private fun QuickActionsMenu(
 }
 
 /**
- * UX IMPROVEMENT #1: Enhanced empty state with actionable guidance
- * Provides clear instructions and multiple ways to get started
+ * UX IMPROVEMENT #1: Clean, international-friendly empty state
+ * Uses icons over text, minimal words for global users
  */
 @Composable
 fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
@@ -394,28 +392,32 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Visual icon instead of emoji - universal language
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .padding(bottom = 8.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
             Text(
                 text = "No transcripts yet",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 4.dp)
             )
 
+            // Shorter, simpler instruction
             Text(
-                text = "Get started by pasting a TikTok link above, or share a video from TikTok directly to this app.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Paste a TikTok link or share from TikTok",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            Text(
-                text = "💡 Tip: You can also tap the input field and paste a link from your clipboard.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
             )
 
             Button(
@@ -429,7 +431,7 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             ) {
-                Text("Try with Demo Link")
+                Text("Try Demo")
             }
         }
     }

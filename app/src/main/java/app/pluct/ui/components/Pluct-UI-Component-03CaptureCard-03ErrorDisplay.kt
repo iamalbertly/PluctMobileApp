@@ -211,15 +211,15 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    // UX IMPROVEMENT: Friendly error category titles
+                    // UX IMPROVEMENT: Clean, short error category titles - international-friendly
                     Text(
                         text = when (errorCategory) {
-                            "Authentication" -> "Let's get you signed in again"
-                            "Network" -> "Connection needed"
-                            "Timeout" -> "Taking longer than usual"
-                            "Validation" -> "Something doesn't look right"
-                            "Payment" -> "Credits needed"
-                            else -> "Oops! Something went wrong"
+                            "Authentication" -> "Session"
+                            "Network" -> "Network"
+                            "Timeout" -> "Timeout"
+                            "Validation" -> "Invalid"
+                            "Payment" -> "Credits"
+                            else -> "Error"
                         },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
@@ -261,47 +261,32 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val serviceName = extractServiceName(message)
-                // UX IMPROVEMENT: Duolingo-style friendly, reassuring error messages
+                // UX IMPROVEMENT: Clean, concise error messages - international-friendly
                 val shortMessage = when {
-                    serviceName != null -> "Oops! We hit a small bump: ${extractShortError(message)}"
                     message.contains("authentication", true) || message.contains("401") ->
-                        "Quick hiccup with authentication - no worries, we'll sort this out! Tap Retry to try again."
+                        "Session expired. Tap Retry."
                     message.contains("network", ignoreCase = true) || message.contains("connection", ignoreCase = true) ->
-                        "Looks like we lost connection. Don't worry - we've saved your video and will process it as soon as you're back online!"
+                        "No connection. Check network."
                     message.contains("timeout", ignoreCase = true) ->
-                        "That took a bit longer than expected. Want to give it another go?"
+                        "Request timed out. Try again."
                     message.contains("insufficient", ignoreCase = true) || message.contains("credits", ignoreCase = true) ->
-                        "You're out of credits! Head to Settings to top up, or we can save this video for later."
-                    else -> message.take(140) + if (message.length > 140) "..." else ""
+                        "Out of credits."
+                    message.contains("rate limit", ignoreCase = true) || message.contains("429") ->
+                        "Too many requests. Wait a moment."
+                    else -> message.take(60) + if (message.length > 60) "..." else ""
                 }
 
-                // UX IMPROVEMENT #5: Add contextual error information
-                val contextualMessage = if (error != null && error is PluctCoreAPIDetailedError) {
-                    val operation = error.technicalDetails.operation.ifEmpty { "operation" }
-                    val attemptedAction = when {
-                        operation.contains("vend", ignoreCase = true) -> "claiming credits"
-                        operation.contains("submit", ignoreCase = true) -> "submitting transcription"
-                        operation.contains("status", ignoreCase = true) -> "checking status"
-                        operation.contains("metadata", ignoreCase = true) -> "fetching video details"
-                        else -> "processing video"
-                    }
-                    "$shortMessage (Failed while $attemptedAction)"
-                } else {
-                    shortMessage
-                }
-                
                 Text(
-                    text = contextualMessage,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = shortMessage,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier
                         .weight(1f)
                         .semantics {
-                            contentDescription = "Error message: $contextualMessage"
+                            contentDescription = "Error: $shortMessage"
                             testTag = "error_message_text"
                         }
-                        .heightIn(max = 96.dp) // Increased height for contextual info
+                        .heightIn(max = 48.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 

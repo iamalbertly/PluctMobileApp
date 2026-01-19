@@ -7,13 +7,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.VideoItem
-// UX FIX: Removed PluctOfflineBadge import - component deprecated
 
 /**
  * Pluct-UI-Screen-01VideoDetail-02Component-02Header
  * Simplified header for Video Details screen showing only essential information
  * Follows naming convention: [Project]-[Module]-[Feature]-[SubFeature]-[Sequence][Responsibility]
- * Displays: Title, Author, Offline Badge (no technical details)
+ * Displays: Title, Author (no technical details)
  */
 @Composable
 fun PluctVideoDetailHeader(
@@ -46,8 +45,6 @@ fun PluctVideoDetailHeader(
             
             Spacer(modifier = Modifier.height(8.dp))
         }
-        
-        // UX FIX: Removed PluctOfflineBadge - all transcripts are saved offline by default
     }
 }
 
