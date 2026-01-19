@@ -73,9 +73,10 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
                                     Log.d("EffectsHandler", "MILESTONE: first_transcript completed for user")
                                     Log.d("EffectsHandler", "MILESTONE: Showing celebration and triggering balance refresh")
                                     
-                                    // Show celebration toast
-                                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                                        scope, snackbarHostState, "🎉 First transcript complete! You're a pro now!"
+                                    // UX IMPROVEMENT: Show Duolingo-style celebration toast
+                                    PluctUIComponent05Notification01SnackbarManager.showCelebrationAsync(
+                                        scope, snackbarHostState,
+                                        PluctUIComponent05Notification01SnackbarManager.CelebrationMilestone.FIRST_TRANSCRIPT
                                     )
                                     
                                     // Trigger balance refresh to surface potential milestone bonus

@@ -122,25 +122,30 @@ fun PluctProcessingIndicator(
                             }
                         )
                         if (estimatedTimeRemaining == null) {
+                            // UX IMPROVEMENT: Duolingo-style friendly, encouraging progress messages
                             Text(
                                 text = when {
-                                    progress < 20 -> "Initializing..."
-                                    progress < 50 -> "Processing video..."
-                                    progress < 80 -> "Transcribing audio..."
-                                    else -> "Finalizing..."
+                                    progress < 15 -> "Getting things ready..."
+                                    progress < 30 -> "Listening to your video..."
+                                    progress < 50 -> "You're making great progress!"
+                                    progress < 70 -> "Almost halfway there..."
+                                    progress < 85 -> "The AI is working its magic!"
+                                    progress < 95 -> "Just a few more seconds..."
+                                    else -> "Putting the finishing touches!"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     } else {
+                        // UX IMPROVEMENT: Friendly starting message
                         Text(
-                            text = "Starting transcription... This typically takes 30-90 seconds",
+                            text = "Hang tight! We're getting your transcript ready...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.semantics {
-                                contentDescription = "Starting transcription, typically takes 30-90 seconds"
+                                contentDescription = "Starting transcription"
                                 testTag = "progress_starting"
                             }
                         )
@@ -184,14 +189,14 @@ fun PluctProcessingIndicator(
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "⏱️ Taking longer than usual",
+                            text = "Still working on it!",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "This transcription is taking longer than expected. It may still complete successfully. You can check back later or the video will be processed in the background.",
+                            text = "This one's taking a bit longer - don't worry, we've got this! Feel free to come back later, we'll keep working in the background.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )

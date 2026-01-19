@@ -6,73 +6,66 @@ appId: app.pluct
 # Test Flow:
 # 1. Clear app data (first-time user simulation)
 # 2. Launch app
-# 3. Verify/dismiss welcome dialog
-# 4. Skip permission dialogs (if shown)
-# 5. Verify tutorial Step 1 appears (3 Taps explanation)
-# 6. Progress through Step 2 (Share button instructions)
-# 7. Progress through Step 3 (TikTok CTA)
-# 8. Skip tutorial
-# 9. Verify home screen shows
+# 3. Step 1: Verify "Get Transcripts in 3 Taps" → Tap Next
+# 4. Step 2: Verify "Find the Share Button" → Tap Got It
+# 5. Step 3: Verify "Ready to Try?" → Skip with "I'll Figure It Out"
+# 6. Verify home screen shows with credits
 
 - clearState
 - launchApp
 - waitForAnimationToEnd
 
-# Wait for welcome dialog and dismiss
+# Step 1: How It Works
 - extendedWaitUntil:
     visible:
-      text: "Welcome"
-    timeout: 8000
-    optional: true
-- tapOn:
-    text: "Get Started"
-    optional: true
-- waitForAnimationToEnd
-
-# Skip permission dialogs if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1500
-- tapOn:
-    text: "Skip"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1500
-
-# Verify Tutorial Step 1 appears
-- extendedWaitUntil:
-    visible:
-      text: "3 Taps"
-    timeout: 5000
+      text: "Get Transcripts in 3 Taps"
+    timeout: 10000
     optional: true
 
-# Progress through tutorial
+- assertVisible:
+    text: "free transcriptions"
+    optional: true
+
 - tapOn:
     text: "Next"
     optional: true
 - waitForAnimationToEnd:
     timeout: 1500
 
-# Step 2 - Share button instructions
+# Step 2: Visual Instructions
+- extendedWaitUntil:
+    visible:
+      text: "Find the Share Button"
+    timeout: 5000
+    optional: true
+
 - tapOn:
     text: "Got It"
     optional: true
 - waitForAnimationToEnd:
     timeout: 1500
 
-# Step 3 - Skip to home screen
+# Step 3: Open TikTok
+- extendedWaitUntil:
+    visible:
+      text: "Ready to Try?"
+    timeout: 5000
+    optional: true
+
+# Skip tutorial
 - tapOn:
-    text: "Skip for Now"
+    text: "I'll Figure It Out"
     optional: true
 - waitForAnimationToEnd:
     timeout: 2000
 
 # Verify home screen is visible (app functional after tutorial)
-- assertVisible:
-    text: ".*credits.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*credits.*"
+    timeout: 5000
     optional: true
+
 - assertVisible:
     text: "Pluct"
     optional: true

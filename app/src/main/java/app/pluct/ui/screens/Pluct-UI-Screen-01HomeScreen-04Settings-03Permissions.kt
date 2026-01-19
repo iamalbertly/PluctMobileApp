@@ -236,12 +236,16 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
         }
         
         // UX IMPROVEMENT #3: Battery Optimization Section
+        // UX FIX: Better layout with fixed button width to prevent text wrapping
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f) // Allow text to take available space
+            ) {
                 Icon(
                     imageVector = Icons.Default.BatterySaver,
                     contentDescription = "Battery Optimization",
@@ -254,17 +258,19 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
+                    // UX FIX: Clearer status text
                     Text(
-                        text = if (isBatteryOptimized) "Optimized" else "May be restricted",
+                        text = if (isBatteryOptimized) "Enabled" else "May be restricted",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isBatteryOptimized) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
+                        color = if (isBatteryOptimized)
+                            MaterialTheme.colorScheme.primary
+                        else
                             MaterialTheme.colorScheme.error
                     )
                 }
             }
             if (!isBatteryOptimized) {
+                Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = {
                         PluctCorePermission01Manager.openBatteryOptimizationSettings(context)
@@ -273,15 +279,14 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                             try {
                                 delay(1000) // Wait for settings to open
                                 // Refresh multiple times to catch when user returns
-                                repeat(3) {
+                                repeat(5) {
                                     delay(2000) // Check every 2 seconds
                                     try {
                                         PluctCorePermission01Manager.invalidateCache()
                                         isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
-                                        if (isBatteryOptimized) return@repeat // Stop if optimized
+                                        if (isBatteryOptimized) return@repeat // Stop if enabled
                                     } catch (e: Exception) {
                                         android.util.Log.w("PluctSettings", "Error checking battery optimization: ${e.message}")
-                                        // Continue trying
                                     }
                                 }
                             } catch (e: Exception) {
@@ -289,10 +294,12 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                             }
                         }
                     },
-                    modifier = Modifier.semantics {
-                        contentDescription = "Enable background processing"
-                        testTag = "settings_enable_battery_optimization_button"
-                    }
+                    modifier = Modifier
+                        .width(88.dp) // Fixed width to prevent text wrapping
+                        .semantics {
+                            contentDescription = "Enable background processing"
+                            testTag = "settings_enable_battery_optimization_button"
+                        }
                 ) {
                     Text("Enable")
                 }

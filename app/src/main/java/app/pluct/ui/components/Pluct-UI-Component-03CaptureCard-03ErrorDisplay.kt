@@ -58,6 +58,7 @@ data class ErrorRecoveryAction(
 /**
  * Get recovery actions based on error type
  */
+@Suppress("UNUSED_PARAMETER") // error parameter reserved for future enhanced recovery logic
 fun getRecoveryActions(
     error: Throwable?,
     message: String,
@@ -155,7 +156,10 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
     var isExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
+    // Tech debt: isRetryable computed but used for future auto-retry logic
+    @Suppress("UNUSED_VARIABLE")
     val retryHandler = remember { PluctCoreRetryUnifiedHandler() }
+    @Suppress("UNUSED_VARIABLE")
     val isRetryable = remember(error, message) {
         if (error != null) {
             retryHandler.isRetryable(error)
@@ -207,14 +211,15 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Column(modifier = Modifier.weight(1f)) {
+                    // UX IMPROVEMENT: Friendly error category titles
                     Text(
                         text = when (errorCategory) {
-                            "Authentication" -> "Authentication Error"
-                            "Network" -> "Connection Problem"
-                            "Timeout" -> "Request Timed Out"
-                            "Validation" -> "Invalid Input"
-                            "Payment" -> "Insufficient Credits"
-                            else -> "Error Occurred"
+                            "Authentication" -> "Let's get you signed in again"
+                            "Network" -> "Connection needed"
+                            "Timeout" -> "Taking longer than usual"
+                            "Validation" -> "Something doesn't look right"
+                            "Payment" -> "Credits needed"
+                            else -> "Oops! Something went wrong"
                         },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
@@ -257,22 +262,23 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val serviceName = extractServiceName(message)
+                // UX IMPROVEMENT: Duolingo-style friendly, reassuring error messages
                 val shortMessage = when {
-                    serviceName != null -> "Error from $serviceName: ${extractShortError(message)}"
+                    serviceName != null -> "Oops! We hit a small bump: ${extractShortError(message)}"
                     message.contains("authentication", true) || message.contains("401") ->
-                        "We couldn't authenticate while checking status. We'll retry once — or tap Retry."
+                        "Quick hiccup with authentication - no worries, we'll sort this out! Tap Retry to try again."
                     message.contains("network", ignoreCase = true) || message.contains("connection", ignoreCase = true) ->
-                        "Unable to connect. Check your internet connection and try again. If the problem persists, the video will be saved and processed when your connection is restored."
+                        "Looks like we lost connection. Don't worry - we've saved your video and will process it as soon as you're back online!"
                     message.contains("timeout", ignoreCase = true) ->
-                        "The request took too long. Please check your connection and try again."
+                        "That took a bit longer than expected. Want to give it another go?"
                     message.contains("insufficient", ignoreCase = true) || message.contains("credits", ignoreCase = true) ->
-                        "You don't have enough credits. You can add credits in Settings, or save this video to process later when you have credits."
+                        "You're out of credits! Head to Settings to top up, or we can save this video for later."
                     else -> message.take(140) + if (message.length > 140) "..." else ""
                 }
 
                 // UX IMPROVEMENT #5: Add contextual error information
                 val contextualMessage = if (error != null && error is PluctCoreAPIDetailedError) {
-                    val operation = error.technicalDetails.operation ?: "operation"
+                    val operation = error.technicalDetails.operation.ifEmpty { "operation" }
                     val attemptedAction = when {
                         operation.contains("vend", ignoreCase = true) -> "claiming credits"
                         operation.contains("submit", ignoreCase = true) -> "submitting transcription"
@@ -301,7 +307,7 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
 
                 // UX IMPROVEMENT #1: Get recovery actions with enhanced guidance
                 val recoveryActions = remember(error, message, creditBalance) {
-                    val actions = getRecoveryActions(
+                    getRecoveryActions(
                         error = error,
                         message = message,
                         creditBalance = creditBalance,
@@ -309,14 +315,7 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                         onRetry = onRetry,
                         onCheckConnection = onCheckConnection
                     )
-                    
-                    // Add recovery guidance from new helper
-                    val guidance = app.pluct.core.error.PluctCoreError07RecoveryGuidance.getRecoverySteps(
-                        message, 
-                        if (error is app.pluct.services.PluctCoreAPIDetailedError) error.technicalDetails.errorCode else null
-                    )
-                    
-                    actions // Return actions (guidance can be shown in expanded error details)
+                    // Note: Recovery guidance from PluctCoreError07RecoveryGuidance can be shown in expanded details
                 }
                 
                 // Display recovery action buttons

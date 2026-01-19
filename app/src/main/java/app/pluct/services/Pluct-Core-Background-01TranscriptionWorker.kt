@@ -256,23 +256,44 @@ class PluctCoreBackground01TranscriptionWorker(
         var progress = 0
         
         // Poll for completion with progress updates
+        // UX IMPROVEMENT: Enhanced polling with pause/resume for network issues
+        var consecutiveNetworkFailures = 0
+        val maxNetworkRetries = 5 // Allow 5 consecutive network failures before queueing
+
         repeat(60) { _attempt -> // Max 60 attempts (5 minutes with 5s intervals)
             delay(5000) // 5 second intervals
-            
+
             // UX IMPROVEMENT #3: Check for network loss and queue proactively
             if (networkMonitor.checkAndQueueOnNetworkLoss()) {
                 Log.d(TAG, "Video queued due to network loss, stopping polling")
                 showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
                 return Result.failure(workDataOf("error" to "Network lost, video queued"))
             }
-            
+
             // Check if network is available before making API call
+            // PAUSE/RESUME: Wait for network instead of immediately failing
             if (!networkMonitor.isNetworkCurrentlyAvailable()) {
-                Log.w(TAG, "Network unavailable, queueing video")
-                if (networkMonitor.checkAndQueueOnNetworkLoss()) {
-                    showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
-                    return Result.failure(workDataOf("error" to "Network lost, video queued"))
+                consecutiveNetworkFailures++
+                Log.w(TAG, "Network unavailable (attempt $consecutiveNetworkFailures/$maxNetworkRetries), waiting for reconnection...")
+
+                if (consecutiveNetworkFailures >= maxNetworkRetries) {
+                    Log.w(TAG, "Max network retries exceeded, queueing video")
+                    if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                        showProgressNotification(url, progress, "Paused - Waiting for connection...", notificationId)
+                        showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                        return Result.failure(workDataOf("error" to "Network lost, video queued"))
+                    }
                 }
+
+                // Show paused state in notification
+                showProgressNotification(url, progress, "Paused - Reconnecting...", notificationId)
+                return@repeat // Skip this iteration, wait for next
+            }
+
+            // Network restored - reset failure counter
+            if (consecutiveNetworkFailures > 0) {
+                Log.d(TAG, "Network restored after $consecutiveNetworkFailures failures, resuming polling")
+                consecutiveNetworkFailures = 0
             }
             
             val statusResult = apiService.checkTranscriptionStatus(jobId, serviceToken)
@@ -364,16 +385,27 @@ class PluctCoreBackground01TranscriptionWorker(
                 if (error is app.pluct.services.PluctCoreAPIDetailedError) {
                     Log.w(TAG, "API Error details - Status: ${error.technicalDetails.responseStatusCode}, Code: ${error.technicalDetails.errorCode}, Type: ${error.technicalDetails.errorType}")
                 }
-                
+
+                // UX IMPROVEMENT: Distinguish between network errors and upstream service errors
+                val isNetworkRelated = error?.message?.contains("network", ignoreCase = true) == true ||
+                    error?.message?.contains("connection", ignoreCase = true) == true ||
+                    error?.message?.contains("timeout", ignoreCase = true) == true
+
+                if (isNetworkRelated) {
+                    consecutiveNetworkFailures++
+                    Log.w(TAG, "Network-related API error (attempt $consecutiveNetworkFailures/$maxNetworkRetries)")
+                    showProgressNotification(url, progress, "Connection issue - Retrying...", notificationId)
+                }
+
                 // If it's a 401, try refreshing the token
-                if (error?.message?.contains("401", ignoreCase = true) == true || 
+                if (error?.message?.contains("401", ignoreCase = true) == true ||
                     error?.message?.contains("authentication", ignoreCase = true) == true) {
                     Log.w(TAG, "Authentication error detected, attempting to refresh token")
                     val refreshResult = apiService.vendToken("background_refresh_${System.currentTimeMillis()}")
                     if (refreshResult.isSuccess) {
                         val refreshResponse = refreshResult.getOrNull()
-                        val newToken = refreshResponse?.token 
-                            ?: refreshResponse?.serviceToken 
+                        val newToken = refreshResponse?.token
+                            ?: refreshResponse?.serviceToken
                             ?: refreshResponse?.pollingToken
                         if (newToken != null) {
                             // Continue with new token on next iteration
@@ -383,10 +415,10 @@ class PluctCoreBackground01TranscriptionWorker(
                 }
             }
         }
-        
-        // Timeout
-        showErrorNotification(url, "Transcription timed out", notificationId)
-        return Result.failure(workDataOf("error" to "Timeout"))
+
+        // Timeout - friendlier message
+        showErrorNotification(url, "Still working on it - check back soon!", notificationId)
+        return Result.failure(workDataOf("error" to "Timeout - processing may still complete"))
     }
     
     private fun showProgressNotification(url: String, progress: Int, message: String, notificationId: Int) {

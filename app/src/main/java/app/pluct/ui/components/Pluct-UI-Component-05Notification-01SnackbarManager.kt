@@ -126,5 +126,58 @@ object PluctUIComponent05Notification01SnackbarManager {
             showInfo(snackbarHostState, message, duration)
         }
     }
+
+    /**
+     * UX IMPROVEMENT: Show celebration notification for milestone achievements
+     * Duolingo-style celebratory messages
+     */
+    suspend fun showCelebration(
+        snackbarHostState: SnackbarHostState,
+        milestone: CelebrationMilestone,
+        duration: SnackbarDuration = SnackbarDuration.Long
+    ): SnackbarResult {
+        val message = when (milestone) {
+            CelebrationMilestone.FIRST_TRANSCRIPT -> "You did it! Your first transcript is ready!"
+            CelebrationMilestone.FIVE_TRANSCRIPTS -> "You're on a roll! 5 transcripts completed!"
+            CelebrationMilestone.TEN_TRANSCRIPTS -> "Unstoppable! 10 transcripts and counting!"
+            CelebrationMilestone.QUICK_TRANSCRIPT -> "Speed demon! That was fast!"
+            CelebrationMilestone.CREDITS_SAVED -> "Smart move! You saved credits!"
+        }
+        return try {
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = duration,
+                withDismissAction = true
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show celebration snackbar: ${e.message}", e)
+            SnackbarResult.Dismissed
+        }
+    }
+
+    /**
+     * Show celebration notification from coroutine scope (non-suspending wrapper)
+     */
+    fun showCelebrationAsync(
+        scope: CoroutineScope,
+        snackbarHostState: SnackbarHostState,
+        milestone: CelebrationMilestone,
+        duration: SnackbarDuration = SnackbarDuration.Long
+    ) {
+        scope.launch {
+            showCelebration(snackbarHostState, milestone, duration)
+        }
+    }
+
+    /**
+     * Celebration milestone types for gamification
+     */
+    enum class CelebrationMilestone {
+        FIRST_TRANSCRIPT,
+        FIVE_TRANSCRIPTS,
+        TEN_TRANSCRIPTS,
+        QUICK_TRANSCRIPT,
+        CREDITS_SAVED
+    }
 }
 

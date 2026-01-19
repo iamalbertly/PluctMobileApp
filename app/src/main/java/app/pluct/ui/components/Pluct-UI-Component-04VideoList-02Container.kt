@@ -82,45 +82,44 @@ fun PluctVideoListContainer(
 
 /**
  * Empty state when no videos are available
+ * UX IMPROVEMENT: Duolingo-style encouraging empty state with friendly tone
  */
 @Composable
-/**
- * UX IMPROVEMENT #1: Enhanced empty video list with actionable guidance
- */
 private fun EmptyVideoList() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(32.dp)
             .semantics {
-                contentDescription = "Empty video list - no videos processed yet"
+                contentDescription = "Empty video list - ready to start"
                 testTag = "empty_video_list"
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "No videos yet",
+            text = "Ready to get started!",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.semantics { 
-                contentDescription = "No videos available"
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics {
+                contentDescription = "Ready to get started"
             }
         )
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         Text(
-            text = "Process your first TikTok video to see it here",
+            text = "Your first transcript awaits...",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
+
         Text(
-            text = "Paste a link in the input field above or share a video from TikTok",
+            text = "Share a TikTok video or paste a link above to see the magic happen!",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.semantics { 
-                contentDescription = "Instructions to add videos"
+            modifier = Modifier.semantics {
+                contentDescription = "Share a TikTok video to get started"
             }
         )
     }

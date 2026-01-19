@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
  * Compact, modern choice engine with horizontal layout.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER") // onInsightsClick reserved for future use
 fun PluctChoiceEngine(
     urlText: String,
     freeUsesRemaining: Int,
@@ -39,13 +40,21 @@ fun PluctChoiceEngine(
     submittingLabel: String = "Starting...",
     submittingHint: String = "Please wait"
 ) {
-    val isExtractEnabled = urlText.isNotBlank() && (freeUsesRemaining > 0 || creditBalance > 0)
-    val buttonText = if (isSubmitting) submittingLabel else "Extract Script"
+
+    // UX IMPROVEMENT: Clearer button text based on state
+    val buttonText = when {
+        isSubmitting -> submittingLabel
+        urlText.isBlank() -> "Paste a TikTok link to start"
+        else -> "Extract Script"
+    }
+
+    // UX IMPROVEMENT: Friendly, informative subtext
     val subText = when {
         isSubmitting -> submittingHint
-        freeUsesRemaining > 0 -> "Free (uses left: $freeUsesRemaining)"
-        creditBalance > 0 -> "1 Credit (balance: $creditBalance)"
-        else -> "Get Credits"
+        urlText.isBlank() -> "Share from TikTok or paste a link above"
+        freeUsesRemaining > 0 -> "Free - $freeUsesRemaining uses left"
+        creditBalance > 0 -> "Uses 1 credit ($creditBalance available)"
+        else -> "Tap to get more credits"
     }
 
     Column(

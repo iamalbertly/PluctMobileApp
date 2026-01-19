@@ -2,12 +2,13 @@ appId: app.pluct
 ---
 # Pluct-Maestro-Flow-35Onboarding-03Skip-01Validation.yaml
 # Validates that skipping onboarding tutorial works correctly
+# and that tutorial isn't shown again after being skipped
 #
 # Test Flow:
 # 1. Clear app data
 # 2. Launch app
-# 3. Complete welcome and permissions
-# 4. Skip tutorial at Step 3
+# 3. Complete tutorial steps 1 and 2
+# 4. Skip at Step 3 with "I'll Figure It Out"
 # 5. Verify home screen shown
 # 6. Restart app - verify tutorial not shown again
 
@@ -15,59 +16,58 @@ appId: app.pluct
 - launchApp
 - waitForAnimationToEnd
 
-# Dismiss welcome dialog
-- tapOn:
-    text: "Get Started"
+# Step 1: How It Works
+- extendedWaitUntil:
+    visible:
+      text: "Get Transcripts in 3 Taps"
+    timeout: 10000
     optional: true
-- waitForAnimationToEnd
 
-# Skip permission dialogs
-- tapOn:
-    text: "Skip"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1500
-- tapOn:
-    text: "Skip"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1500
-
-# Progress through tutorial
 - tapOn:
     text: "Next"
     optional: true
 - waitForAnimationToEnd:
     timeout: 1500
+
+# Step 2: Visual Instructions
 - tapOn:
     text: "Got It"
     optional: true
 - waitForAnimationToEnd:
     timeout: 1500
 
-# Skip at Step 3
+# Step 3: Skip tutorial
+- extendedWaitUntil:
+    visible:
+      text: "Ready to Try?"
+    timeout: 5000
+    optional: true
+
 - tapOn:
-    text: "Skip for Now"
+    text: "I'll Figure It Out"
     optional: true
 - waitForAnimationToEnd:
     timeout: 2000
 
 # Verify home screen is visible
-- assertVisible:
-    text: ".*credits.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*credits.*"
+    timeout: 5000
     optional: true
 
 # Stop and restart app to verify persistence
 - stopApp
 - launchApp
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 3000
 
 # Verify tutorial NOT shown again (home screen visible immediately)
 - assertNotVisible:
-    text: "3 Taps"
+    text: "Get Transcripts in 3 Taps"
     optional: true
 - assertNotVisible:
-    text: "Open TikTok"
+    text: "Ready to Try?"
     optional: true
 - assertVisible:
     text: "Pluct"
