@@ -332,6 +332,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🎉 **Recent Updates**
 
+### **v2.1.0 - UX/International Improvements**
+- ✅ **Dark/Light Mode**: User-selectable theme (System/Light/Dark) in Settings
+- ✅ **International-Friendly UI**: Minimal text, visual indicators, icons over emojis
+- ✅ **Improved Contrast**: Better readability for disabled states
+- ✅ **Reduced Clutter**: Consolidated duplicate messaging
+- ✅ **Code Consolidation**: TikTok detection utility, deprecated file cleanup
+
 ### **v2.0.0 - Complete API Integration**
 - ✅ **Real API Integration**: Business Engine and TTTranscribe connectivity
 - ✅ **JWT Authentication**: Secure token-based authentication
@@ -341,11 +348,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ **Performance Optimization**: Build and runtime optimizations
 
 ### **Key Improvements**
-- **API Connectivity**: Real Business Engine integration (10 credits loaded)
+- **Theme Toggle**: Settings > Appearance > Theme (System/Light/Dark)
+- **Cleaner Empty State**: "Your transcripts appear here" + Try Demo button
+- **Better Button Contrast**: 0.7 alpha for disabled text (was 0.38)
+- **API Connectivity**: Real Business Engine integration
 - **Transcription Pipeline**: Complete TTTranscribe workflow
-- **UI Modernization**: Recent Transcripts with vertical scrolling
-- **Test Automation**: Node.js-based test orchestration
-- **Error Handling**: Comprehensive retry logic and fallback mechanisms
+- **Test Automation**: Maestro YAML-based test orchestration
 
 ---
 

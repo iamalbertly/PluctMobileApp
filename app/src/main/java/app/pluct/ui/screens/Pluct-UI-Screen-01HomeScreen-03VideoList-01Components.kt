@@ -372,8 +372,8 @@ private fun QuickActionsMenu(
 }
 
 /**
- * UX IMPROVEMENT #1: Clean, international-friendly empty state
- * Uses icons over text, minimal words for global users
+ * UX IMPROVEMENT: Minimal empty state - avoids duplicate text with capture card
+ * Shows only what capture card doesn't: demo button + visual hint
  */
 @Composable
 fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
@@ -384,51 +384,45 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
                 contentDescription = "Empty state - no transcripts yet"
                 testTag = "empty_state_message"
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Visual icon instead of emoji - universal language
+            // Simple visual indicator
             Icon(
                 imageVector = Icons.Default.ContentCopy,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(40.dp)
-                    .padding(bottom = 8.dp),
-                tint = MaterialTheme.colorScheme.primary
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
             )
 
-            Text(
-                text = "No transcripts yet",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Shorter, simpler instruction
+            // Single line - no duplicate with capture card
             Text(
-                text = "Paste a TikTok link or share from TikTok",
+                text = "Your transcripts appear here",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 12.dp)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = onDemoLinkClick,
                 modifier = Modifier.semantics {
-                    contentDescription = "Try with demo link"
+                    contentDescription = "Try demo"
                     testTag = "empty_state_demo_button"
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text("Try Demo")

@@ -12,6 +12,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.BatterySaver
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Settings
+import app.pluct.data.preferences.PluctUserPreferences
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,10 +54,13 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
     permissionLauncherHelper: PluctCorePermission02Launcher01Helper?,
     onOverlayEnabledChange: (Boolean) -> Unit,
     onNotificationPermissionUpdate: (Boolean) -> Unit,
-    onOverlayPermissionUpdate: (Boolean) -> Unit
+    onOverlayPermissionUpdate: (Boolean) -> Unit,
+    onThemeModeChange: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val prefs = remember { PluctUserPreferences(context) }
+    var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     
     // UX FIX: Track battery optimization status with proper refresh
     var isBatteryOptimized by remember { 
@@ -303,6 +310,78 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                 ) {
                     Text("Enable")
                 }
+            }
+        }
+
+        // Appearance Section - Theme Toggle
+        androidx.compose.material3.Divider()
+
+        Text(
+            text = "Appearance",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        // Theme Mode Selector
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = when (themeMode) {
+                        "dark" -> Icons.Default.DarkMode
+                        "light" -> Icons.Default.LightMode
+                        else -> Icons.Default.Settings
+                    },
+                    contentDescription = "Theme",
+                    modifier = Modifier.width(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Theme",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = when (themeMode) {
+                            "dark" -> "Dark"
+                            "light" -> "Light"
+                            else -> "System"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Cycle through theme modes: system -> light -> dark -> system
+            Button(
+                onClick = {
+                    val newMode = when (themeMode) {
+                        "system" -> "light"
+                        "light" -> "dark"
+                        "dark" -> "system"
+                        else -> "system"
+                    }
+                    themeMode = newMode
+                    prefs.setThemeMode(newMode)
+                    onThemeModeChange?.invoke(newMode)
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = "Change theme"
+                    testTag = "settings_theme_button"
+                }
+            ) {
+                Text(
+                    text = when (themeMode) {
+                        "system" -> "Light"
+                        "light" -> "Dark"
+                        "dark" -> "Auto"
+                        else -> "Light"
+                    }
+                )
             }
         }
     }

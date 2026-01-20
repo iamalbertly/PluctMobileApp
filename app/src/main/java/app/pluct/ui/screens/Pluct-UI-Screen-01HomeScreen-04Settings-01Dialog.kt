@@ -44,7 +44,8 @@ fun PluctUIScreen01HomeScreen04Settings01Dialog(
     onDismiss: () -> Unit,
     onRequestCredits: (String) -> Unit,
     onViewDebugLogs: () -> Unit,
-    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null
+    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
+    onThemeModeChange: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -109,7 +110,7 @@ fun PluctUIScreen01HomeScreen04Settings01Dialog(
 
                 androidx.compose.material3.Divider()
 
-                // Permissions Section
+                // Permissions & Appearance Section
                 PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                     hasNotificationPermission = hasNotificationPermission,
                     hasOverlayPermission = hasOverlayPermission,
@@ -120,7 +121,8 @@ fun PluctUIScreen01HomeScreen04Settings01Dialog(
                         prefs.setOverlayNotificationsEnabled(enabled)
                     },
                     onNotificationPermissionUpdate = { hasNotificationPermission = it },
-                    onOverlayPermissionUpdate = { hasOverlayPermission = it }
+                    onOverlayPermissionUpdate = { hasOverlayPermission = it },
+                    onThemeModeChange = onThemeModeChange
                 )
 
                 androidx.compose.material3.Divider()

@@ -85,8 +85,9 @@ fun PluctChoiceEngine(
                 },
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (freeUsesRemaining == 0 && creditBalance == 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                // UX FIX: Better contrast for disabled state - higher alpha for readability
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             ),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
@@ -112,10 +113,16 @@ fun PluctChoiceEngine(
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
                 )
+                // UX FIX: Subtext color adapts to button state for proper contrast
+                val isEnabled = urlText.isNotBlank() && !isSubmitting
                 Text(
                     text = subText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                    color = if (isEnabled) {
+                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    },
                     maxLines = 1
                 )
             }

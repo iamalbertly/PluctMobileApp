@@ -85,7 +85,8 @@ fun PluctHomeScreen(
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
     isLoadingCreditBalance: Boolean = false,
-    onShowTutorial: (() -> Unit)? = null
+    onShowTutorial: (() -> Unit)? = null,
+    onThemeModeChange: ((String) -> Unit)? = null
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
@@ -159,7 +160,8 @@ fun PluctHomeScreen(
             onViewDebugLogs = {
                 showDebugLogs = true
             },
-            permissionLauncherHelper = null // Settings dialog can use fallback method
+            permissionLauncherHelper = null, // Settings dialog can use fallback method
+            onThemeModeChange = onThemeModeChange
         )
     }
     

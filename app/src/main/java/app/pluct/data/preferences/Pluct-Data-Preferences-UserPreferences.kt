@@ -33,6 +33,7 @@ class PluctUserPreferences(context: Context) {
         private const val KEY_FIRST_TRANSCRIPT_COMPLETED = "first_transcript_completed"
         private const val KEY_INLINE_HINT_ENABLED = "inline_hint_enabled"
         private const val KEY_INLINE_HINT_DISMISSED_AT = "inline_hint_dismissed_at"
+        private const val KEY_THEME_MODE = "theme_mode" // "system", "light", "dark"
         
         /**
          * Check if this is the first time the user has launched the app
@@ -224,6 +225,20 @@ class PluctUserPreferences(context: Context) {
      */
     fun markFirstTranscriptCompleted() {
         prefs.edit().putBoolean(KEY_FIRST_TRANSCRIPT_COMPLETED, true).apply()
+    }
+
+    /**
+     * Get theme mode: "system", "light", or "dark"
+     */
+    fun getThemeMode(): String {
+        return prefs.getString(KEY_THEME_MODE, "system") ?: "system"
+    }
+
+    /**
+     * Set theme mode
+     */
+    fun setThemeMode(mode: String) {
+        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
     }
 }
 

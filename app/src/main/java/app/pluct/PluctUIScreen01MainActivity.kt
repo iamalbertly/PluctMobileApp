@@ -70,6 +70,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     // Drives recomposition when new intents provide a prefilled URL.
     private val prefilledUrlState = mutableStateOf<String?>(null)
     private val isLoadingCreditBalanceState = mutableStateOf(true) // Start as loading
+    private val themeModeState = mutableStateOf("system") // "system", "light", "dark"
     
     // Permission launcher helper
     private lateinit var permissionLauncherHelper: PluctCorePermission02Launcher01Helper
@@ -80,9 +81,13 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
         // Initialize permission launcher helper
         permissionLauncherHelper = PluctCorePermission02Launcher01Helper(this)
         permissionLauncherHelper.initialize()
-        
+
         // Initialize debug log manager (cleanup old logs on startup)
         debugLogManager.initialize()
+
+        // Load saved theme mode
+        val prefs = PluctUserPreferences(this)
+        themeModeState.value = prefs.getThemeMode()
         
         // Handle notification navigation
         if (intent.getStringExtra("action") == "view_transcript") {
@@ -113,7 +118,13 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
         }
         
         setContent {
-            PluctTheme {
+            // Theme controlled by user preference
+            val isDark = when (themeModeState.value) {
+                "dark" -> true
+                "light" -> false
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            PluctTheme(darkTheme = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -129,7 +140,8 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                         validator = validator,
                         isLoadingCreditBalance = isLoadingCreditBalanceState.value,
                         onLoadingCreditBalanceChange = { isLoadingCreditBalanceState.value = it },
-                        permissionLauncherHelper = permissionLauncherHelper
+                        permissionLauncherHelper = permissionLauncherHelper,
+                        onThemeModeChange = { mode -> themeModeState.value = mode }
                     )
                 }
             }
@@ -189,7 +201,8 @@ fun PluctMainContent(
     validator: app.pluct.services.PluctCoreValidationInputSanitizer,
     isLoadingCreditBalance: Boolean = false,
     onLoadingCreditBalanceChange: (Boolean) -> Unit = {},
-    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null
+    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
+    onThemeModeChange: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -531,7 +544,8 @@ fun PluctMainContent(
                 // Re-open tutorial from inline hint
                 showOnboardingTutorial = true
                 Log.d("MainActivity", "Tutorial reopened from inline hint")
-            }
+            },
+            onThemeModeChange = onThemeModeChange
         )
     }
     
