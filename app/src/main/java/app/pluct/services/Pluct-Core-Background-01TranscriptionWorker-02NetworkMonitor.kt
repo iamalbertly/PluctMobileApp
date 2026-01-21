@@ -10,7 +10,7 @@ import app.pluct.core.network.PluctNetworkConnectivityChecker
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.repository.PluctVideoRepository
-import app.pluct.notification.PluctNotificationHelper
+// TECH DEBT #3: Removed unused import PluctNotificationHelper
 import app.pluct.services.PluctQueueManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -127,7 +127,9 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
     /**
      * Handle network restored - retry queued videos
      * Must be called from coroutine scope
+     * TECH DEBT #1: Reserved for future use when queue processor is implemented
      */
+    @Suppress("unused") // TECH DEBT #1: Reserved for future queue processor integration
     private suspend fun handleNetworkRestored() {
         Log.d(TAG, "Network restored, checking for queued videos")
         

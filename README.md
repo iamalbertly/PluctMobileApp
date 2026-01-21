@@ -487,6 +487,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
+### v2.5.0 - Battery Optimization + 5xx Retry + First Sentence Preview
+5 UX/Reliability Fixes:
+1. **Shadowed Variable Fix (pollExistingJob)**: Renamed to `videoForCompletion`, `videoForFailure` in poll loop
+2. **Battery Constraint**: Background WorkManager jobs deferred when battery is low (`setRequiresBatteryNotLow`)
+3. **First Sentence Preview**: Notification collapsed text shows first sentence instead of truncated chars
+4. **5xx Exponential Backoff**: Server errors trigger backoff retry (1s → 2s → 4s → ... 30s max)
+5. **Migration Parameter Naming**: Fixed Lint warnings by renaming `database` to `db`
+
+3 Tech Debt Cleanups:
+1. **@Suppress handleNetworkRestored**: Reserved for future queue processor integration
+2. **Safe Unwrap in Worker**: Replaced `!!` assertion with safe `?: run { return@repeat }`
+3. **Removed Unused Import**: PluctNotificationHelper in NetworkMonitor
+
 ### v2.4.0 - Database Migration + Network Constraints + Foreground Detection
 5 UX/Reliability Fixes:
 1. **Database Migration v4→v5**: Added `transcriptCachedAt` column with proper Room migration

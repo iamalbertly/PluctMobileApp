@@ -112,16 +112,17 @@ class PluctStatusResumer(
                     PluctCoreBackground01TranscriptionWorker.KEY_NOTIFICATION_ID to notificationId
                 )
             )
-            // UX FIX #3: Require network connectivity to reduce battery drain
+            // UX FIX #3: Require network + non-low battery to reduce resource drain
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true) // UX FIX #2: Defer when battery is low
                     .build()
             )
             .build()
 
         WorkManager.getInstance(context).enqueue(workRequest)
-        Log.d(TAG, "Scheduled background worker to resume transcription with jobId: ${video.jobId}")
+        Log.d(TAG, "Scheduled background worker to resume transcription with jobId: ${video.jobId} (requires network + battery)")
     }
 
     private fun scheduleNewTranscription(video: app.pluct.data.entity.VideoItem) {
@@ -134,16 +135,17 @@ class PluctStatusResumer(
                     PluctCoreBackground01TranscriptionWorker.KEY_NOTIFICATION_ID to notificationId
                 )
             )
-            // UX FIX #3: Require network connectivity to reduce battery drain
+            // UX FIX #3: Require network + non-low battery to reduce resource drain
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true) // UX FIX #2: Defer when battery is low
                     .build()
             )
             .build()
 
         WorkManager.getInstance(context).enqueue(workRequest)
-        Log.d(TAG, "Scheduled background worker for new transcription: ${video.url}")
+        Log.d(TAG, "Scheduled background worker for new transcription: ${video.url} (requires network + battery)")
     }
 }
 

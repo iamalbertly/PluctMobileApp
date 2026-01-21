@@ -299,9 +299,13 @@ class PluctCoreBackground01TranscriptionWorker(
             }
             
             val statusResult = apiService.checkTranscriptionStatus(jobId, serviceToken)
-            
+
             if (statusResult.isSuccess) {
-                val status = statusResult.getOrNull()!!
+                // TECH DEBT #2: Safe unwrap with continue instead of !! assertion
+                val status = statusResult.getOrNull() ?: run {
+                    Log.w(TAG, "Status result was null despite success flag, retrying...")
+                    return@repeat
+                }
                 progress = status.progress ?: 0
                 
                 // UX FIX #2: Update progress notification with percentage in message
@@ -334,10 +338,11 @@ class PluctCoreBackground01TranscriptionWorker(
                     val transcriptText = extraction.transcript
                     if (!transcriptText.isNullOrBlank()) {
                         // Update video entry with completed status
-                        val existingVideo = videoRepository.getVideoByUrl(url)
-                        if (existingVideo != null) {
+                        // TECH DEBT #1: Renamed to avoid shadowing outer existingVideo
+                        val videoForCompletion = videoRepository.getVideoByUrl(url)
+                        if (videoForCompletion != null) {
                             // UX FIX #5: Set cache timestamp for invalidation tracking
-                            val completedVideo = existingVideo.copy(
+                            val completedVideo = videoForCompletion.copy(
                                 status = app.pluct.data.entity.ProcessingStatus.COMPLETED,
                                 progress = 100,
                                 transcript = transcriptText,
@@ -370,11 +375,12 @@ class PluctCoreBackground01TranscriptionWorker(
                         url = url,
                         success = false
                     )
-                    
+
                     // Update video entry with failed status
-                    val existingVideo = videoRepository.getVideoByUrl(url)
-                    if (existingVideo != null) {
-                        val failedVideo = existingVideo.copy(
+                    // TECH DEBT #1: Renamed to avoid shadowing outer existingVideo
+                    val videoForFailure = videoRepository.getVideoByUrl(url)
+                    if (videoForFailure != null) {
+                        val failedVideo = videoForFailure.copy(
                             status = app.pluct.data.entity.ProcessingStatus.FAILED,
                             failureReason = "Transcription failed"
                         )
@@ -397,7 +403,22 @@ class PluctCoreBackground01TranscriptionWorker(
                     error?.message?.contains("connection", ignoreCase = true) == true ||
                     error?.message?.contains("timeout", ignoreCase = true) == true
 
-                if (isNetworkRelated) {
+                // UX FIX #4: Detect 5xx server errors for exponential backoff retry
+                val is5xxServerError = (error is app.pluct.services.PluctCoreAPIDetailedError &&
+                    error.technicalDetails.responseStatusCode >= 500) ||
+                    error?.message?.contains("500") == true ||
+                    error?.message?.contains("502") == true ||
+                    error?.message?.contains("503") == true ||
+                    error?.message?.contains("504") == true
+
+                if (is5xxServerError) {
+                    // Calculate exponential backoff delay using centralized decider
+                    val backoffDelay = app.pluct.core.checks.PluctCoreChecks01RetryabilityDecider
+                        .calculateRetryDelayMs(_attempt + 1)
+                    Log.w(TAG, "5xx server error detected, applying backoff delay: ${backoffDelay}ms")
+                    showProgressNotification(url, progress, "Server busy - Retrying in ${backoffDelay/1000}s...", notificationId)
+                    kotlinx.coroutines.delay(backoffDelay)
+                } else if (isNetworkRelated) {
                     consecutiveNetworkFailures++
                     Log.w(TAG, "Network-related API error (attempt $consecutiveNetworkFailures/$maxNetworkRetries)")
                     showProgressNotification(url, progress, "Connection issue - Retrying...", notificationId)

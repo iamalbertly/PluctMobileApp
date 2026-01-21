@@ -317,9 +317,11 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        // UX FIX #3: Enhanced preview with word count for context
+        // UX FIX #3: Enhanced preview with word count and first sentence for context
         val wordCount = transcript.split(Regex("\\s+")).filter { it.isNotBlank() }.size
-        val preview = transcript.take(100) + if (transcript.length > 100) "..." else ""
+        // UX FIX #3 (v2.5): Extract first sentence for more meaningful collapsed preview
+        val firstSentence = transcript.split(Regex("[.!?]")).firstOrNull()?.trim() ?: transcript.take(100)
+        val preview = if (firstSentence.length > 120) firstSentence.take(120) + "..." else firstSentence
         val titleWithContext = "Transcription Complete ($wordCount words)"
 
         // UX FIX #1: Build notification with HIGH priority for sound+vibration

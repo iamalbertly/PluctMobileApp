@@ -9,13 +9,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 object PluctDatabaseMigration {
     val MIGRATION_2_3 = object : Migration(2, 3) {
-        override fun migrate(database: SupportSQLiteDatabase) {
+        // UX FIX #5: Renamed parameter to match Migration interface signature
+        override fun migrate(db: SupportSQLiteDatabase) {
             // No schema change required; kept for compatibility.
         }
     }
 
     val MIGRATION_3_4 = object : Migration(3, 4) {
-        override fun migrate(database: SupportSQLiteDatabase) {
+        // UX FIX #5: Renamed parameter to match Migration interface signature
+        override fun migrate(db: SupportSQLiteDatabase) {
             // No schema change required; kept for compatibility.
         }
     }
@@ -25,9 +27,10 @@ object PluctDatabaseMigration {
      * Adds nullable Long column for cache invalidation tracking
      */
     val MIGRATION_4_5 = object : Migration(4, 5) {
-        override fun migrate(database: SupportSQLiteDatabase) {
+        // UX FIX #5: Renamed parameter to match Migration interface signature
+        override fun migrate(db: SupportSQLiteDatabase) {
             // Add transcriptCachedAt column to videos table
-            database.execSQL("ALTER TABLE videos ADD COLUMN transcriptCachedAt INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE videos ADD COLUMN transcriptCachedAt INTEGER DEFAULT NULL")
         }
     }
 }
