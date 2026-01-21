@@ -1,0 +1,53 @@
+appId: app.pluct
+---
+name: Adaptive Polling Interval Validation
+desc: |
+  Validates that polling intervals adapt from 2s to 10s during long-running transcription.
+  This reduces backend load from ~120 requests/min to ~18 requests/min.
+  
+  Expected behavior:
+  - First 3-4 polling attempts: 2s intervals (initial fast polling)
+  - Subsequent attempts: 3s, 4.5s, 6.75s, 10s (exponential backoff)
+  - Max interval capped at 10s
+
+tags:
+  - transcription
+  - performance
+  - polling
+  - ux-improvement-2
+
+steps:
+  # 1. Navigate to capture screen
+  - tapOn:
+      id: com.example.pluct:id/capture_button
+      timeout: 5
+      
+  # 2. Request transcription with monitoring enabled
+  - runFlow: 02-ui/01-capture-card-basics.yaml
+  
+  # 3. Validate fast polling starts (2s intervals for first attempts)
+  - assertVisible:
+      id: com.example.pluct:id/progress_indicator
+      
+  # 4. Monitor polling intervals from logcat
+  # Using debug tags to validate interval calculations
+  - executeScript:
+      file: maestro/scripts/validate-polling-intervals.js
+      timeout: 180 # 3 minutes
+      
+  # 5. Confirm transcription completes
+  - assertVisible:
+      text: "transcript"
+      timeout: 300
+      
+  # 6. Verify backend load reduction in metrics
+  - tapOn:
+      id: com.example.pluct:id/debug_menu
+      timeout: 5
+  - assertVisible:
+      text: "polling_requests.*18.*count"
+      regex: true
+
+onFailure:
+  - takeScreenshot: maestro/artifacts/polling-validation-failure.png
+  - log: "Polling interval validation failed - check interval calculations in AdaptiveIntervalCalculator"

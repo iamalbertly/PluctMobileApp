@@ -1,0 +1,58 @@
+appId: app.pluct
+---
+name: Circuit Breaker Auto-Reset Validation
+desc: |
+  Validates that circuit breaker auto-resets after 30s of silence.
+  This prevents indefinite blocking after transient network failures.
+  
+  Expected behavior:
+  - Circuit breaker enters OPEN state after 5 consecutive failures
+  - Auto-resets to HALF_OPEN after 30s silence
+  - Recovers to CLOSED on successful request
+  - Does NOT remain OPEN indefinitely
+
+tags:
+  - reliability
+  - circuit-breaker
+  - error-recovery
+  - ux-improvement-3
+
+steps:
+  # 1. Navigate to capture screen
+  - tapOn:
+      id: com.example.pluct:id/capture_button
+      timeout: 5
+      
+  # 2. Simulate network failures to trigger circuit breaker
+  - executeScript:
+      file: maestro/scripts/simulate-network-failures.js
+      timeout: 30
+      
+  # 3. Verify circuit breaker is OPEN
+  - assertVisible:
+      text: "Circuit Breaker.*OPEN"
+      regex: true
+      timeout: 5
+      
+  # 4. Wait 35s for auto-reset
+  - delay: 35000
+  
+  # 5. Verify circuit breaker has reset to HALF_OPEN or CLOSED
+  - executeScript:
+      file: maestro/scripts/check-circuit-breaker-state.js
+      timeout: 5
+      
+  # 6. Attempt request - should succeed (circuit has reset)
+  - tapOn:
+      id: com.example.pluct:id/retry_button
+      timeout: 5
+      
+  # 7. Verify transcription succeeds (circuit breaker recovered)
+  - assertVisible:
+      text: "transcript|success"
+      regex: true
+      timeout: 60
+
+onFailure:
+  - takeScreenshot: maestro/artifacts/circuit-breaker-failure.png
+  - log: "Circuit breaker auto-reset failed - verify EnhancedBreaker auto-reset logic"

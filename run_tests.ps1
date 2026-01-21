@@ -1,22 +1,13 @@
-# Pluct-Maestro-Test-01EntryPoint-01PowerShell-01Runner.ps1
-# Single entry point for all Maestro-based automated testing
-# Follows naming: [Project]-[Maestro]-[Test]-[01EntryPoint]-[01PowerShell]-[01Runner]
+<#
+Deprecated PowerShell runner.
+This repository now uses the Node-based orchestrator as the canonical test entrypoint.
+Use `npm run test:all` which invokes `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`.
 
-param(
-    [switch]$SkipBuild,
-    [switch]$SkipDeploy,
-    [switch]$DevMode,
-    [string]$Filter = "",
-    [string]$Category = ""
-)
+The original PowerShell runner has been retired to avoid duplicate/conflicting test entrypoints.
+#>
 
-$ErrorActionPreference = "Stop"
-
-# Configuration
-$ProjectRoot = $PSScriptRoot
-$MaestroDir = Join-Path $ProjectRoot "maestro"
-$FlowsDir = Join-Path $MaestroDir "flows"
-$NodeRunner = Join-Path $MaestroDir "Pluct-Maestro-Test-01Runner-01Orchestrator.js"
+Write-Host "This PowerShell test runner is deprecated. Use 'npm run test:all' instead." -ForegroundColor Yellow
+Exit 1
 
 Write-Host "Pluct Maestro Test Runner" -ForegroundColor Cyan
 Write-Host "   Project Root: $ProjectRoot" -ForegroundColor Gray

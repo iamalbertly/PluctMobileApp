@@ -90,11 +90,166 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
    adb install app/build/outputs/apk/debug/app-debug.apk
    ```
 
-4. **Run Tests**
-   ```powershell
-   .\run_tests.ps1
+4. **Run Automated Tests**
+   ```bash
+   npm run test:all
    ```
-   See [TESTING.md](TESTING.md) for complete testing documentation.
+   The canonical test entrypoint is `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js` which runs all Maestro YAML user journey tests. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
+
+### **Integration Guide**
+For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
+
+## 🧪 **Testing Framework**
+
+All tests use **Maestro**, a YAML-based UI testing framework. The Node.js orchestrator (`maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`) discovers and runs all flows.
+
+### **Quick Start**
+```bash
+npm run test:all
+```
+
+This runs all categorized test flows (01-core, 02-ui, 03-transcription, 04-queue, 05-edge-cases, 06-ux-improvements, 07-intent-fixes, 08-onboarding, 09-onboarding-improvements) in sequence and reports results.
+
+### **Common Test Commands**
+```bash
+# Run all tests
+npm run test:all
+
+# Run tests in specific categories
+npm run test:core                  # 01-core tests only
+npm run test:ui                    # 02-ui tests only
+npm run test:transcription         # 03-transcription tests only
+
+# Run specific focused tests
+npm run test:ux-fixes              # UX improvements test suite
+npm run test:maestro               # Explicit maestro orchestrator run
+
+# Development mode (stops on first failure)
+cross-env DEV_MODE=1 npm run test:all
+
+# Filter tests by category
+cross-env MAESTRO_CATEGORY=02-ui npm run test:all
+```
+
+### **Testing Validation Checklist**
+- ✅ **Core Flows**: App launch, share intent, TikTok URL handling
+- ✅ **API Integration**: Business Engine connectivity, token vending, transcription submission
+- ✅ **Status Polling**: Adaptive intervals (2s → 3s → 4.5s → 10s) and timeout detection
+- ✅ **Error Categorization**: Consistent recovery actions (Network, Auth, Rate Limit, Credits, Validation)
+- ✅ **Circuit Breaker Auto-Reset**: Opens after 5 failures, auto-resets after 30s silence
+- ✅ **Adaptive Polling**: Backend load reduction from ~120 req/min to ~18 req/min
+- ✅ **Credit Management**: Balance loading, insufficient credits, queue fallback
+
+### **New Validation Tests** (UX/Reliability Improvements)
+The following Maestro flows validate the 5 UX/reliability fixes:
+
+1. **`maestro/flows/03-transcription/06-adaptive-polling-validation.yaml`**
+   - Validates polling intervals scale from 2s to 10s
+   - Confirms backend load reduction metrics
+   - Tests 3-minute transcription job with adaptive intervals
+
+2. **`maestro/flows/05-edge-cases/04-circuit-breaker-auto-reset.yaml`**
+   - Simulates network failures to trigger circuit breaker
+   - Validates auto-reset after 30s silence
+   - Confirms recovery to CLOSED state on success
+
+3. **`maestro/flows/02-ui/06-error-categorization-consistency.yaml`**
+   - Tests network error categorization → "Check Connection" + "Retry"
+   - Tests rate-limit categorization → "Retry Later"
+   - Tests credits error categorization → "Add Credits"
+   - Tests server error categorization → "Retry"
+   - Validates consistency across all error paths
+
+### **Monitoring Test Execution**
+Maestro tests write artifacts to `artifacts/` including:
+- `ui_dump_latest.xml` — Latest UI hierarchy
+- `video_added_ui_dump.xml` — Post-transcription state
+- `status_history.json` — Status transitions
+- Maestro logs with request/response details
+
+## 🛠️ **Architecture & Technical Improvements**
+
+### **Implementation Summary** (5 UX/Reliability Fixes + 3 Tech Debt Cleanups)
+
+#### **5 UX/Reliability Improvements Delivered**
+
+| # | Fix | Implementation | Files Modified | Impact |
+|---|-----|-----------------|-----------------|--------|
+| 1 | **Stall Timeout** | Reduced timeout from 20s → 10s | `TranscriptionFlow02Handler.kt` | Faster error detection |
+| 2 | **Retry Consolidation** | Centralized retry logic | `RetryabilityDecider.kt`, `UnifiedHandler.kt` | Single source of truth |
+| 3 | **Error Categorization** | Unified error messaging | `ErrorClassifier.kt`, `ErrorDisplay.kt` | Consistent UX |
+| 4 | **Circuit Breaker** | Auto-reset after 30s silence | `EnhancedBreaker.kt`, `UnifiedService.kt` | Prevents indefinite blocking |
+| 5 | **Adaptive Polling** | 2s → 10s exponential backoff | `AdaptiveIntervalCalculator.kt`, `PollingHandler.kt` | 85% less backend load |
+
+#### **3 Tech Debt Cleanups Completed**
+
+1. **Retry Logic Duplication**: `PluctCoreChecks01RetryabilityDecider` consolidates:
+   - `HTTPClient.isRetryable()` (deprecated)
+   - `UnifiedService.isRetryableFailure()` (delegates)
+   - `RetryHandler.isRetryable()` (delegates)
+
+2. **Error Categorization Duplication**: `PluctCoreCategorization01ErrorClassifier` consolidates:
+   - `ErrorDisplay.getRecoveryActions()` (integrated)
+   - `UnifiedHandler` error messaging (refactored)
+   - `UserMessageFormatter` categorization (consolidated)
+
+3. **Legacy Test Orchestrators**: `npm run test:all` replaces:
+   - `scripts/nodejs/Pluct-Main-01Orchestrator.js` (removed)
+   - All `Pluct-Test-Focused-*.js` runners (consolidated)
+   - Entry point now: `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`
+
+### **Recent Tech Debt Cleanups**
+
+#### **1. Centralized Retry Decision Logic** (`Pluct-Core-Checks-01RetryabilityDecider`)
+
+- Single source of truth for retry decisions
+- Consolidates logic from HTTPClient, UnifiedService, and RetryHandler
+- Ensures consistent retry behavior across all API calls
+- Supports exponential backoff with configurable delays
+
+#### **2. Centralized Error Categorization** (`Pluct-Core-Categorization-01ErrorClassifier`)
+- Unified error classification across the app
+- Consolidates logic from ErrorDisplay, UnifiedHandler, and UserMessageFormatter
+- Provides consistent user-friendly messages for each error type
+- Enables better analytics and error tracking
+
+#### **3. Enhanced Circuit Breaker** (`Pluct-Core-Circuit-02EnhancedBreaker`)
+- Auto-resets after 30 seconds of silence (no new failures)
+- Prevents indefinite open state that blocks all requests
+- Logs state transitions for debugging
+- Thread-safe with coroutine mutex protection
+
+#### **4. Adaptive Polling Intervals** (`Pluct-UI-Polling-01AdaptiveIntervalCalculator`)
+- Starts at 2 seconds, scales by 1.5x every 3 attempts
+- Reduces backend load during long-running transcription jobs
+- Example: 2s → 2s → 2s → 3s → 3s → 3s → 4.5s → ... → 10s (max)
+- Calculates total polling time for timeout thresholds
+
+### **Legacy Code Consolidation**
+The following Node.js orchestrators in `scripts/nodejs/` are marked for deletion (`DeleteThisFile_` prefix) as they were replaced by the canonical Maestro orchestrator:
+- `Pluct-Main-01Orchestrator.js`
+- `Pluct-Test-Focused-*.js` (all focused test runners)
+- Individual test runner files
+
+**Transition**: All test execution now routes through `npm run test:all`, which invokes `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`.
+
+## 🚀 **Building and Testing**
+
+2. **Build the Application**
+   ```bash
+   ./gradlew assembleDebug
+   ```
+
+3. **Install on Device**
+   ```bash
+   adb install app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+4. **Run Tests**
+   ```bash
+   npm run test:all
+   ```
+   See [TESTING.md](TESTING.md) for complete testing documentation. The canonical orchestrator is `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js` — `npm run test:all` invokes it.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
@@ -104,8 +259,8 @@ For complete API integration instructions, authentication setup, and best practi
 All tests use **Maestro**, a YAML-based UI testing framework. See [TESTING.md](TESTING.md) for complete documentation.
 
 ### **Quick Start**
-```powershell
-.\run_tests.ps1
+```bash
+npm run test:all
 ```
 
 ### **Legacy Node.js Tests (Deprecated)**

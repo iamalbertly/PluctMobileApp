@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import app.pluct.core.retry.PluctCoreRetryUnifiedHandler
 import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.services.TranscriptionDebugInfo
+import app.pluct.core.categorization.PluctCoreCategorization01ErrorClassifier
 
 /**
  * Error recovery action data class
@@ -58,7 +59,6 @@ data class ErrorRecoveryAction(
 /**
  * Get recovery actions based on error type
  */
-@Suppress("UNUSED_PARAMETER") // error parameter reserved for future enhanced recovery logic
 fun getRecoveryActions(
     error: Throwable?,
     message: String,
@@ -69,9 +69,11 @@ fun getRecoveryActions(
 ): List<ErrorRecoveryAction> {
     val actions = mutableListOf<ErrorRecoveryAction>()
     
-    when {
-        message.contains("insufficient", ignoreCase = true) ||
-        message.contains("credits", ignoreCase = true) && creditBalance <= 0 -> {
+    // Use centralized error categorization
+    val categorized = PluctCoreCategorization01ErrorClassifier.categorizeError(error, message)
+    
+    when (categorized.category) {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Credits -> {
             onAddCredits?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Add Credits",
@@ -80,8 +82,7 @@ fun getRecoveryActions(
                 ))
             }
         }
-        message.contains("network", ignoreCase = true) ||
-        message.contains("connection", ignoreCase = true) -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Network -> {
             onCheckConnection?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Check Connection",
@@ -97,7 +98,18 @@ fun getRecoveryActions(
                 ))
             }
         }
-        message.contains("timeout", ignoreCase = true) -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.RateLimit -> {
+            // Rate limit errors suggest queueing (handled by parent)
+            onRetry?.let {
+                actions.add(ErrorRecoveryAction(
+                    label = "Retry Later",
+                    action = it,
+                    priority = 1
+                ))
+            }
+        }
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Auth -> {
+            // Auth errors need re-login (handled by parent with token refresh)
             onRetry?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Retry",
@@ -106,13 +118,8 @@ fun getRecoveryActions(
                 ))
             }
         }
-        // UX IMPROVEMENT #1: Add rate limit recovery action
-        message.contains("rate limit", ignoreCase = true) || message.contains("429", ignoreCase = true) -> {
-            // Rate limit errors should suggest queueing instead of retry
-            // Queue action would be handled by parent component
-        }
         else -> {
-            // Default: offer retry if available
+            // Default: offer retry
             onRetry?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Retry",

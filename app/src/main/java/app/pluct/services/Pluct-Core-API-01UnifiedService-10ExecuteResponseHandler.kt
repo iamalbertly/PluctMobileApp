@@ -3,6 +3,7 @@ package app.pluct.services
 import android.util.Log
 import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.core.retry.PluctCoreRetryUnifiedHandler
+import app.pluct.core.checks.PluctCoreChecks01RetryabilityDecider
 
 /**
  * Pluct-Core-API-01UnifiedService-10ExecuteResponseHandler - Handles response processing for execute method
@@ -111,15 +112,6 @@ class PluctCoreAPI01UnifiedService10ExecuteResponseHandler(
     }
     
     private fun shouldCountFailureForCircuitBreaker(error: Throwable?): Boolean {
-        if (error is PluctCoreAPIDetailedError) {
-            val statusCode = error.technicalDetails.responseStatusCode
-            if (statusCode in 400..499 && statusCode != 408 && statusCode != 429) {
-                return false
-            }
-            if (error.userMessage.contains("circuit breaker", ignoreCase = true)) return false
-        }
-        val message = error?.message ?: return true
-        if (message.contains("circuit breaker", ignoreCase = true)) return false
-        return true
+        return PluctCoreChecks01RetryabilityDecider.shouldCountForCircuitBreaker(error)
     }
 }

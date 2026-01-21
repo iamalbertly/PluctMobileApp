@@ -1,0 +1,70 @@
+appId: app.pluct
+---
+name: Error Categorization Consistency Validation
+desc: |
+  Validates that error categorization is consistent across all error paths.
+  This ensures users see the same recovery actions for the same error types.
+  
+  Expected behavior:
+  - Network errors show "Check Connection" + "Retry"
+  - Auth errors show "Retry" (token auto-refresh)
+  - Rate limit errors show "Retry Later"
+  - Credit errors show "Add Credits"
+  - Validation errors show "Fix Input" or "Retry"
+
+tags:
+  - error-handling
+  - ux-improvement-4
+  - consistency
+
+steps:
+  # 1. Navigate to capture screen
+  - tapOn:
+      id: com.example.pluct:id/capture_button
+      timeout: 5
+      
+  # 2. Test Network Error categorization
+  - executeScript:
+      file: maestro/scripts/trigger-network-error.js
+      timeout: 10
+  - assertVisible:
+      text: "Check Connection"
+      timeout: 5
+  - tapOn:
+      id: com.example.pluct:id/dismiss_button
+      
+  # 3. Test Rate Limit Error categorization
+  - executeScript:
+      file: maestro/scripts/trigger-rate-limit-error.js
+      timeout: 10
+  - assertVisible:
+      text: "Retry Later|rate.*limit"
+      regex: true
+      timeout: 5
+  - tapOn:
+      id: com.example.pluct:id/dismiss_button
+      
+  # 4. Test Credits Error categorization
+  - executeScript:
+      file: maestro/scripts/trigger-credits-error.js
+      timeout: 10
+  - assertVisible:
+      text: "Add Credits"
+      timeout: 5
+  - tapOn:
+      id: com.example.pluct:id/dismiss_button
+      
+  # 5. Test Server Error categorization
+  - executeScript:
+      file: maestro/scripts/trigger-server-error.js
+      timeout: 10
+  - assertVisible:
+      text: "Retry|Server Error"
+      regex: true
+      timeout: 5
+  - tapOn:
+      id: com.example.pluct:id/dismiss_button
+
+onFailure:
+  - takeScreenshot: maestro/artifacts/error-categorization-failure.png
+  - log: "Error categorization inconsistency detected - verify ErrorClassifier logic"

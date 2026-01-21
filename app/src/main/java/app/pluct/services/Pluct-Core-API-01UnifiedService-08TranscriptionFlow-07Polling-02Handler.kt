@@ -3,6 +3,7 @@ package app.pluct.services
 import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import kotlinx.coroutines.delay
+import app.pluct.ui.polling.PluctUIPolling01AdaptiveIntervalCalculator
 
 /**
  * Pluct-Core-API-01UnifiedService-08TranscriptionFlow-07Polling-02Handler
@@ -61,12 +62,13 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
         var currentPollAuthToken = pollAuthToken
         var currentHasRefreshedAuth = hasRefreshedAuth
 
+        // Use adaptive polling intervals to reduce backend load
         val getPollInterval = { attempt: Int ->
-            if (isBackground) {
-                pollIntervalMsSlow * 2
-            } else {
-                if (attempt <= fastPollAttempts) pollIntervalMsFast else pollIntervalMsSlow
-            }
+            PluctUIPolling01AdaptiveIntervalCalculator.calculateNextPollIntervalMs(
+                attemptNumber = attempt,
+                isBackground = isBackground,
+                config = PluctUIPolling01AdaptiveIntervalCalculator.PollingConfig()
+            )
         }
 
         // Poll for completion

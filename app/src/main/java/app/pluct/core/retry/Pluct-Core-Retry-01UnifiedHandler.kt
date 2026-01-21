@@ -49,55 +49,10 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
 
     /**
      * Determine if an error is retryable
+     * Delegates to centralized retry decision logic
      */
     fun isRetryable(error: Throwable?): Boolean {
-        if (error == null) return false
-        if (error is PluctCoreAPIDetailedError) {
-            val statusCode = error.technicalDetails.responseStatusCode
-            if (statusCode == 401 || statusCode == 403) return false
-            if (statusCode in 400..499 && statusCode != 408 && statusCode != 429) return false
-        }
-        val errorMessage = error.message?.lowercase() ?: ""
-        
-        // Network/timeout errors are retryable
-        if (errorMessage.contains("network", ignoreCase = true) ||
-            errorMessage.contains("timeout", ignoreCase = true) ||
-            errorMessage.contains("connection", ignoreCase = true) ||
-            errorMessage.contains("timed out", ignoreCase = true)) {
-            return true
-        }
-        
-        // Server errors are retryable
-        if (errorMessage.contains("500") ||
-            errorMessage.contains("502") ||
-            errorMessage.contains("503") ||
-            errorMessage.contains("504") ||
-            errorMessage.contains("server error", ignoreCase = true) ||
-            errorMessage.contains("service unavailable", ignoreCase = true)) {
-            return true
-        }
-        
-        // Rate limits are retryable
-        if (errorMessage.contains("429") || errorMessage.contains("rate limit", ignoreCase = true)) {
-            return true
-        }
-        
-        // Auth errors are NOT retryable (handled separately)
-        if (errorMessage.contains("401") ||
-            errorMessage.contains("unauthorized", ignoreCase = true) ||
-            errorMessage.contains("authentication", ignoreCase = true)) {
-            return false
-        }
-        
-        // Client errors are NOT retryable
-        if (errorMessage.contains("invalid", ignoreCase = true) ||
-            errorMessage.contains("validation", ignoreCase = true) ||
-            errorMessage.contains("400", ignoreCase = true) ||
-            errorMessage.contains("402", ignoreCase = true) ||
-            errorMessage.contains("insufficient", ignoreCase = true) ||
-            errorMessage.contains("payment", ignoreCase = true)) {
-            return false
-        }
+        return PluctCoreChecks01RetryabilityDecider.isErrorRetryable(error)
         
         return true
     }
