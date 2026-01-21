@@ -144,6 +144,13 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
                     message = "Cached transcript expired, re-transcribing",
                     details = "URL=$sanitizedUrl; CacheAge=${cacheAgeMs}ms"
                 )
+                // UX FIX #2: Update video status to indicate refresh in progress
+                val refreshingVideo = existingCompletedVideo.copy(
+                    status = ProcessingStatus.PROCESSING,
+                    progress = 0,
+                    failureReason = "Refreshing transcript (cache expired)"
+                )
+                videoRepository?.insertVideo(refreshingVideo)
             }
         }
         

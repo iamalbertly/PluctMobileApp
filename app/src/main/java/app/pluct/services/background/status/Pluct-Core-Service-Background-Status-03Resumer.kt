@@ -2,6 +2,8 @@ package app.pluct.services.background.status
 
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -100,7 +102,8 @@ class PluctStatusResumer(
     }
     
     private fun resumePolling(video: app.pluct.data.entity.VideoItem) {
-        val notificationId = video.url.hashCode().and(0x7FFFFFFF)
+        // UX FIX #3: Use centralized notification ID generation
+        val notificationId = app.pluct.notification.PluctNotificationHelper.generateNotificationId(video.url)
         val workRequest = OneTimeWorkRequestBuilder<PluctCoreBackground01TranscriptionWorker>()
             .setInputData(
                 workDataOf(
@@ -109,14 +112,21 @@ class PluctStatusResumer(
                     PluctCoreBackground01TranscriptionWorker.KEY_NOTIFICATION_ID to notificationId
                 )
             )
+            // UX FIX #3: Require network connectivity to reduce battery drain
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
             .build()
-        
+
         WorkManager.getInstance(context).enqueue(workRequest)
         Log.d(TAG, "Scheduled background worker to resume transcription with jobId: ${video.jobId}")
     }
-    
+
     private fun scheduleNewTranscription(video: app.pluct.data.entity.VideoItem) {
-        val notificationId = video.url.hashCode().and(0x7FFFFFFF)
+        // UX FIX #4: Use centralized notification ID generation
+        val notificationId = app.pluct.notification.PluctNotificationHelper.generateNotificationId(video.url)
         val workRequest = OneTimeWorkRequestBuilder<PluctCoreBackground01TranscriptionWorker>()
             .setInputData(
                 workDataOf(
@@ -124,8 +134,14 @@ class PluctStatusResumer(
                     PluctCoreBackground01TranscriptionWorker.KEY_NOTIFICATION_ID to notificationId
                 )
             )
+            // UX FIX #3: Require network connectivity to reduce battery drain
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
             .build()
-        
+
         WorkManager.getInstance(context).enqueue(workRequest)
         Log.d(TAG, "Scheduled background worker for new transcription: ${video.url}")
     }

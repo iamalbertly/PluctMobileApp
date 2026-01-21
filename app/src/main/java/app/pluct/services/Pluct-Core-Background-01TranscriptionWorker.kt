@@ -119,6 +119,7 @@ class PluctCoreBackground01TranscriptionWorker(
         }
     }
     
+    @Suppress("UNUSED_PARAMETER") // TECH DEBT #1: networkMonitor reserved for future offline queueing
     private suspend fun processNewTranscription(url: String, notificationId: Int, networkMonitor: PluctCoreBackground01TranscriptionWorkerNetworkMonitor): Result {
         // CRITICAL FIX #2: Check for existing video before creating duplicate
         val existingVideo = videoRepository.getVideoByUrl(url)
@@ -155,9 +156,10 @@ class PluctCoreBackground01TranscriptionWorker(
                 
                 // Update video entry with jobId if available
                 if (jobId != null) {
-                    val existingVideo = videoRepository.getVideoByUrl(url)
-                    if (existingVideo != null) {
-                        val updatedVideo = existingVideo.copy(jobId = jobId)
+                    // TECH DEBT #2: Renamed to avoid shadowing outer existingVideo
+                    val videoForJobUpdate = videoRepository.getVideoByUrl(url)
+                    if (videoForJobUpdate != null) {
+                        val updatedVideo = videoForJobUpdate.copy(jobId = jobId)
                         videoRepository.insertVideo(updatedVideo)
                         Log.d(TAG, "Updated video with jobId: $jobId")
                     }
@@ -185,10 +187,10 @@ class PluctCoreBackground01TranscriptionWorker(
                         "status" to "completed"
                     ))
                 } else {
-                    // Update video entry with failed status
-                    val existingVideo = videoRepository.getVideoByUrl(url)
-                    if (existingVideo != null) {
-                        val failedVideo = existingVideo.copy(
+                    // TECH DEBT #2: Renamed to avoid shadowing
+                    val videoForFailUpdate = videoRepository.getVideoByUrl(url)
+                    if (videoForFailUpdate != null) {
+                        val failedVideo = videoForFailUpdate.copy(
                             status = app.pluct.data.entity.ProcessingStatus.FAILED,
                             failureReason = "Transcription completed but no transcript found"
                         )

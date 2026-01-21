@@ -19,4 +19,15 @@ object PluctDatabaseMigration {
             // No schema change required; kept for compatibility.
         }
     }
+
+    /**
+     * UX FIX #1: Migration for transcriptCachedAt field
+     * Adds nullable Long column for cache invalidation tracking
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // Add transcriptCachedAt column to videos table
+            database.execSQL("ALTER TABLE videos ADD COLUMN transcriptCachedAt INTEGER DEFAULT NULL")
+        }
+    }
 }

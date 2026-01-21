@@ -29,7 +29,8 @@ object PluctDatabaseModule {
         )
             .addMigrations(
                 PluctDatabaseMigration.MIGRATION_2_3,
-                PluctDatabaseMigration.MIGRATION_3_4
+                PluctDatabaseMigration.MIGRATION_3_4,
+                PluctDatabaseMigration.MIGRATION_4_5  // UX FIX #1: transcriptCachedAt field
             )
             .fallbackToDestructiveMigration() // Fallback for other migrations
             .build()

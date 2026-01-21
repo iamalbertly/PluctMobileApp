@@ -133,11 +133,10 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             Log.w("ResultProcessor", "Failed to auto-copy to clipboard: ${e.message}")
         }
         
-        // Update credits based on tier
+        // TECH DEBT #3: Update credits based on tier (removed redundant else)
         val newBalance = when (tier) {
             ProcessingTier.EXTRACT_SCRIPT -> if (currentFreeUses > 0) currentBalance else currentBalance - 1
             ProcessingTier.GENERATE_INSIGHTS -> currentBalance - 2
-            else -> currentBalance
         }
         val newFreeUses = if (tier == ProcessingTier.EXTRACT_SCRIPT && currentFreeUses > 0) currentFreeUses - 1 else currentFreeUses
         

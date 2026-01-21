@@ -487,6 +487,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
+### v2.4.0 - Database Migration + Network Constraints + Foreground Detection
+5 UX/Reliability Fixes:
+1. **Database Migration v4→v5**: Added `transcriptCachedAt` column with proper Room migration
+2. **Cache-Refresh Notification**: Shows "Refreshing transcript (cache expired)" for stale cache
+3. **Network Constraint**: Background WorkManager jobs require network connectivity
+4. **Centralized Notification ID Usage**: Status resumer uses `PluctNotificationHelper.generateNotificationId(url)`
+5. **ProcessLifecycleOwner**: Foreground detection via `lifecycle-process` (replaces deprecated getRunningTasks)
+
+3 Tech Debt Cleanups:
+1. **@Suppress Unused Parameters**: `networkMonitor` in TranscriptionWorker properly suppressed
+2. **Shadowed Variable Fix**: Renamed to `videoForJobUpdate`, `videoForFailUpdate` in worker
+3. **Redundant Else Removal**: ProcessingTier when expression now exhaustive without else
+
 ### v2.3.0 - Pluct Logo Notification + Cache Management
 5 UX/Reliability Fixes:
 1. **Dedicated Notification Icon**: New ic_stat_pluct.xml monochrome vector (Pluct logo silhouette with plug connector)
