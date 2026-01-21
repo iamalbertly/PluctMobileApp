@@ -76,6 +76,15 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
             val pollingAttempt = attempt + 1
             val currentPollInterval = getPollInterval(pollingAttempt)
 
+            // UX FIX #3: Log incremental progress for visibility in logcat
+            PluctUIPolling01AdaptiveIntervalCalculator.logProgressIncrement(
+                attemptNumber = pollingAttempt,
+                maxAttempts = maxPollAttempts,
+                currentStatus = "polling",
+                jobId = jobId,
+                intervalMs = currentPollInterval
+            )
+
             if (circuitBreaker.isOpen()) {
                 debugLogManager.logWarning(
                     category = "TRANSCRIPTION",

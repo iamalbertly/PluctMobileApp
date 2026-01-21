@@ -3,6 +3,7 @@ package app.pluct.core.retry
 import android.util.Log
 import app.pluct.services.PluctCoreAPIDetailedError
 import app.pluct.core.error.PluctCoreError01AuthErrorDetector
+import app.pluct.core.checks.PluctCoreChecks01RetryabilityDecider
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.math.pow
@@ -53,8 +54,6 @@ class PluctCoreRetryUnifiedHandler @Inject constructor() {
      */
     fun isRetryable(error: Throwable?): Boolean {
         return PluctCoreChecks01RetryabilityDecider.isErrorRetryable(error)
-        
-        return true
     }
 
     /**

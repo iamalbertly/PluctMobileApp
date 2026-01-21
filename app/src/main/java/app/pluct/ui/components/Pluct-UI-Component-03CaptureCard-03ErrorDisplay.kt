@@ -73,7 +73,7 @@ fun getRecoveryActions(
     val categorized = PluctCoreCategorization01ErrorClassifier.categorizeError(error, message)
     
     when (categorized.category) {
-        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Credits -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.INSUFFICIENT_CREDITS -> {
             onAddCredits?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Add Credits",
@@ -82,7 +82,7 @@ fun getRecoveryActions(
                 ))
             }
         }
-        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Network -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.NETWORK -> {
             onCheckConnection?.let {
                 actions.add(ErrorRecoveryAction(
                     label = "Check Connection",
@@ -98,7 +98,7 @@ fun getRecoveryActions(
                 ))
             }
         }
-        PluctCoreCategorization01ErrorClassifier.ErrorCategory.RateLimit -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.RATE_LIMIT -> {
             // Rate limit errors suggest queueing (handled by parent)
             onRetry?.let {
                 actions.add(ErrorRecoveryAction(
@@ -108,7 +108,7 @@ fun getRecoveryActions(
                 ))
             }
         }
-        PluctCoreCategorization01ErrorClassifier.ErrorCategory.Auth -> {
+        PluctCoreCategorization01ErrorClassifier.ErrorCategory.AUTHENTICATION -> {
             // Auth errors need re-login (handled by parent with token refresh)
             onRetry?.let {
                 actions.add(ErrorRecoveryAction(

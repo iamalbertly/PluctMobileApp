@@ -2,8 +2,13 @@ package app.pluct.ui.components
 
 import android.app.Activity
 import android.content.Context
+import android.media.RingtoneManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import android.view.Gravity
 import android.widget.Toast
@@ -23,10 +28,52 @@ import kotlinx.coroutines.withContext
 object PluctUIComponent05Notification02Toast01Helper {
     private const val TAG = "ToastHelper"
     private const val TOAST_DURATION_LONG_MS = 5000L // 5 seconds for long toasts
-    
+
+    // UX FIX #5: Vibration pattern for completion toast - quick double-tap
+    private val COMPLETION_VIBRATION_PATTERN = longArrayOf(0, 100, 100, 100)
+
     // Track current toast to cancel previous ones
     private var currentToast: Toast? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * UX FIX #5: Play notification sound for transcription completion
+     * Audible alert when user is not looking at app
+     */
+    private fun playCompletionSound(context: Context) {
+        try {
+            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = RingtoneManager.getRingtone(context.applicationContext, notification)
+            ringtone?.play()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to play completion sound: ${e.message}")
+        }
+    }
+
+    /**
+     * UX FIX #5: Vibrate for completion toast
+     */
+    private fun vibrateForCompletion(context: Context) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator?.vibrate(
+                    VibrationEffect.createWaveform(COMPLETION_VIBRATION_PATTERN, -1)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createWaveform(COMPLETION_VIBRATION_PATTERN, -1))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(COMPLETION_VIBRATION_PATTERN, -1)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Vibration failed: ${e.message}")
+        }
+    }
     
     /**
      * Show toast notification when transcription starts
@@ -42,15 +89,22 @@ object PluctUIComponent05Notification02Toast01Helper {
     
     /**
      * Show toast notification when transcription finishes
+     * UX FIX #5: Now includes sound and vibration for user awareness
      * Only shows if app is in foreground
      */
     fun showTranscriptionFinished(context: Context, @Suppress("UNUSED_PARAMETER") url: String, success: Boolean) {
         val message = if (success) {
-            "Transcription complete! Tap to view transcript."
+            "Transcription complete! Tap to view."
         } else {
-            "Transcription failed. Please try again."
+            "Transcription failed. Please retry."
         }
-        
+
+        // UX FIX #5: Play sound and vibrate for completion awareness
+        if (success) {
+            playCompletionSound(context)
+            vibrateForCompletion(context)
+        }
+
         showToast(
             context = context,
             message = message,

@@ -24,11 +24,28 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
     )
 
     /**
+     * UX FIX #3: Incremental progress logging for visibility during long waits
+     * Logs current progress state in structured format for logcat monitoring
+     */
+    fun logProgressIncrement(
+        attemptNumber: Int,
+        maxAttempts: Int,
+        currentStatus: String?,
+        jobId: String?,
+        intervalMs: Long
+    ) {
+        val progressPercent = ((attemptNumber.toFloat() / maxAttempts) * 100).toInt().coerceIn(0, 99)
+        val elapsedEstimate = estimateTotalPollingTimeMs(attemptNumber)
+        Log.i(TAG, "PROGRESS[$progressPercent%] attempt=$attemptNumber/$maxAttempts | status=$currentStatus | job=${jobId?.take(8) ?: "pending"} | interval=${intervalMs}ms | elapsed~${elapsedEstimate}ms")
+    }
+
+    /**
      * Calculate polling interval for given attempt number
      * Example progression: 2s, 2s, 2s (attempt 0-2), 3s, 3s, 3s (attempt 3-5), etc.
      */
     fun calculateNextPollIntervalMs(
         attemptNumber: Int,
+        isBackground: Boolean = false,
         config: PollingConfig = PollingConfig()
     ): Long {
         // Every N attempts, increase the interval
@@ -55,7 +72,7 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
     ): Long {
         var totalTime = 0L
         for (i in 0 until maxAttempts) {
-            totalTime += calculateNextPollIntervalMs(i, config)
+            totalTime += calculateNextPollIntervalMs(i, false, config)
         }
         return totalTime
     }
@@ -69,9 +86,9 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
             appendLine("  - Initial interval: ${config.initialIntervalMs}ms")
             appendLine("  - Scale factor: ${config.scaleFactor}x every ${config.scaleIntervalAttempts} attempts")
             appendLine("  - Maximum interval: ${config.maxIntervalMs}ms")
-            appendLine("  - Example: ${calculateNextPollIntervalMs(0, config)}ms → " +
-                       "${calculateNextPollIntervalMs(3, config)}ms → " +
-                       "${calculateNextPollIntervalMs(6, config)}ms")
+            appendLine("  - Example: ${calculateNextPollIntervalMs(0, false, config)}ms → " +
+                       "${calculateNextPollIntervalMs(3, false, config)}ms → " +
+                       "${calculateNextPollIntervalMs(6, false, config)}ms")
         }
     }
 }

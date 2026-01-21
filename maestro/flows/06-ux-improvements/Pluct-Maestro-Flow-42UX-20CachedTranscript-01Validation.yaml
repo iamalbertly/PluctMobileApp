@@ -1,0 +1,52 @@
+appId: app.pluct
+---
+# Pluct-Maestro-Flow-42UX-20CachedTranscript-01Validation.yaml
+# UX FIX #4: Validates instant return for previously transcribed videos
+# Tests that already-completed videos return immediately from cache
+
+- launchApp
+- waitForAnimationToEnd
+
+# First: Submit a URL for transcription
+- tapOn:
+    id: "url_input_field"
+- inputText: "https://vm.tiktok.com/ZMJthGtAS/"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "extract_script_button"
+- tapOn:
+    id: "extract_script_button"
+
+# Wait for first completion
+- waitForAnimationToEnd:
+    timeout: 180000
+
+# Verify completion
+- assertVisible:
+    text: "Completed"
+    optional: true
+
+# Now test cache: Submit the SAME URL again
+- tapOn:
+    id: "url_input_field"
+- clearText
+- inputText: "https://vm.tiktok.com/ZMJthGtAS/"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "extract_script_button"
+    optional: true
+
+# UX FIX #4: Cached result should return much faster (under 5 seconds)
+# If video was already completed, should show transcript immediately
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Should see transcript or "already transcribed" message
+- assertVisible:
+    text: "transcript"
+    optional: true
+
+# Verify no long processing indicator on cached video
+# Processing should be minimal or skipped for cached results

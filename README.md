@@ -485,14 +485,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🎉 **Recent Updates**
+## Recent Updates
 
-### **v2.1.0 - UX/International Improvements**
-- ✅ **Dark/Light Mode**: User-selectable theme (System/Light/Dark) in Settings
-- ✅ **International-Friendly UI**: Minimal text, visual indicators, icons over emojis
-- ✅ **Improved Contrast**: Better readability for disabled states
-- ✅ **Reduced Clutter**: Consolidated duplicate messaging
-- ✅ **Code Consolidation**: TikTok detection utility, deprecated file cleanup
+### v2.2.0 - Notification Sound + Progress Visibility
+5 UX/Reliability Fixes:
+1. **Notification Sound+Vibration**: Completion notifications now play sound and vibrate (IMPORTANCE_HIGH channel with DEFAULT_ALL)
+2. **Monochrome Icon**: Uses ic_launcher_foreground for Android 13+ status bar visibility
+3. **Incremental Progress Logging**: PROGRESS[XX%] logs in logcat for debugging long waits
+4. **Cached Transcript Instant Return**: Previously transcribed videos return immediately
+5. **Toast Sound for Background**: Toast notifications play sound+vibrate when transcription completes
+
+3 Tech Debt Cleanups:
+1. Fixed ErrorDisplay enum references (INSUFFICIENT_CREDITS, NETWORK, RATE_LIMIT, AUTHENTICATION)
+2. Fixed RetryHandler import for PluctCoreChecks01RetryabilityDecider
+3. Fixed AdaptiveIntervalCalculator isBackground parameter order
+
+### v2.1.0 - UX/International Improvements
+- Dark/Light Mode: User-selectable theme (System/Light/Dark) in Settings
+- International-Friendly UI: Minimal text, visual indicators, icons over emojis
+- Improved Contrast: Better readability for disabled states
+- Reduced Clutter: Consolidated duplicate messaging
+- Code Consolidation: TikTok detection utility, deprecated file cleanup
 
 ### **v2.0.0 - Complete API Integration**
 - ✅ **Real API Integration**: Business Engine and TTTranscribe connectivity
