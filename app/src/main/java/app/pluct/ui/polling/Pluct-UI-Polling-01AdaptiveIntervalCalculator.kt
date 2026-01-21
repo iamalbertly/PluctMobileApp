@@ -41,7 +41,9 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
 
     /**
      * Calculate polling interval for given attempt number
-     * Example progression: 2s, 2s, 2s (attempt 0-2), 3s, 3s, 3s (attempt 3-5), etc.
+     * TECH DEBT #1: isBackground now properly used - background jobs poll 50% slower
+     * Example progression (foreground): 2s, 2s, 2s (attempt 0-2), 3s, 3s, 3s (attempt 3-5), etc.
+     * Example progression (background): 3s, 3s, 3s (attempt 0-2), 4.5s, 4.5s, 4.5s (attempt 3-5), etc.
      */
     fun calculateNextPollIntervalMs(
         attemptNumber: Int,
@@ -50,15 +52,22 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
     ): Long {
         // Every N attempts, increase the interval
         val scalingCycles = attemptNumber / config.scaleIntervalAttempts
-        
+
+        // TECH DEBT #1: Background jobs use 50% longer initial interval to reduce battery/resource usage
+        val effectiveInitialInterval = if (isBackground) {
+            (config.initialIntervalMs * 1.5).toLong()
+        } else {
+            config.initialIntervalMs
+        }
+
         // Calculate interval with exponential scaling
-        var interval = (config.initialIntervalMs * Math.pow(config.scaleFactor.toDouble(), scalingCycles.toDouble())).toLong()
-        
-        // Cap at maximum
+        var interval = (effectiveInitialInterval * Math.pow(config.scaleFactor.toDouble(), scalingCycles.toDouble())).toLong()
+
+        // Cap at maximum (background uses same max)
         interval = min(interval, config.maxIntervalMs)
-        
-        Log.d(TAG, "📊 Polling interval for attempt $attemptNumber: ${interval}ms (scale cycle: $scalingCycles)")
-        
+
+        Log.d(TAG, "Polling interval for attempt $attemptNumber: ${interval}ms (background=$isBackground, scale=$scalingCycles)")
+
         return interval
     }
 

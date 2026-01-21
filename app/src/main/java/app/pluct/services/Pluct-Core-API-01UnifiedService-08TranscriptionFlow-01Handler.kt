@@ -104,29 +104,47 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
             tier = app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT
         )
         
-        // UX IMPROVEMENT #4: Check for already-completed videos before processing
+        // UX IMPROVEMENT #4 + #5: Check for already-completed videos with cache validity
         val existingCompletedVideo = videoRepository?.getVideoByUrl(sanitizedUrl)
-        if (existingCompletedVideo != null && 
-            existingCompletedVideo.status == ProcessingStatus.COMPLETED && 
+        if (existingCompletedVideo != null &&
+            existingCompletedVideo.status == ProcessingStatus.COMPLETED &&
             existingCompletedVideo.transcript != null) {
-            Log.d(TAG, "URL $sanitizedUrl already completed with transcript, returning existing result")
-            debugLogManager.logInfo(
-                category = "TRANSCRIPTION",
-                operation = "already_completed",
-                message = "Video already transcribed, returning existing transcript",
-                details = "URL=$sanitizedUrl; TranscriptLength=${existingCompletedVideo.transcript.length}"
-            )
-            // Return success with existing transcript - user gets immediate result
-            val existingStatus = app.pluct.services.TranscriptionStatusResponse(
-                jobId = existingCompletedVideo.jobId ?: "",
-                status = "completed",
-                progress = 100,
-                transcript = existingCompletedVideo.transcript,
-                text = existingCompletedVideo.transcript,
-                _cacheHit = true, // Mark as cache hit since we're returning existing result
-                url = sanitizedUrl
-            )
-            return Result.success(existingStatus)
+
+            // UX FIX #5: Check cache age (invalidate after 24 hours)
+            val cacheAgeMs = existingCompletedVideo.transcriptCachedAt?.let {
+                System.currentTimeMillis() - it
+            } ?: 0L
+            val cacheValidMs = 24 * 60 * 60 * 1000L // 24 hours
+            val isCacheValid = cacheAgeMs < cacheValidMs
+
+            if (isCacheValid) {
+                Log.d(TAG, "URL $sanitizedUrl already completed with valid cache (age=${cacheAgeMs}ms), returning existing result")
+                debugLogManager.logInfo(
+                    category = "TRANSCRIPTION",
+                    operation = "cache_hit",
+                    message = "Video already transcribed, returning cached transcript",
+                    details = "URL=$sanitizedUrl; TranscriptLength=${existingCompletedVideo.transcript.length}; CacheAge=${cacheAgeMs}ms"
+                )
+                // Return success with existing transcript - user gets immediate result
+                val existingStatus = app.pluct.services.TranscriptionStatusResponse(
+                    jobId = existingCompletedVideo.jobId ?: "",
+                    status = "completed",
+                    progress = 100,
+                    transcript = existingCompletedVideo.transcript,
+                    text = existingCompletedVideo.transcript,
+                    _cacheHit = true, // Mark as cache hit since we're returning existing result
+                    url = sanitizedUrl
+                )
+                return Result.success(existingStatus)
+            } else {
+                Log.d(TAG, "URL $sanitizedUrl cache expired (age=${cacheAgeMs}ms > ${cacheValidMs}ms), re-transcribing")
+                debugLogManager.logInfo(
+                    category = "TRANSCRIPTION",
+                    operation = "cache_expired",
+                    message = "Cached transcript expired, re-transcribing",
+                    details = "URL=$sanitizedUrl; CacheAge=${cacheAgeMs}ms"
+                )
+            }
         }
         
         val clientRequestId: String

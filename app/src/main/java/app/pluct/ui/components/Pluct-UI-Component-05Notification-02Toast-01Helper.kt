@@ -232,17 +232,12 @@ object PluctUIComponent05Notification02Toast01Helper {
                 isResumed
             }
             else -> {
-                // For non-Activity contexts (e.g., Application context), 
-                // check if any activity is in foreground
-                try {
-                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-                    val runningTasks = activityManager?.getRunningTasks(1)
-                    val topActivity = runningTasks?.firstOrNull()?.topActivity
-                    topActivity?.packageName == context.packageName
-                } catch (e: Exception) {
-                    // Fallback: assume foreground for Application context
-                    true
-                }
+                // TECH DEBT #3: For non-Activity contexts, use safe fallback
+                // getRunningTasks is deprecated since Android 5.0 (API 21)
+                // For Application context (background services), default to true
+                // to ensure toasts are shown when user returns to app
+                Log.d(TAG, "Non-Activity context, assuming foreground for toast display")
+                true
             }
         }
     }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pluct notification icon - monochrome silhouette for status bar
+     Based on Pluct logo: rounded rectangle with plug connector
+     Android requires white/transparent for status bar icons
+     Note: Status bar icons must be white only - system applies tint -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Main rounded rectangle (the "screen" part of logo) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,4 L15,4 C16.5,4 17,4.5 17,6 L17,18 C17,19.5 16.5,20 15,20 L3,20 C1.5,20 1,19.5 1,18 L1,6 C1,4.5 1.5,4 3,4 Z"/>
+
+    <!-- Inner cutout (the display area) - makes it look like a screen -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M4,6 L14,6 C14.5,6 15,6.5 15,7 L15,17 C15,17.5 14.5,18 14,18 L4,18 C3.5,18 3,17.5 3,17 L3,7 C3,6.5 3.5,6 4,6 Z"/>
+
+    <!-- Plug connector extending to the right -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17,9 L22,9 L22,15 L17,15 Z"/>
+
+    <!-- Connector prong detail -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,7 L21,7 L21,9 L19,9 Z M19,15 L21,15 L21,17 L19,17 Z"/>
+</vector>

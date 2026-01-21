@@ -487,6 +487,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
+### v2.3.0 - Pluct Logo Notification + Cache Management
+5 UX/Reliability Fixes:
+1. **Dedicated Notification Icon**: New ic_stat_pluct.xml monochrome vector (Pluct logo silhouette with plug connector)
+2. **Progress % in Notification**: Shows "45% - Transcribing..." in notification text
+3. **Word Count in Completion**: "Transcription Complete (127 words)" title
+4. **Notification Channel Group**: Organized under "Transcription" in Settings
+5. **24h Cache Invalidation**: Cached transcripts re-transcribed after 24 hours
+
+3 Tech Debt Cleanups:
+1. **isBackground Polling**: Background jobs now poll 50% slower (3s vs 2s initial)
+2. **Centralized Notification ID**: `PluctNotificationHelper.generateNotificationId(url)`
+3. **Deprecated API Removal**: Removed getRunningTasks usage (deprecated API 21)
+
 ### v2.2.0 - Notification Sound + Progress Visibility
 5 UX/Reliability Fixes:
 1. **Notification Sound+Vibration**: Completion notifications now play sound and vibrate (IMPORTANCE_HIGH channel with DEFAULT_ALL)

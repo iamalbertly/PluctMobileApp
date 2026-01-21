@@ -24,6 +24,7 @@ data class VideoItem(
     val errorDetails: String? = null,  // JSON serialized PluctCoreAPIDetailedError
     val queueReason: QueueReason? = null,
     val queuedAt: Long? = null,
-    val jobId: String? = null  // Transcription job ID for status resumption
+    val jobId: String? = null,  // Transcription job ID for status resumption
+    val transcriptCachedAt: Long? = null  // UX FIX #5: Timestamp when transcript was cached for invalidation
 )
 

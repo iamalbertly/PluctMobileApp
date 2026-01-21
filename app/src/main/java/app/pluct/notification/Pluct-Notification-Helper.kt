@@ -23,26 +23,40 @@ object PluctNotificationHelper {
     const val CHANNEL_ID_COMPLETE = "pluct_complete" // Exposed for QueueNotificationManager
     private const val CHANNEL_ID_ERROR = "pluct_error"
     const val CHANNEL_ID_QUEUE = "pluct_queue" // Exposed for QueueNotificationManager
-    
+
     /**
-     * UX FIX #2: Safe notification icon retrieval with monochrome fallback
+     * TECH DEBT #2: Centralized notification ID generation
+     * Ensures consistent, positive IDs across all notification paths
+     * Uses URL hashCode masked to ensure positive value
+     */
+    fun generateNotificationId(url: String): Int {
+        return url.hashCode().and(0x7FFFFFFF) // Mask to ensure positive
+    }
+
+    /**
+     * UX FIX #2: Safe notification icon retrieval with dedicated monochrome icon
      * Android 13+ requires monochrome icons for status bar visibility
-     * Returns ic_launcher_foreground (monochrome) or app icon with fallback
+     * Uses dedicated ic_stat_pluct (Pluct logo silhouette) with fallbacks
      */
     private fun getNotificationIcon(context: Context): Int {
         return try {
-            // UX FIX #2: Prefer foreground (monochrome) icon for Android 13+ compatibility
-            // This ensures icon is visible in status bar as white silhouette
-            context.resources.getResourceName(R.drawable.ic_launcher_foreground)
-            R.drawable.ic_launcher_foreground
+            // Primary: Use dedicated notification icon (monochrome Pluct logo)
+            context.resources.getResourceName(R.drawable.ic_stat_pluct)
+            R.drawable.ic_stat_pluct
         } catch (e: android.content.res.Resources.NotFoundException) {
             try {
-                // Fall back to mipmap launcher
-                context.resources.getResourceName(R.mipmap.ic_launcher)
-                R.mipmap.ic_launcher
-            } catch (e2: Exception) {
-                Log.w("PluctNotificationHelper", "App icon not found, using system fallback: ${e2.message}")
-                android.R.drawable.ic_dialog_info
+                // Fallback 1: Use launcher foreground (may work on some devices)
+                context.resources.getResourceName(R.drawable.ic_launcher_foreground)
+                R.drawable.ic_launcher_foreground
+            } catch (e2: android.content.res.Resources.NotFoundException) {
+                try {
+                    // Fallback 2: Mipmap launcher
+                    context.resources.getResourceName(R.mipmap.ic_launcher)
+                    R.mipmap.ic_launcher
+                } catch (e3: Exception) {
+                    Log.w("PluctNotificationHelper", "No app icon found, using system fallback")
+                    android.R.drawable.ic_dialog_info
+                }
             }
         } catch (e: Exception) {
             Log.w("PluctNotificationHelper", "Error loading notification icon: ${e.message}")
@@ -61,9 +75,20 @@ object PluctNotificationHelper {
     // UX FIX #1: Vibration pattern for completion - short-long-short (celebratory)
     private val COMPLETION_VIBRATION_PATTERN = longArrayOf(0, 100, 100, 300, 100, 100)
 
+    // UX FIX #4: Notification channel group for better Settings organization
+    private const val CHANNEL_GROUP_ID = "pluct_transcription"
+    private const val CHANNEL_GROUP_NAME = "Transcription"
+
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // UX FIX #4: Create channel group for better organization in Settings > Notifications
+            val channelGroup = android.app.NotificationChannelGroup(
+                CHANNEL_GROUP_ID,
+                CHANNEL_GROUP_NAME
+            )
+            notificationManager.createNotificationChannelGroup(channelGroup)
 
             // UX FIX #1: Get default notification sound for completion alerts
             val completionSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -82,6 +107,7 @@ object PluctNotificationHelper {
                 setShowBadge(false)
                 enableVibration(false)
                 setSound(null, null)
+                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
             }
 
             // UX FIX #1: Completion channel with sound and vibration
@@ -97,6 +123,7 @@ object PluctNotificationHelper {
                 setSound(completionSoundUri, audioAttributes)
                 enableLights(true)
                 lightColor = android.graphics.Color.GREEN
+                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
             }
 
             // Error channel with sound
@@ -109,6 +136,7 @@ object PluctNotificationHelper {
                 setShowBadge(true)
                 enableVibration(true)
                 setSound(completionSoundUri, audioAttributes)
+                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
             }
 
             notificationManager.createNotificationChannel(progressChannel)
@@ -289,12 +317,15 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        // UX FIX #3: Enhanced preview with word count for context
+        val wordCount = transcript.split(Regex("\\s+")).filter { it.isNotBlank() }.size
         val preview = transcript.take(100) + if (transcript.length > 100) "..." else ""
+        val titleWithContext = "Transcription Complete ($wordCount words)"
 
         // UX FIX #1: Build notification with HIGH priority for sound+vibration
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context))
-            .setContentTitle("Transcription Complete!")
+            .setContentTitle(titleWithContext)
             .setContentText(preview)
             .setStyle(NotificationCompat.BigTextStyle().bigText(transcript.take(500)))
             .setContentIntent(pendingIntent)

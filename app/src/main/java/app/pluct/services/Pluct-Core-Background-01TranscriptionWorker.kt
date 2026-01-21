@@ -302,17 +302,19 @@ class PluctCoreBackground01TranscriptionWorker(
                 val status = statusResult.getOrNull()!!
                 progress = status.progress ?: 0
                 
-                // Update progress notification
-                val phaseMessage = when {
-                    status.status == "completed" -> "Transcription complete!"
-                    status.status == "failed" -> "Transcription failed"
-                    progress < 15 -> "Preparing transcription..."
-                    progress < 40 -> "Downloading video..."
+                // UX FIX #2: Update progress notification with percentage in message
+                val phaseLabel = when {
+                    status.status == "completed" -> "Complete!"
+                    status.status == "failed" -> "Failed"
+                    progress < 15 -> "Preparing..."
+                    progress < 40 -> "Downloading..."
                     progress < 60 -> "Extracting audio..."
-                    progress < 90 -> "Transcribing with AI..."
+                    progress < 90 -> "Transcribing..."
                     else -> "Finalizing..."
                 }
-                
+                // Show percentage in notification text for user awareness
+                val phaseMessage = if (progress > 0 && progress < 100) "$progress% - $phaseLabel" else phaseLabel
+
                 showProgressNotification(url, progress, phaseMessage, notificationId)
                 
                 // Update video entry in database with current progress
@@ -332,14 +334,16 @@ class PluctCoreBackground01TranscriptionWorker(
                         // Update video entry with completed status
                         val existingVideo = videoRepository.getVideoByUrl(url)
                         if (existingVideo != null) {
+                            // UX FIX #5: Set cache timestamp for invalidation tracking
                             val completedVideo = existingVideo.copy(
                                 status = app.pluct.data.entity.ProcessingStatus.COMPLETED,
                                 progress = 100,
                                 transcript = transcriptText,
-                                jobId = jobId
+                                jobId = jobId,
+                                transcriptCachedAt = System.currentTimeMillis()
                             )
                             videoRepository.insertVideo(completedVideo)
-                            Log.d(TAG, "Updated video to completed status")
+                            Log.d(TAG, "Updated video to completed status with cache timestamp")
                         }
                         
                         showCompletionNotification(url, transcriptText, notificationId)

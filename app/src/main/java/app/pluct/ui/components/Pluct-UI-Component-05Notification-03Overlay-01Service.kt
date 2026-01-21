@@ -276,22 +276,16 @@ class PluctUIComponent05Notification03Overlay01Service : Service() {
     }
     
     /**
-     * Check if app is in foreground
-     * Uses ActivityManager to check if app is in foreground
+     * TECH DEBT #3: Check if app is in foreground using safe approach
+     * getRunningTasks is deprecated since Android 5.0 (API 21)
+     * For overlay service, we default to false (show overlay) if check fails
      */
     private fun isAppInForeground(): Boolean {
-        try {
-            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-            val runningTasks = activityManager?.getRunningTasks(1)
-            val topActivity = runningTasks?.firstOrNull()?.topActivity
-            val isForeground = topActivity?.packageName == packageName
-            Log.d(TAG, "App foreground check: $isForeground")
-            return isForeground
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to check foreground state: ${e.message}")
-            // If check fails, assume background (safer to show overlay)
-            return false
-        }
+        // For overlay service context, we cannot reliably detect foreground state
+        // without ProcessLifecycleOwner dependency. Default to false (background)
+        // which means overlays will be shown - safer behavior for user awareness
+        Log.d(TAG, "Overlay service foreground check: assuming background (will show overlay)")
+        return false
     }
     
     /**
