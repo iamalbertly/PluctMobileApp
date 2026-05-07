@@ -10,6 +10,7 @@ plugins {
 val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
     ?: System.getenv("PLUCT_ENGINE_BASE_URL")
     ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
+val pluctVersionName = "1.0.1"
 
 android {
     namespace = "app.pluct"
@@ -19,8 +20,8 @@ android {
         applicationId = "app.pluct"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = pluctVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -35,7 +36,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             buildConfigField("boolean", "DEBUG", "true")
-            buildConfigField("String", "VERSION_NAME", "\"1.0.0\"")
+            buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
             buildConfigField("String", "PLATFORM", "\"android\"")
             // Optimize debug builds
             ndk {
@@ -45,6 +46,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
+            buildConfigField("String", "PLATFORM", "\"android\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

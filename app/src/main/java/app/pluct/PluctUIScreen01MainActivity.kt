@@ -1,6 +1,7 @@
 package app.pluct
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.content.ClipboardManager
 import android.content.Context
@@ -113,6 +114,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
             val url = PluctUserPreferences.getAndClearPrefilledUrl(this)
             if (url != null) {
                 Log.d("MainActivity", "Setting prefilled URL from onCreate intent: $url")
+                prefilledUrlState.value = null
                 prefilledUrlState.value = url
             }
         }
@@ -171,6 +173,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                     if (!wasQueued) {
                         // Not queued, can proceed with auto-submit
                         // Small delay to ensure Compose state propagation completes
+                        prefilledUrlState.value = null
                         delay(100)
                         prefilledUrlState.value = url
                         Log.d("MainActivity", "Prefilled URL state set after delay: $url")
@@ -207,6 +210,13 @@ fun PluctMainContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    fun openUpgradePolicyUrl() {
+        val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+        val snapshot = prefs.getString("client_policy_snapshot", "") ?: ""
+        val policyUrl = Regex("\"(playStoreUrl|fallbackUrl)\"\\s*:\\s*\"([^\"]+)\"").find(snapshot)?.groupValues?.getOrNull(2)?.trim()
+            ?: "https://play.google.com/store/apps/details?id=app.pluct"
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(policyUrl)))
+    }
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     
     // State management
@@ -296,6 +306,8 @@ fun PluctMainContent(
     // Keep local state in sync when a new intent provides a prefilled URL.
     LaunchedEffect(prefilledUrlExternal) {
         if (!prefilledUrlExternal.isNullOrBlank()) {
+            prefilledUrl = null
+            delay(50)
             prefilledUrl = prefilledUrlExternal
             onPrefilledUrlConsumed()
         }
@@ -520,7 +532,7 @@ fun PluctMainContent(
         PluctVideoDetailScreen(
             video = currentSelectedVideo,
             onBackClick = { selectedVideo = null },
-            onUpgradeClick = { /* Handle upgrade */ }
+            onUpgradeClick = { openUpgradePolicyUrl() }
         )
     } else {
     PluctHomeScreen(
@@ -569,11 +581,11 @@ fun PluctMainContent(
             currentErrorUrl = null
         },
         onPurchaseCredits = {
-            // TODO: Navigate to purchase screen
             currentError = null
             currentErrorUrl = null
+            openUpgradePolicyUrl()
             PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                scope, snackbarHostState, "Contact support@pluct.app to upgrade"
+                scope, snackbarHostState, "Opening update / credits help"
             )
         },
         onRetry = {

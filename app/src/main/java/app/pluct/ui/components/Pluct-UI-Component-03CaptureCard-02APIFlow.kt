@@ -13,6 +13,7 @@ import app.pluct.services.PluctCoreAPIDetailedError
 import app.pluct.services.PluctCoreAPIUnifiedServiceErrorCache
 import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.core.error.PluctCoreError03UserMessageFormatter
+import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.KEY_URL
@@ -115,9 +116,11 @@ object PluctUIComponent03CaptureCardAPIFlow {
                 notificationId = notificationId
             )
             
-            // Minimize app (move to background)
-            if (context is Activity) {
-                (context as Activity).moveTaskToBack(true)
+            // Minimize only when progress can remain visible in the notification shade.
+            if (context is Activity && PluctCorePermission01Manager.hasNotificationPermission(context)) {
+                context.moveTaskToBack(true)
+            } else if (context is Activity) {
+                Log.w(tag, "Keeping app foreground because progress notification permission is not ready")
             }
             
             return // Don't continue with foreground processing
@@ -136,23 +139,20 @@ object PluctUIComponent03CaptureCardAPIFlow {
         CoroutineScope(Dispatchers.IO).launch {
             val heartbeat = context?.let {
                 launch heartbeat@{
-                    val stagedProgress = listOf(
-                        0 to "Video -> Text",
-                        12 to "Link -> Ready",
-                        28 to "Video -> Audio",
-                        48 to "Audio -> Text",
-                        72 to "Almost done"
-                    )
-                    for ((progress, label) in stagedProgress) {
+                    var progress = 0
+                    val labels = listOf("Video -> Text", "Link -> Ready", "Video -> Audio", "Audio -> Text", "Text -> Soon", "Almost done")
+                    var index = 0
+                    while (isActive) {
                         PluctNotificationHelper.showTranscriptionProgressNotification(
                             context = it,
                             url = normalizedUrl,
                             progress = progress,
-                            message = label,
+                            message = labels[index % labels.size],
                             notificationId = notificationId
                         )
                         delay(3500)
-                        if (!isActive) return@heartbeat
+                        index++
+                        progress = (progress + if (progress < 72) 12 else 3).coerceAtMost(91)
                     }
                 }
             }

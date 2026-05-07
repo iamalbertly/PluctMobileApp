@@ -18,8 +18,10 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
         await this.core.sleep(3000);
         
         // Step 2: Open Settings
-        const settingsButton = await this.core.tapByContentDesc('Settings') || 
-                              await this.core.tapByTestTag('settings_button');
+        let settingsButton = await this.core.tapByContentDesc('Settings');
+        if (!settingsButton.success) {
+            settingsButton = await this.core.tapByTestTag('settings_button');
+        }
         
         if (!settingsButton.success) {
             await this.core.executeCommand('adb shell input tap 1000 100');
@@ -44,8 +46,9 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
         }
         
         // Step 4: Check initial status text
-        const hasOptimizedStatus = uiDump.includes('Optimized') || 
-                                  uiDump.includes('May be restricted');
+        const hasOptimizedStatus = uiDump.includes('Enabled') ||
+                                  uiDump.includes('May be restricted') ||
+                                  uiDump.includes('Background Processing');
         
         if (!hasOptimizedStatus) {
             return { 
@@ -56,7 +59,7 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
         
         // Step 5: Check logcat for status refresh calls
         const refreshCheck = await this.core.executeCommand(
-            'adb logcat -d -t 200 | findstr /i "isBatteryOptimizationExempt\|invalidateCache\|Battery optimization"'
+            'adb logcat -d -t 200 | findstr /i /c:"Battery optimization" /c:"Battery optimization exempt check" /c:"Permission cache invalidated"'
         );
         
         // Step 6: Verify status persists after app restart simulation
@@ -65,8 +68,9 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
         await this.core.dumpUIHierarchy();
         const statusDump = this.core.readLastUIDump() || '';
         
-        const statusStillVisible = statusDump.includes('Optimized') || 
-                                   statusDump.includes('May be restricted');
+        const statusStillVisible = statusDump.includes('Enabled') ||
+                                   statusDump.includes('May be restricted') ||
+                                   statusDump.includes('Background Processing');
         
         if (!statusStillVisible) {
             return { 

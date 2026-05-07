@@ -9,6 +9,7 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 /**
@@ -52,7 +53,7 @@ object PluctCorePermission01Manager {
         // Return cached value if available
         notificationPermissionCached?.let { return it }
         
-        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val runtimeGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13+ requires POST_NOTIFICATIONS permission
             ContextCompat.checkSelfPermission(
                 context,
@@ -63,6 +64,8 @@ object PluctCorePermission01Manager {
             // But we should still check if notification channels are enabled
             true
         }
+        val appNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val hasPermission = runtimeGranted && appNotificationsEnabled
         
         // Cache the result
         notificationPermissionCached = hasPermission

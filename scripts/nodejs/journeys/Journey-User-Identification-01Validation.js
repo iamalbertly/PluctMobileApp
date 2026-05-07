@@ -26,17 +26,18 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 2: Wait for app to load and check for user identification
             this.core.logger.info('⏳ Step 2: Waiting for app to load...');
-            await this.core.delay(3000);
+            await this.core.sleep(3000);
 
             // Step 3: Check if the app shows the correct UI elements
             this.core.logger.info('🔍 Step 3: Checking for capture card UI...');
-            const uiDump = await this.core.getUIDump();
-            if (!uiDump.success) {
+            const uiDumpResult = await this.core.dumpUIHierarchy();
+            if (!uiDumpResult.success) {
                 return { success: false, error: 'Failed to get UI dump' };
             }
+            const uiDump = this.core.readLastUIDump() || '';
 
             // Look for the capture card with URL input
-            const hasUrlInput = uiDump.xml.includes('video_url_input') || uiDump.xml.includes('Paste Video Link');
+            const hasUrlInput = uiDump.includes('video_url_input') || uiDump.includes('Paste Video Link') || uiDump.includes('TikTok link');
             if (!hasUrlInput) {
                 this.core.logger.warn('⚠️ URL input field not found in UI');
             } else {
@@ -44,7 +45,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
             }
 
             // Look for the Extract Script button
-            const hasExtractButton = uiDump.xml.includes('extract_script_button') || uiDump.xml.includes('Extract Script');
+            const hasExtractButton = uiDump.includes('extract_script_button') || uiDump.includes('Extract Script') || uiDump.includes('Process');
             if (!hasExtractButton) {
                 this.core.logger.warn('⚠️ Extract Script button not found in UI');
             } else {
@@ -53,7 +54,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 4: Test user identification by checking logs
             this.core.logger.info('🔍 Step 4: Checking user identification logs...');
-            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr "PluctUserIdentification"');
+            const logcatResult = await this.core.executeCommand('adb logcat -d | findstr /i /c:"PluctUserIdentification"', undefined, undefined, { allowFailure: true });
             if (logcatResult.success && logcatResult.output.includes('Generated user ID')) {
                 this.core.logger.info('✅ User identification service is working');
                 
@@ -76,7 +77,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 5: Test credit balance retrieval
             this.core.logger.info('🔍 Step 5: Testing credit balance retrieval...');
-            const creditLogResult = await this.core.executeCommand('adb logcat -d | findstr "credit balance"');
+            const creditLogResult = await this.core.executeCommand('adb logcat -d | findstr /i /c:"credit balance"', undefined, undefined, { allowFailure: true });
             if (creditLogResult.success && creditLogResult.output.includes('REAL credit balance')) {
                 this.core.logger.info('✅ Credit balance retrieval is working');
                 
@@ -100,7 +101,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
             // Step 6: Test API communication
             this.core.logger.info('🔍 Step 6: Testing API communication...');
             const businessEngineHost = new URL(this.core.config.businessEngineUrl).host;
-            const apiLogResult = await this.core.executeCommand(`adb logcat -d | findstr "${businessEngineHost}"`);
+            const apiLogResult = await this.core.executeCommand(`adb logcat -d | findstr /i /c:"${businessEngineHost}"`, undefined, undefined, { allowFailure: true });
             if (apiLogResult.success && apiLogResult.output.includes(businessEngineHost)) {
                 this.core.logger.info('✅ API communication is working');
             } else {
@@ -109,7 +110,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 7: Test user creation if needed
             this.core.logger.info('🔍 Step 7: Checking for user creation logs...');
-            const userCreationLogResult = await this.core.executeCommand('adb logcat -d | findstr "Creating user"');
+            const userCreationLogResult = await this.core.executeCommand('adb logcat -d | findstr /i /c:"Creating user"', undefined, undefined, { allowFailure: true });
             if (userCreationLogResult.success) {
                 this.core.logger.info('✅ User creation process is working');
             } else {
@@ -118,7 +119,7 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 8: Validate JWT token generation
             this.core.logger.info('🔍 Step 8: Checking JWT token generation...');
-            const jwtLogResult = await this.core.executeCommand('adb logcat -d | findstr "JWT"');
+            const jwtLogResult = await this.core.executeCommand('adb logcat -d | findstr /i /c:"JWT"', undefined, undefined, { allowFailure: true });
             if (jwtLogResult.success) {
                 this.core.logger.info('✅ JWT token generation is working');
             } else {

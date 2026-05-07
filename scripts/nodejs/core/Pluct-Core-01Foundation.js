@@ -573,6 +573,17 @@ class PluctCoreFoundation {
                 continue;
             }
             const uiDump = this.readLastUIDump() || '';
+            const isSystemShade = uiDump.includes('package="com.android.systemui"') &&
+                (uiDump.includes('notification_panel') || uiDump.includes('quick_settings_container'));
+            if (isSystemShade) {
+                this.logger.info('Closing notification shade before capture card check...');
+                await this.executeCommand('adb shell cmd statusbar collapse', undefined, undefined, { allowFailure: true });
+                await this.executeCommand('adb shell input keyevent 4', undefined, undefined, { allowFailure: true });
+                await this.ensureAppForeground();
+                await this.sleep(1200);
+                continue;
+            }
+
             const hasCaptureInput = uiDump.includes('Video URL input field') ||
                 uiDump.includes('Paste TikTok Link') ||
                 uiDump.includes('Paste from clipboard') ||

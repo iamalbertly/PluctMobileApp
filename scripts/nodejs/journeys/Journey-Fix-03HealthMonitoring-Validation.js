@@ -25,7 +25,8 @@ class JourneyFix03HealthMonitoringValidation extends BaseJourney {
         await this.core.sleep(35000); // Wait ~35 seconds to catch at least one health check
         
         const healthCheckLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 100 | findstr /i "/health\|health.*check\|HealthMonitoring\|healthStatus"'
+            'adb logcat -d -t 100 | findstr /i /c:"/health" /c:"health check" /c:"HealthMonitor" /c:"healthStatus"',
+            undefined, undefined, { allowFailure: true }
         );
         
         const healthCheckLines = (healthCheckLogcat.output || '').split('\n').filter(line => 
@@ -65,7 +66,8 @@ class JourneyFix03HealthMonitoringValidation extends BaseJourney {
         await this.core.sleep(10000); // Wait 10 seconds after force stop
         
         const afterStopHealthLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 50 | findstr /i "/health\|health.*check\|HealthMonitoring"'
+            'adb logcat -d -t 50 | findstr /i /c:"/health" /c:"health check" /c:"HealthMonitor"',
+            undefined, undefined, { allowFailure: true }
         );
         
         const afterStopHealthCount = (afterStopHealthLogcat.output || '').split('\n').filter(line => 
@@ -82,7 +84,8 @@ class JourneyFix03HealthMonitoringValidation extends BaseJourney {
         
         // Step 6: Check for /health endpoint calls after app stop
         const healthEndpointLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 50 | findstr /i "GET.*health\|/health"'
+            'adb logcat -d -t 50 | findstr /i /c:"GET" /c:"/health"',
+            undefined, undefined, { allowFailure: true }
         );
         
         const healthEndpointCount = (healthEndpointLogcat.output || '').split('\n').filter(line => 
@@ -105,7 +108,8 @@ class JourneyFix03HealthMonitoringValidation extends BaseJourney {
         await this.core.sleep(35000); // Wait ~35 seconds
         
         const restartHealthLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 50 | findstr /i "/health\|health.*check\|HealthMonitoring"'
+            'adb logcat -d -t 50 | findstr /i /c:"/health" /c:"health check" /c:"HealthMonitor"',
+            undefined, undefined, { allowFailure: true }
         );
         
         const restartHealthCount = (restartHealthLogcat.output || '').split('\n').filter(line => 
@@ -123,7 +127,8 @@ class JourneyFix03HealthMonitoringValidation extends BaseJourney {
         // Step 9: Check for orphaned health monitoring jobs
         // Look for multiple health monitoring instances or cleanup logs
         const cleanupLogcat = await this.core.executeCommand(
-            'adb logcat -d -t 100 | findstr /i "cleanup\|Cleanup\|cancel\|Cancel.*health\|health.*cancel"'
+            'adb logcat -d -t 100 | findstr /i /c:"cleanup" /c:"Cleanup" /c:"cancel" /c:"Cancel health" /c:"health cancel"',
+            undefined, undefined, { allowFailure: true }
         );
         
         const hasCleanup = cleanupLogcat.output && (

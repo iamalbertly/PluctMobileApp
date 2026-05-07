@@ -11,6 +11,10 @@ class JourneyUX17BackgroundProcessing01Validation extends BaseJourney {
         
         try {
             const testUrl = this.core.config.url;
+            await this.ensureAppForeground();
+            await this.core.tapByContentDesc('Close settings');
+            await this.core.pressKey('Back');
+            await this.core.sleep(1000);
             
             // Step 1: Check current battery optimization status
             this.core.logger.info('📱 Step 1: Checking current battery optimization status...');
@@ -49,9 +53,19 @@ class JourneyUX17BackgroundProcessing01Validation extends BaseJourney {
             await this.ensureAppForeground();
             const extractTap = await this.core.tapByTestTag('extract_script_button');
             if (!extractTap.success) {
-                return { success: false, error: 'Extract Script button not found' };
+                const autoSubmitLog = await this.core.executeCommand(
+                    'adb logcat -d -t 180 | findstr /i /c:"Auto-submitting" /c:"Starting background transcription" /c:"notify pkg=app.pluct" /c:"100% -> Text"',
+                    undefined,
+                    undefined,
+                    { allowFailure: true }
+                );
+                if (!autoSubmitLog.output) {
+                    return { success: false, error: 'Extract Script button not found and auto-submit was not detected' };
+                }
+                this.core.logger.info('âœ… Auto-submit/background progress detected; manual tap no longer needed');
+            } else {
+                await this.core.sleep(3000); // Wait for transcription to start
             }
-            await this.core.sleep(3000); // Wait for transcription to start
             
             // Step 5: Background app immediately
             this.core.logger.info('📱 Step 5: Backgrounding app...');
@@ -63,7 +77,7 @@ class JourneyUX17BackgroundProcessing01Validation extends BaseJourney {
             await this.core.sleep(30000);
             
             const workerLog = await this.core.executeCommand(
-                'adb logcat -d -t 200 | findstr /i "TranscriptionWorker.*Starting background transcription|WorkManager.*enqueued"'
+                'adb logcat -d -t 200 | findstr /i /c:"TranscriptionWorker" /c:"Starting background transcription" /c:"WorkManager"'
             );
             
             const hasWorkerActivity = workerLog.output.includes('TranscriptionWorker') || 
@@ -81,7 +95,7 @@ class JourneyUX17BackgroundProcessing01Validation extends BaseJourney {
             await this.core.sleep(10000);
             
             const progressLog = await this.core.executeCommand(
-                'adb logcat -d -t 200 | findstr /i "progress|polling|status check"'
+                'adb logcat -d -t 200 | findstr /i /c:"progress" /c:"polling" /c:"status check" /c:"pluct_processing_live"'
             );
             
             const hasProgress = progressLog.output.includes('progress') || 
@@ -105,7 +119,7 @@ class JourneyUX17BackgroundProcessing01Validation extends BaseJourney {
             await this.core.sleep(10000);
             
             const continuedLog = await this.core.executeCommand(
-                'adb logcat -d -t 100 | findstr /i "TranscriptionWorker|progress|polling"'
+                'adb logcat -d -t 100 | findstr /i /c:"TranscriptionWorker" /c:"progress" /c:"polling"'
             );
             
             const continuesProcessing = continuedLog.output.includes('TranscriptionWorker') || 

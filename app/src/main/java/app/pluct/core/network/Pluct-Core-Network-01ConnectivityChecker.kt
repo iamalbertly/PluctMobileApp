@@ -2,9 +2,7 @@ package app.pluct.core.network
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Build
 
 /**
@@ -15,8 +13,9 @@ import android.os.Build
 object PluctNetworkConnectivityChecker {
     
     /**
-     * Check if network is available and validated
-     * Returns true if device has internet connectivity that is validated
+     * Check if network is available.
+     * Android's validated bit can be false on adb-reverse, captive, VPN, or restricted
+     * networks even when Pluct is reachable, so only hard-block when no internet network exists.
      */
     fun isNetworkAvailable(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -26,8 +25,7 @@ object PluctNetworkConnectivityChecker {
             val network = connectivityManager.activeNetwork ?: return false
             val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
             
-            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                   capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         } else {
             // Fallback for older Android versions
             @Suppress("DEPRECATION")

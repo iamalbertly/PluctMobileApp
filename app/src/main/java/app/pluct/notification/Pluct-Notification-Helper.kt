@@ -21,7 +21,7 @@ import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
 import app.pluct.notification.PluctNotificationCancelReceiver
 
 object PluctNotificationHelper {
-    private const val CHANNEL_ID_PROGRESS = "pluct_processing"
+    private const val CHANNEL_ID_PROGRESS = "pluct_processing_live"
     const val CHANNEL_ID_COMPLETE = "pluct_complete" // Exposed for QueueNotificationManager
     private const val CHANNEL_ID_ERROR = "pluct_error"
     const val CHANNEL_ID_QUEUE = "pluct_queue" // Exposed for QueueNotificationManager
@@ -137,14 +137,14 @@ object PluctNotificationHelper {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
 
-            // Progress channel - silent, no vibration
+            // Progress channel - silent but visible enough for users who wait from TikTok.
             val progressChannel = NotificationChannel(
                 CHANNEL_ID_PROGRESS,
                 CHANNEL_NAME_PROGRESS,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = CHANNEL_DESCRIPTION_PROGRESS
-                setShowBadge(false)
+                setShowBadge(true)
                 enableVibration(false)
                 setSound(null, null)
                 group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
@@ -291,6 +291,10 @@ object PluctNotificationHelper {
         message: String,
         notificationId: Int
     ) {
+        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
+            Log.w("PluctNotificationHelper", "Progress notification blocked; permission or app notifications disabled")
+            return
+        }
         val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("url", url)
@@ -334,14 +338,18 @@ object PluctNotificationHelper {
                 cancelPendingIntent
             )
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
             builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
         }
         val notification = builder.build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        try {
+            notificationManager.notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            Log.w("PluctNotificationHelper", "Failed to show progress notification: ${e.message}")
+        }
     }
     
     /**
@@ -543,7 +551,7 @@ object PluctNotificationHelper {
             .setContentIntent(pendingIntent)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
     }
 }

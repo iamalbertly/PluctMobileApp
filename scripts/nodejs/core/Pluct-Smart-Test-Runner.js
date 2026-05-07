@@ -14,8 +14,22 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            'Journey-Fix-03HealthMonitoring-Validation',
+            'Journey-Fix-03HealthMonitoring-Validation.js',
+            'Journey-User-Identification-01Validation',
+            'Journey-User-Identification-01Validation.js',
+            'Journey-APIConnectivity',
+            'Journey-APIConnectivity.js',
+            'Journey-TTTranscribeIntegration',
+            'Journey-TTTranscribeIntegration.js',
             'Journey-UX-20NotificationConsolidation-Validation',
             'Journey-UX-20NotificationConsolidation-Validation.js',
+            'Journey-Permission-04SettingsIntegration-01Validation',
+            'Journey-Permission-04SettingsIntegration-01Validation.js',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+            'Journey-UX-17BackgroundProcessing-01Validation',
+            'Journey-UX-17BackgroundProcessing-01Validation.js',
             'Journey-UX-13NotificationNavigation-Validation',
             'Journey-UX-13NotificationNavigation-Validation.js',
             'Journey-UX-12BackgroundProcessing-Validation',

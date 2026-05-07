@@ -120,6 +120,7 @@ class PluctJourneyOrchestrator {
             'Journey-TikTok-Manual-URL-01Transcription.js': 'TikTokManualURLTranscription',
             'Journey-TikTok-Manual-URL-02Insights.js': 'TikTokManualURLInsights',
             'Journey-Transcript-Storage-01Display.js': 'TranscriptStorageDisplay',
+            'Journey-User-Identification-01Validation.js': 'UserIdentificationValidation',
             'Pluct-Journey-01AppLaunch.js': 'Pluct-Journey-01AppLaunch',
             'Pluct-Node-Tests-Journey-01-AppLaunch.js': 'Pluct-Node-Tests-Journey-01-AppLaunch',
             'Pluct-UI-Header-01CreditBalance-Validation.js': 'Pluct-UI-Header-01CreditBalance-Validation',

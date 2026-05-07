@@ -41,8 +41,10 @@ import app.pluct.ui.models.data.PersistentError
 import app.pluct.core.credit.PluctCoreCredit01AtomicReservation01Service
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
@@ -56,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import app.pluct.notification.PluctNotificationHelper
+import app.pluct.core.permission.PluctCorePermission01Manager
 
 /**
  * Pluct-Mobile-UI-Component-CaptureCard-00Main
@@ -100,6 +103,18 @@ fun PluctUIComponent03CaptureCard(
     val currentValidation = remember(urlText) { sanitizer.validateUrl(urlText) }
     val isUrlValid = urlText.isNotBlank() && currentValidation.isValid
     val atomicCreditService = remember { PluctCoreCredit01AtomicReservation01Service() }
+    var progressNotificationsReady by remember { mutableStateOf(PluctCorePermission01Manager.hasNotificationPermission(context)) }
+    var backgroundProcessingReady by remember { mutableStateOf(PluctCorePermission01Manager.isBatteryOptimizationExempt(context)) }
+
+    fun refreshProgressReliabilityState() {
+        PluctCorePermission01Manager.invalidateCache()
+        progressNotificationsReady = PluctCorePermission01Manager.hasNotificationPermission(context)
+        backgroundProcessingReady = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+    }
+
+    LaunchedEffect(isSubmitting, preFilledUrl) {
+        refreshProgressReliabilityState()
+    }
 
     // Define submitExtract before LaunchedEffects that use it
     val submitExtract: () -> Unit = submit@{
@@ -111,6 +126,12 @@ fun PluctUIComponent03CaptureCard(
             return@submit
         }
         isSubmitting = true
+        validationError = null
+        persistentError = null
+        processingMessage = null
+        timedOutOnce = false
+        showQueuePrompt = false
+        queuePromptReason = null
         Log.d("CaptureCard", "Set isSubmitting=true")
 
         val validationResult = sanitizer.validateUrl(urlText)
@@ -493,6 +514,59 @@ fun PluctUIComponent03CaptureCard(
                 onShowGetCoinsDialog = { showGetCoinsDialog = true },
                 sanitizer = sanitizer
             )
+
+            val shouldShowProgressFix = (isUrlValid || isSubmitting || isAutoSubmitting || !preFilledUrl.isNullOrBlank()) &&
+                (!progressNotificationsReady || (isSubmitting && !backgroundProcessingReady))
+            if (shouldShowProgressFix) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Progress permission fix"
+                            testTag = "progress_permission_fix"
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = if (!progressNotificationsReady) Icons.Default.Notifications else Icons.Default.BatterySaver,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (!progressNotificationsReady) "Bell -> Progress" else "Battery -> Keep",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            if (!progressNotificationsReady) {
+                                PluctCorePermission01Manager.openNotificationSettings(context)
+                            } else {
+                                PluctCorePermission01Manager.openBatteryOptimizationSettings(context)
+                            }
+                            scope.launch {
+                                repeat(4) {
+                                    delay(1500)
+                                    refreshProgressReliabilityState()
+                                }
+                            }
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Fix progress permission"
+                            testTag = "progress_permission_fix_button"
+                        }
+                    ) {
+                        Text("Fix")
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

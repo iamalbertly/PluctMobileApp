@@ -121,7 +121,7 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
                         requestMethod = "GET"
                         connectTimeout = 5000
                         readTimeout = 5000
-                        setRequestProperty("User-Agent", "PluctMobile/1.0")
+                        setRequestProperty("User-Agent", "PluctMobile/${app.pluct.BuildConfig.VERSION_NAME} (${app.pluct.BuildConfig.PLATFORM})")
                     }
                     connection.connect()
                     val location = connection.getHeaderField("Location")

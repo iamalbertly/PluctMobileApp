@@ -25,7 +25,10 @@ class JourneyPermission04SettingsIntegration01Validation extends BaseJourney {
             this.core.logger.info('📱 Step 2: Opening settings dialog...');
             await this.ensureAppForeground();
             
-            const settingsTap = await this.core.tapByTestTag('settings_button');
+            let settingsTap = await this.core.tapByTestTag('settings_button');
+            if (!settingsTap.success) {
+                settingsTap = await this.core.tapByContentDesc('Settings');
+            }
             if (!settingsTap.success) {
                 throw new Error('Could not find settings button');
             }
@@ -89,7 +92,7 @@ class JourneyPermission04SettingsIntegration01Validation extends BaseJourney {
                 // Step 6: Verify permission request appears (logcat validation)
                 this.core.logger.info('📱 Step 6: Verifying permission request appears...');
                 const logcatResult = await this.core.logcatValidator.validatePattern(
-                    'Permission.*requested|requestPermissions|POST_NOTIFICATIONS',
+                    'requestPermissions|POST_NOTIFICATIONS',
                     'Permission request in logcat',
                     3,
                     2000,
@@ -151,12 +154,16 @@ class JourneyPermission04SettingsIntegration01Validation extends BaseJourney {
             }
             
             this.core.logger.info('✅ Journey-Permission-04SettingsIntegration-01Validation completed');
-            return true;
+            const finalClose = await this.core.tapByTestTag('settings_dialog_close');
+            if (!finalClose.success) {
+                await this.core.tapByContentDesc('Close settings');
+            }
+            return { success: true };
             
         } catch (error) {
             this.core.logger.error(`❌ Journey failed: ${error.message}`);
             await this.failWithDiagnostics(error.message);
-            return false;
+            return { success: false, error: error.message };
         }
     }
 }

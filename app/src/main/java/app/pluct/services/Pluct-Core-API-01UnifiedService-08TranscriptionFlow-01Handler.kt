@@ -92,7 +92,7 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
                 message = "TTTranscribe health check reports unavailable; delaying submission",
                 details = "URL=$sanitizedUrl; Health=$tttHealth"
             )
-            return Result.failure(Exception("Transcription service is waking up. Please retry in a few moments."))
+            return Result.failure(Exception("Video -> Text is busy. Saved. Try again soon."))
         }
         
         // Use unified deduplication coordinator to check and register processing

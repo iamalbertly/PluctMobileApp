@@ -151,18 +151,14 @@ class PluctCoreBackground01TranscriptionWorker(
         // Deduplication is handled internally by apiService.processTikTokVideo() via unified coordinator
         val result = coroutineScope {
             val heartbeat = launch {
-                val stagedProgress = listOf(
-                    6 to "Video -> Text",
-                    14 to "Link -> Ready",
-                    24 to "Video -> Audio",
-                    38 to "Audio -> Text",
-                    52 to "Text -> Soon",
-                    68 to "Almost done"
-                )
-                for ((stageProgress, label) in stagedProgress) {
+                var progress = 6
+                val labels = listOf("Video -> Text", "Link -> Ready", "Video -> Audio", "Audio -> Text", "Text -> Soon", "Almost done")
+                var index = 0
+                while (isActive) {
                     delay(4000)
-                    if (!isActive) return@launch
-                    showProgressNotification(url, stageProgress, label, notificationId)
+                    showProgressNotification(url, progress, labels[index % labels.size], notificationId)
+                    index++
+                    progress = (progress + if (progress < 72) 10 else 3).coerceAtMost(91)
                 }
             }
             val apiResult = apiService.processTikTokVideo(url, isBackground = true)

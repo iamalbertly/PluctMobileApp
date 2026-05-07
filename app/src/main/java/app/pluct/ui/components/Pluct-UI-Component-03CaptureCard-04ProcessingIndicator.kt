@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.pluct.services.OperationStep
 import app.pluct.services.TranscriptionDebugInfo
 
 /**
@@ -80,12 +82,13 @@ fun PluctProcessingIndicator(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            val inferredProgress = debugInfo?.currentStep?.let { progressForStep(it, debugInfo.pollingAttempt, debugInfo.maxPollingAttempts) } ?: 0
+            val displayProgress = maxOf(rememberedProgress, progress, inferredProgress).coerceIn(0, 99)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val displayProgress = rememberedProgress.coerceAtLeast(progress)
                 if (displayProgress > 0) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
@@ -103,7 +106,7 @@ fun PluctProcessingIndicator(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = rememberedOperation ?: currentOperation ?: "Processing...",
+                        text = phaseText(debugInfo, rememberedOperation ?: currentOperation, displayProgress),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -112,7 +115,7 @@ fun PluctProcessingIndicator(
                     // Uses visual percentage + minimal text for global users
                     if (displayProgress > 0) {
                         Text(
-                            text = "$displayProgress%",
+                            text = "$displayProgress% -> Text",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
@@ -124,7 +127,7 @@ fun PluctProcessingIndicator(
                     } else {
                         // Simple starting indicator
                         Text(
-                            text = "Starting...",
+                            text = "0% -> Text",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
@@ -132,14 +135,6 @@ fun PluctProcessingIndicator(
                                 contentDescription = "Starting transcription"
                                 testTag = "progress_starting"
                             }
-                        )
-                    }
-
-                    if (currentJobId != null) {
-                        Text(
-                            text = "Job ID: ${currentJobId.take(8)}...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -152,6 +147,17 @@ fun PluctProcessingIndicator(
                     }
                 }
             }
+
+            LinearProgressIndicator(
+                progress = (maxOf(displayProgress, 4) / 100f).coerceIn(0.04f, 0.99f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .semantics {
+                        contentDescription = "Progress bar $displayProgress percent"
+                        testTag = "progress_bar"
+                    }
+            )
 
             // UX IMPROVEMENT: Simplified timeout warning - less text, clearer message
             if (showTimeoutWarning) {
@@ -245,5 +251,32 @@ fun ProcessingIndicator(
 ) {
     if (isVisible) {
         PluctProcessingIndicator(currentOperation = message)
+    }
+}
+
+private fun progressForStep(step: OperationStep, attempt: Int?, maxAttempts: Int?): Int = when (step) {
+    OperationStep.CANONICALIZE -> 8
+    OperationStep.METADATA -> 16
+    OperationStep.CHECK_BALANCE -> 24
+    OperationStep.VEND_TOKEN -> 34
+    OperationStep.SUBMIT -> 48
+    OperationStep.POLLING -> {
+        val max = maxAttempts?.takeIf { it > 0 } ?: 20
+        val current = attempt?.coerceAtLeast(1) ?: 1
+        (55 + ((current.toFloat() / max.toFloat()) * 36)).toInt().coerceIn(55, 91)
+    }
+    OperationStep.COMPLETED -> 99
+    OperationStep.FAILED -> 0
+}
+
+private fun phaseText(debugInfo: TranscriptionDebugInfo?, fallback: String?, progress: Int): String {
+    return when (debugInfo?.currentStep) {
+        OperationStep.CANONICALIZE, OperationStep.METADATA -> "Link -> Ready"
+        OperationStep.CHECK_BALANCE, OperationStep.VEND_TOKEN -> "Wallet -> Go"
+        OperationStep.SUBMIT -> "Video -> Audio"
+        OperationStep.POLLING -> "Audio -> Text"
+        OperationStep.COMPLETED -> "100% -> Text"
+        OperationStep.FAILED -> "! Try again"
+        null -> fallback?.take(28) ?: if (progress > 0) "Audio -> Text" else "Video -> Text"
     }
 }

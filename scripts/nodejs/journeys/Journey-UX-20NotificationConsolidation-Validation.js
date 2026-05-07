@@ -34,7 +34,7 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
         await this.core.sleep(5000); // Give more time for notification
         
         const notificationDump = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->"'
+            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"pluct_processing_live"'
         );
         
         // Count unique notification IDs
@@ -78,7 +78,7 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
         // Step 6: Verify notification updates progress
         await this.core.sleep(5000);
         const progressCheck = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i /c:"progress" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%" /c:"app.pluct"'
+            'adb shell dumpsys notification | findstr /i /c:"progress" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%" /c:"app.pluct" /c:"pluct_processing_live"'
         );
         
         this.core.logger.info('✅ Notification consolidation validation passed');
@@ -87,7 +87,7 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
             details: { 
                 notificationCount: notificationLines.length,
                 hasAppIcon: iconCheck.output ? iconCheck.output.includes('ic_launcher') : false,
-                hasProgress: progressCheck.output ? /progress|Text|Video ->|Audio ->|%/i.test(progressCheck.output) : false
+                hasProgress: progressCheck.output ? /progress|Text|Video ->|Audio ->|%|pluct_processing_live/i.test(progressCheck.output) : false
             }
         };
     }

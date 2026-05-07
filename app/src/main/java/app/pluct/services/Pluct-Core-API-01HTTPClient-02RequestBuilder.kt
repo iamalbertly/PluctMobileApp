@@ -47,7 +47,7 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         connection.connectTimeout = timeoutMs.toInt()
         connection.readTimeout = timeoutMs.toInt()
         connection.setRequestProperty("Content-Type", "application/json")
-        connection.setRequestProperty("User-Agent", "PluctMobile/1.0")
+        connection.setRequestProperty("User-Agent", "PluctMobile/${app.pluct.BuildConfig.VERSION_NAME} (${app.pluct.BuildConfig.PLATFORM})")
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("X-Request-ID", requestId)
         connection.setRequestProperty("X-Client-Version", app.pluct.BuildConfig.VERSION_NAME)

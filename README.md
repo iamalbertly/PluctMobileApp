@@ -239,7 +239,7 @@ The following older focused runners in `scripts/nodejs/` are marked for deletion
 - `Pluct-Test-Focused-*.js` (all focused test runners)
 - Individual test runner files
 
-**Transition**: All test execution now routes through `npm run test:all`, which invokes `scripts/nodejs/journeys/Pluct-Journey-01Orchestrator.js`.
+**Transition**: All test execution now routes through `npm run test:all`, which invokes `scripts/nodejs/Pluct-Main-01Orchestrator.js`.
 
 ## 🚀 **Building and Testing**
 
@@ -257,14 +257,14 @@ The following older focused runners in `scripts/nodejs/` are marked for deletion
    ```bash
    npm run test:all
    ```
-   See [TESTING.md](TESTING.md) for complete testing documentation. The canonical orchestrator is `scripts/nodejs/journeys/Pluct-Journey-01Orchestrator.js`; `npm run test:all` invokes it.
+   Testing details are kept in this README. The canonical orchestrator is `scripts/nodejs/Pluct-Main-01Orchestrator.js`; `npm run test:all` invokes it.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
-Focused validation uses Node journeys with ADB/device automation and Puppeteer-style service checks. See [TESTING.md](TESTING.md) for complete documentation.
+Focused validation uses Node journeys with ADB/device automation and Puppeteer-style service checks. This README is the SSOT for current validation.
 
 ### **Quick Start**
 ```bash
@@ -495,7 +495,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.8.0 - Universal Notification Flow + Fast-Fail Validation (Current)
+### v2.9.0 - Mobile/BE/TTT Linkage + Progress Trust (Current)
+
+**UX/Reliability Improvements:**
+1. Mobile now sends truthful `PluctMobile/<version> (android)` User-Agent and `X-Client-Version` headers.
+2. App version is aligned from Gradle into `BuildConfig.VERSION_NAME` for debug and release.
+3. Mobile fetches the Business Engine client policy and caches it for update/feature signaling.
+4. Mobile blocks submit when server policy disables transcription, preventing wasted credits and worker load.
+5. Mobile syncs a policy-safe device profile after server warmup so support/admin sees real app/device state.
+6. Device profile sync skips unchanged payloads locally, reducing radio and Worker traffic.
+7. Health checks now reuse fresh snapshots and back off longer while TTTranscribe is degraded.
+8. Background auto-minimize is suppressed when notifications are disabled, keeping progress visible in-app.
+9. Upgrade/credit recovery opens the policy-provided store/help URL instead of dead-end support copy.
+
+**Edge Cases Covered:**
+1. Globally disabled app notifications no longer let background progress disappear silently.
+2. TTTranscribe `error` health now maps to unhealthy on mobile instead of being ignored.
+3. Server-side `disableTranscribeSubmit` can stop old clients before expensive vend/TTT work.
+4. Stale profile payloads are not resent during normal startup.
+5. Client policy fetch failure keeps the app usable with last-known behavior.
+
+**Tech Debt Cleanups:**
+1. `npm run test:all` latest-change ordering now includes health, API connectivity, TTTranscribe, and user identity linkage.
+2. Deprecated PowerShell wrappers now point only to Node/ADB validation and no longer execute legacy flows.
+3. README test SSOT now matches the actual `scripts/nodejs/Pluct-Main-01Orchestrator.js` package entrypoint.
+4. Mobile health refresh coalescing removes duplicate `/health/services` callers from cold-start paths.
+
+### v2.8.0 - Universal Notification Flow + Fast-Fail Validation
 
 **UX/Reliability Improvements:**
 1. Progress notifications now use universal arrow labels like `0% -> Text`, `Video -> Audio`, and `Audio -> Text`.

@@ -1,6 +1,7 @@
 package app.pluct.services
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import app.pluct.core.retry.PluctCoreRetryUnifiedHandler
 import app.pluct.core.api.PluctCoreAPI00Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import app.pluct.data.entity.ProcessingStatus
+import java.util.Locale
 
 /**
  * Pluct-Core-API-01UnifiedService-01Main - Unified API service orchestrator.
@@ -60,6 +62,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     )
     @Volatile private var vendTokenBlockedUntil = 0L
     @Volatile private var serverTimeWarmupComplete = false
+    @Volatile private var profileSyncAttempted = false
 
     private val healthMonitor = PluctCoreAPI01UnifiedService09HealthMonitor01Service(httpClient)
     val healthStatus: StateFlow<Map<String, HealthStatus>> = healthMonitor.healthStatus
@@ -184,6 +187,10 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     suspend fun processTikTokVideo(url: String, isBackground: Boolean = false): Result<TranscriptionStatusResponse> {
         ensureServerTimeWarmup()
+        val policySnapshot = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE).getString("client_policy_snapshot", "") ?: ""
+        if (policySnapshot.contains("\"disableTranscribeSubmit\":true")) {
+            return Result.failure(Exception("Update -> Continue"))
+        }
         val currentHealth = healthStatus.value
         val effectiveHealth = if (currentHealth["ttt"] != HealthStatus.HEALTHY) {
             healthMonitor.refreshNow()
@@ -197,6 +204,32 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         if (serverTimeWarmupComplete) return
         val warmedHealth = healthMonitor.refreshNow()
         serverTimeWarmupComplete = warmedHealth["api"] == HealthStatus.HEALTHY
+        if (serverTimeWarmupComplete && !profileSyncAttempted) {
+            profileSyncAttempted = true
+            val profile = mapOf(
+                "deviceModel" to "${Build.MANUFACTURER} ${Build.MODEL}".take(120),
+                "deviceType" to "phone",
+                "osName" to "android",
+                "osVersion" to Build.VERSION.RELEASE.take(32),
+                "appVersion" to app.pluct.BuildConfig.VERSION_NAME.take(32),
+                "locale" to Locale.getDefault().toLanguageTag().take(16),
+                "source" to "runtime_refresh"
+            )
+            val fingerprint = profile.toSortedMap().entries.joinToString("|") { "${it.key}=${it.value}" }.hashCode().toString()
+            val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            if (prefs.getString("profile_payload_hash", "") != fingerprint) {
+                val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+                execute<Any>("POST", "/v1/profile/device", profile, token)
+                    .onSuccess { prefs.edit().putString("profile_payload_hash", fingerprint).apply() }
+                    .onFailure { Log.w(TAG, "Device profile sync skipped: ${it.message}") }
+            }
+            val now = System.currentTimeMillis()
+            if (now - prefs.getLong("client_policy_checked_at", 0L) > 6 * 60 * 60 * 1000L) {
+                execute<Any>("GET", "/v1/public/client-policy")
+                    .onSuccess { prefs.edit().putLong("client_policy_checked_at", now).putString("client_policy_snapshot", it.toString()).apply() }
+                    .onFailure { Log.w(TAG, "Client policy refresh skipped: ${it.message}") }
+            }
+        }
     }
 
     private suspend fun <T> execute(
@@ -257,12 +290,6 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         return result.mapCatching { it as T }
     }
 
-
-
-    /**
-     * Cleanup method to cancel all background coroutines
-     * Should be called when service is being destroyed
-     */
     fun cleanup() {
         healthMonitor.stopMonitoring()
         transcriptionScope.cancel()
