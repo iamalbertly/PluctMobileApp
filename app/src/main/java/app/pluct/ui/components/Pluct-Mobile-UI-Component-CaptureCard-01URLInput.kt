@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Send
@@ -97,9 +98,16 @@ fun PluctURLInputField(
                 ) {
                     AssistChip(
                         onClick = { },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.AccountBalanceWallet,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
                         label = {
                             Text(
-                                text = if (freeUsesRemaining > 0) "Free ($freeUsesRemaining)" else "1 credit",
+                                text = if (freeUsesRemaining > 0) "$freeUsesRemaining" else "1",
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1
                             )
@@ -155,7 +163,7 @@ fun PluctURLInputField(
                         Box(contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
                             if (urlText.isEmpty()) {
                                 Text(
-                                    "TikTok link",
+                                    "TikTok link -> Text",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
@@ -262,13 +270,27 @@ fun PluctURLInputField(
 
         if (validationError != null) {
             Text(
-                text = validationError,
+                text = shortValidationMessage(validationError),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
                     .padding(start = 16.dp, top = 4.dp)
-                    .semantics { testTag = "url_validation_error" }
+                    .semantics {
+                        contentDescription = validationError
+                        testTag = "url_validation_error"
+                    }
             )
         }
+    }
+}
+
+private fun shortValidationMessage(error: String): String {
+    val lower = error.lowercase()
+    return when {
+        "one" in lower -> "! 1 TikTok link"
+        "incomplete" in lower || "full" in lower -> "! Full TikTok link"
+        "profile" in lower || "search" in lower || "video" in lower -> "! TikTok video only"
+        "long" in lower -> "! Link too long"
+        else -> "! TikTok link"
     }
 }

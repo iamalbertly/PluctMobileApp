@@ -16,7 +16,10 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Entry point for accessing Hilt dependencies in WorkManager
@@ -144,9 +147,28 @@ class PluctCoreBackground01TranscriptionWorker(
         // Show initial progress notification
         showProgressNotification(url, 0, "Starting transcription...", notificationId)
         
-        // Process transcription with background flag
+        // Process transcription with a heartbeat so the notification never appears frozen.
         // Deduplication is handled internally by apiService.processTikTokVideo() via unified coordinator
-        val result = apiService.processTikTokVideo(url, isBackground = true)
+        val result = coroutineScope {
+            val heartbeat = launch {
+                val stagedProgress = listOf(
+                    6 to "Video -> Text",
+                    14 to "Link -> Ready",
+                    24 to "Video -> Audio",
+                    38 to "Audio -> Text",
+                    52 to "Text -> Soon",
+                    68 to "Almost done"
+                )
+                for ((stageProgress, label) in stagedProgress) {
+                    delay(4000)
+                    if (!isActive) return@launch
+                    showProgressNotification(url, stageProgress, label, notificationId)
+                }
+            }
+            val apiResult = apiService.processTikTokVideo(url, isBackground = true)
+            heartbeat.cancel()
+            apiResult
+        }
         
         return result.fold(
             onSuccess = { statusResponse ->

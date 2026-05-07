@@ -53,6 +53,8 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
         const uiDump = this.core.readLastUIDump();
         const hasProcessing = uiDump.includes('Processing') || 
                             uiDump.includes('Transcribing') || 
+                            uiDump.includes('Video -> Text') ||
+                            uiDump.includes('Audio -> Text') ||
                             uiDump.includes('Status') ||
                             uiDump.includes('Progress');
 

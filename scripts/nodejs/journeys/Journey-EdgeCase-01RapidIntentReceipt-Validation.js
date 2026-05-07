@@ -83,10 +83,12 @@ class JourneyEdgeCase01RapidIntentReceiptValidation extends BaseJourney {
         // Step 6: Verify only one notification appears
         await this.core.sleep(2000);
         const notificationCheck = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "Transcribing\|transcription"'
+            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%"'
         );
         
-        const notificationCount = (notificationCheck.output || '').split('Transcribing').length - 1;
+        const notificationCount = new Set(
+            ((notificationCheck.output || '').match(/\d+% -> Text|100% -> Text|! Pluct/gi) || [])
+        ).size;
         if (notificationCount > 1) {
             return {
                 success: false,

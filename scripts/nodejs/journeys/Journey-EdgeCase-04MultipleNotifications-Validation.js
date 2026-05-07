@@ -49,11 +49,13 @@ class JourneyEdgeCase04MultipleNotificationsValidation extends BaseJourney {
         
         // Step 4: Verify only one notification appears
         const notificationCheck = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "Transcribing\|transcription"'
+            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%"'
         );
         
         const notificationText = notificationCheck.output || '';
-        const notificationCount = (notificationText.match(/Transcribing/gi) || []).length;
+        const notificationCount = new Set(
+            (notificationText.match(/\d+% -> Text|100% -> Text|! Pluct/gi) || [])
+        ).size;
         
         if (notificationCount > 1) {
             return {
@@ -62,20 +64,20 @@ class JourneyEdgeCase04MultipleNotificationsValidation extends BaseJourney {
             };
         }
         
-        // Step 5: Verify only one job in WorkManager (check logcat using shared validator)
+        // Step 5: Verify only one job in WorkManager with Pluct-specific markers
         const duplicateEnqueueCheck = await this.core.logcatValidator.checkForDuplicateCalls(
-            'enqueue|WorkManager.*enqueue',
+            'Starting background transcription',
             5,
             1
         );
         
         if (duplicateEnqueueCheck.isDuplicate) {
-            this.logger.warn(`⚠️ Multiple WorkManager enqueues detected: ${duplicateEnqueueCheck.count}`);
+            this.core.logger.warn(`⚠️ Multiple WorkManager enqueues detected: ${duplicateEnqueueCheck.count}`);
         }
         
         // Step 6: Verify no duplicate processing
         const duplicateProcessingCheck = await this.core.logcatValidator.checkForDuplicateCalls(
-            'Starting transcription|Submitting job|processTikTokVideo.*Starting',
+            'Calling processTikTokVideo API',
             5,
             1
         );
@@ -88,9 +90,15 @@ class JourneyEdgeCase04MultipleNotificationsValidation extends BaseJourney {
         }
         
         this.core.logger.info('✅ Multiple notifications edge case validated');
-        return true;
+        return {
+            success: true,
+            details: {
+                notificationCount,
+                duplicateEnqueues: duplicateEnqueueCheck.count,
+                duplicateProcessing: duplicateProcessingCheck.count
+            }
+        };
     }
 }
 
 module.exports = JourneyEdgeCase04MultipleNotificationsValidation;
-

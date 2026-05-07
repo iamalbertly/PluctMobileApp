@@ -27,7 +27,7 @@ class JourneyUX12BackgroundProcessingValidation extends BaseJourney {
         let notificationFound = false;
         for (let i = 0; i < 5; i++) {
             const notificationCheck = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "Transcribing\|transcription\|Starting transcription"'
+                'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%"'
             );
             
             if (notificationCheck.output) {
@@ -61,14 +61,15 @@ class JourneyUX12BackgroundProcessingValidation extends BaseJourney {
         
         while (Date.now() - startTime < maxWait) {
             const notificationCheck = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "Transcribing\|Downloading\|Extracting\|Transcribing with AI"'
+                'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Video ->" /c:"Audio ->" /c:"Text" /c:"Almost done" /c:"%"'
             );
             
             if (notificationCheck.output) {
                 const currentContent = notificationCheck.output;
-                if (currentContent.includes('Downloading') || 
-                    currentContent.includes('Extracting') ||
-                    currentContent.includes('Transcribing with AI')) {
+                if (currentContent.includes('Video ->') || 
+                    currentContent.includes('Audio ->') ||
+                    currentContent.includes('Text') ||
+                    currentContent.includes('%')) {
                     progressUpdates++;
                     this.logger.info(`Progress update ${progressUpdates} detected`);
                 }
@@ -76,7 +77,7 @@ class JourneyUX12BackgroundProcessingValidation extends BaseJourney {
             
             // Check if completed
             const completeCheck = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "Complete\|completed\|Transcription Complete"'
+                'adb shell dumpsys notification | findstr /i /c:"100% -> Text" /c:"Copy" /c:"Complete" /c:"completed" /c:"app.pluct"'
             );
             
             if (completeCheck.output) {

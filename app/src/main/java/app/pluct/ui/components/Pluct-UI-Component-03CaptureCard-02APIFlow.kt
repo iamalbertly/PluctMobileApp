@@ -20,6 +20,8 @@ import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.NOT
 import app.pluct.services.PluctCoreBackground01TranscriptionWorkerJobDeduplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
@@ -130,7 +132,30 @@ object PluctUIComponent03CaptureCardAPIFlow {
             return
         }
 
+        val notificationId = PluctNotificationHelper.generateNotificationId(normalizedUrl)
         CoroutineScope(Dispatchers.IO).launch {
+            val heartbeat = context?.let {
+                launch heartbeat@{
+                    val stagedProgress = listOf(
+                        0 to "Video -> Text",
+                        12 to "Link -> Ready",
+                        28 to "Video -> Audio",
+                        48 to "Audio -> Text",
+                        72 to "Almost done"
+                    )
+                    for ((progress, label) in stagedProgress) {
+                        PluctNotificationHelper.showTranscriptionProgressNotification(
+                            context = it,
+                            url = normalizedUrl,
+                            progress = progress,
+                            message = label,
+                            notificationId = notificationId
+                        )
+                        delay(3500)
+                        if (!isActive) return@heartbeat
+                    }
+                }
+            }
             try {
                 val startTime = System.currentTimeMillis()
                 Log.d(tag, "Calling processTikTokVideo API for URL: $normalizedUrl")
@@ -142,6 +167,7 @@ object PluctUIComponent03CaptureCardAPIFlow {
                 )
 
                 val result = apiService.processTikTokVideo(normalizedUrl)
+                heartbeat?.cancel()
                 val duration = System.currentTimeMillis() - startTime
                 Log.d(tag, "API call completed in ${duration}ms")
 
@@ -156,6 +182,25 @@ object PluctUIComponent03CaptureCardAPIFlow {
                     message = "Flow completed",
                     details = "Status=${status.status}; Duration=${duration}ms"
                 )
+                context?.let {
+                    val transcript = status.transcript.orEmpty()
+                    if (transcript.isNotBlank()) {
+                        PluctNotificationHelper.showTranscriptionCompleteNotification(
+                            context = it,
+                            url = normalizedUrl,
+                            transcript = transcript,
+                            notificationId = notificationId
+                        )
+                    } else {
+                        PluctNotificationHelper.showTranscriptionProgressNotification(
+                            context = it,
+                            url = normalizedUrl,
+                            progress = 96,
+                            message = "Almost done",
+                            notificationId = notificationId
+                        )
+                    }
+                }
                 withContext(Dispatchers.Main) {
                     onSuccess("Transcription completed successfully!")
                 }
@@ -165,15 +210,32 @@ object PluctUIComponent03CaptureCardAPIFlow {
                     PluctCoreAPIUnifiedServiceErrorCache.cacheError(normalizedUrl, error)
                 }
                 val errorMessage = resolveErrorMessage(error, normalizedUrl, debugLogManager, tag)
+                context?.let {
+                    PluctNotificationHelper.showTranscriptionErrorNotification(
+                        context = it,
+                        url = normalizedUrl,
+                        error = errorMessage,
+                        notificationId = notificationId
+                    )
+                }
                 withContext(Dispatchers.Main) {
                     onError(errorMessage)
                 }
             }
             } catch (e: Exception) {
+                heartbeat?.cancel()
                 if (e is PluctCoreAPIDetailedError) {
                     PluctCoreAPIUnifiedServiceErrorCache.cacheError(normalizedUrl, e)
                 }
                 val errorMessage = resolveErrorMessage(e, normalizedUrl, debugLogManager, tag)
+                context?.let {
+                    PluctNotificationHelper.showTranscriptionErrorNotification(
+                        context = it,
+                        url = normalizedUrl,
+                        error = errorMessage,
+                        notificationId = notificationId
+                    )
+                }
                 withContext(Dispatchers.Main) {
                     onError(errorMessage)
                 }

@@ -28,7 +28,7 @@ class JourneyEdgeCase03NetworkLossValidation extends BaseJourney {
             for (let attempt = 0; attempt < 6; attempt++) {
                 await this.core.sleep(1500);
                 const notificationCheck = await this.core.executeCommand(
-                    'adb shell dumpsys notification | findstr /i "Transcribing\\|transcription\\|Pluct Processing\\|Pluct Complete\\|Copy Transcript"',
+                    'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"Copy" /c:"%"',
                     undefined,
                     undefined,
                     { allowFailure: true }
@@ -40,11 +40,11 @@ class JourneyEdgeCase03NetworkLossValidation extends BaseJourney {
                     { allowFailure: true }
                 );
                 startupEvidence = `${notificationCheck.output || ''}\n${workerLog.output || ''}`;
-                if (/Pluct Complete|Copy Transcript|Worker result SUCCESS|Updated video to completed/i.test(startupEvidence)) {
+                if (/100% -> Text|Copy|Worker result SUCCESS|Updated video to completed/i.test(startupEvidence)) {
                     this.core.logger.info('Transcription completed before network loss; cached/fast completion path is stable');
                     return { success: true, cachedCompletion: true };
                 }
-                if (/Transcribing|transcription|Pluct Processing|Background worker job created|TranscriptionWorker/i.test(startupEvidence)) {
+                if (/Pluct|Text|Video ->|Audio ->|Background worker job created|TranscriptionWorker/i.test(startupEvidence)) {
                     break;
                 }
             }
@@ -74,7 +74,7 @@ class JourneyEdgeCase03NetworkLossValidation extends BaseJourney {
             }
 
             const errorNotificationCheck = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "Network\\|connection lost\\|queued\\|will process\\|Pluct Complete"',
+                'adb shell dumpsys notification | findstr /i /c:"Wi-Fi" /c:"Saved" /c:"queued" /c:"100% -> Text" /c:"Copy" /c:"app.pluct"',
                 undefined,
                 undefined,
                 { allowFailure: true }

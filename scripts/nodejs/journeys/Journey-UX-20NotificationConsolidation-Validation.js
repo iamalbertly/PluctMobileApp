@@ -34,25 +34,31 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
         await this.core.sleep(5000); // Give more time for notification
         
         const notificationDump = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "Transcribing\|Transcription Started\|Pluct"'
+            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->"'
         );
         
         // Count unique notification IDs
         const notificationLines = notificationDump.output ? notificationDump.output.split('\n').filter(line => 
-            (line.includes('Transcribing') || line.includes('Transcription Started') || line.includes('Pluct')) &&
-            !line.trim().isEmpty()
+            (line.includes('Pluct') || line.includes('Text') || line.includes('Video ->') || line.includes('Audio ->')) &&
+            line.trim().length > 0
         ) : [];
         
         // Check logcat for notification creation evidence
         const logcatCheck = await this.core.executeCommand(
-            'adb logcat -d -t 100 | findstr /i "PluctNotificationHelper\|showTranscriptionProgressNotification\|Notification.*notify"'
+            'adb logcat -d -t 150 | findstr /i /c:"PluctNotificationHelper" /c:"showTranscriptionProgressNotification" /c:"notify pkg=app.pluct"'
         );
         
-        // Validation: Should have at most 1 notification OR logcat evidence
-        if (notificationLines.length > 1) {
+        const visibleTitles = new Set(
+            notificationLines
+                .map(line => (line.match(/(\d+% -> Text|! Pluct|100% -> Text)/i) || [])[1])
+                .filter(Boolean)
+        );
+
+        // Validation: Should have at most 1 active Pluct status title OR logcat evidence
+        if (visibleTitles.size > 1) {
             return { 
                 success: false, 
-                error: `Multiple notifications detected: ${notificationLines.length} notifications found` 
+                error: `Multiple notification titles detected: ${Array.from(visibleTitles).join(', ')}` 
             };
         }
         
@@ -66,13 +72,13 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
         
         // Step 5: Verify app icon in notification (check logcat for icon resource)
         const iconCheck = await this.core.executeCommand(
-            'adb logcat -d -t 100 | findstr /i "ic_launcher\|R.mipmap.ic_launcher"'
+            'adb logcat -d -t 100 | findstr /i /c:"ic_stat_pluct" /c:"ic_launcher" /c:"R.mipmap.ic_launcher"'
         );
         
         // Step 6: Verify notification updates progress
         await this.core.sleep(5000);
         const progressCheck = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "progress\|Transcribing"'
+            'adb shell dumpsys notification | findstr /i /c:"progress" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%" /c:"app.pluct"'
         );
         
         this.core.logger.info('✅ Notification consolidation validation passed');
@@ -81,7 +87,7 @@ class JourneyUX20NotificationConsolidationValidation extends BaseJourney {
             details: { 
                 notificationCount: notificationLines.length,
                 hasAppIcon: iconCheck.output ? iconCheck.output.includes('ic_launcher') : false,
-                hasProgress: progressCheck.output ? progressCheck.output.includes('progress') : false
+                hasProgress: progressCheck.output ? /progress|Text|Video ->|Audio ->|%/i.test(progressCheck.output) : false
             }
         };
     }

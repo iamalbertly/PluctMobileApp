@@ -14,12 +14,24 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            'Journey-UX-20NotificationConsolidation-Validation',
+            'Journey-UX-20NotificationConsolidation-Validation.js',
+            'Journey-UX-13NotificationNavigation-Validation',
+            'Journey-UX-13NotificationNavigation-Validation.js',
+            'Journey-UX-12BackgroundProcessing-Validation',
+            'Journey-UX-12BackgroundProcessing-Validation.js',
+            'Journey-UX-11AutoSubmitIntent-Validation',
+            'Journey-UX-11AutoSubmitIntent-Validation.js',
             'Pluct-Test-Validation-10ErrorHandling',
             'Pluct-Test-Validation-10ErrorHandling.js',
             'Journey-UX-22VideoTitleFallback-Validation',
             'Journey-UX-22VideoTitleFallback-Validation.js',
             'Journey-UX-05RedundantVisuals-Validation',
             'Journey-UX-05RedundantVisuals-Validation.js',
+            'Journey-EdgeCase-04MultipleNotifications-Validation',
+            'Journey-EdgeCase-04MultipleNotifications-Validation.js',
+            'Journey-EdgeCase-03NetworkLoss-Validation',
+            'Journey-EdgeCase-03NetworkLoss-Validation.js',
             'Journey-QuickScan',
             'Journey-QuickScan.js'
         ];

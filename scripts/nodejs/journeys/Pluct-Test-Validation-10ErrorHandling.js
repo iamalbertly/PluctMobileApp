@@ -47,13 +47,18 @@ class PluctTestValidationErrorHandling extends BaseJourney {
             }
 
             const apiLogs = await this.core.executeCommand(
-                'adb logcat -d -t 120 | findstr /i "processTikTokVideo submit transcription job"',
+                'adb logcat -d -t 160 | findstr /i /c:"CaptureCard: Starting complete Business Engine API flow" /c:"Calling processTikTokVideo API" /c:"PluctAPI: API REQUEST" /c:"/ttt/transcribe"',
                 undefined,
                 undefined,
                 { allowFailure: true }
             );
-            if ((apiLogs.output || '').trim()) {
-                return { success: false, error: `Invalid URL triggered API work: ${apiLogs.output}` };
+            const pluctApiEvidence = (apiLogs.output || '')
+                .split('\n')
+                .filter(line => /CaptureCard: Starting complete Business Engine API flow|Calling processTikTokVideo API|PluctAPI: API REQUEST|\/ttt\/transcribe/i.test(line))
+                .join('\n')
+                .trim();
+            if (pluctApiEvidence) {
+                return { success: false, error: `Invalid URL triggered API work: ${pluctApiEvidence}` };
             }
 
             const clearResult = await this.core.tapByContentDesc('Clear URL');

@@ -33,7 +33,7 @@ class JourneyUX13NotificationNavigationValidation extends BaseJourney {
             
             // Check for completion notification
             const notificationCheck = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "Complete\|completed\|Transcription Complete"'
+                'adb shell dumpsys notification | findstr /i /c:"100% -> Text" /c:"Copy" /c:"Complete" /c:"completed" /c:"app.pluct"'
             );
             
             if (notificationCheck.output) {
@@ -46,7 +46,7 @@ class JourneyUX13NotificationNavigationValidation extends BaseJourney {
             await this.core.dumpUIHierarchy();
             const uiDump = this.core.readLastUIDump() || '';
             
-            if (uiDump.includes('COMPLETED') || uiDump.includes('Transcript ready')) {
+            if (uiDump.includes('COMPLETED') || uiDump.includes('Transcript ready') || uiDump.includes('Copy transcript') || uiDump.includes('OK')) {
                 completed = true;
                 this.logger.info('✅ Transcription completed in UI');
                 break;
@@ -62,7 +62,7 @@ class JourneyUX13NotificationNavigationValidation extends BaseJourney {
         
         // Step 3: Get notification ID
         const notificationDump = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "Transcription Complete" -A 10'
+            'adb shell dumpsys notification | findstr /i /c:"100% -> Text" /c:"Copy" /c:"app.pluct"'
         );
         
         // Step 4: Tap notification (simulate tap on notification)

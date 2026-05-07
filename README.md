@@ -495,7 +495,40 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.7.0 - Senior-Friendly Visual Flow + Notification Return Path (Current)
+### v2.8.0 - Universal Notification Flow + Fast-Fail Validation (Current)
+
+**UX/Reliability Improvements:**
+1. Progress notifications now use universal arrow labels like `0% -> Text`, `Video -> Audio`, and `Audio -> Text`.
+2. Foreground captures now post the same live Pluct notification as background captures, so users always see progress at the top.
+3. Completion notifications now show `100% -> Text` with direct `Copy` and `TikTok` actions.
+4. Error notifications now hide internal service wording and use short recovery cues such as `No internet -> Saved`.
+5. The TikTok URL field now uses `TikTok link -> Text` and a compact wallet credit badge to reduce reading load.
+6. Invalid TikTok text is blocked inline before any API, database, or worker cost is spent.
+7. Manual capture progress has a heartbeat so the status does not freeze while Business Engine or TTTranscribe responds.
+8. Background worker progress has the same heartbeat stages, keeping notification status believable during slower upstream calls.
+9. QuickScan validation now recognizes the production completion notification when the user path returns to TikTok or launcher.
+
+**Edge Cases Covered:**
+1. Duplicate pasted TikTok fragments are rejected before processing.
+2. Incomplete short links are rejected before queue/database creation.
+3. TTTranscribe/service errors map to a saved-video retry message instead of a churn-inducing raw error.
+4. Network loss keeps the video saved and surfaces a Wi-Fi recovery cue.
+5. Multiple notification validation confirms one active Pluct notification and no duplicate processing start.
+
+**Tech Debt Cleanups:**
+1. `npm run test:all` ordering now starts with recently changed notification/UI journeys, then last failed paths, then high-priority service checks.
+2. Notification journey checks were migrated to explicit Pluct/Puppeteer-style ADB evidence instead of stale broad log patterns.
+3. Invalid URL validation now filters only real Pluct API-submit evidence and ignores unrelated Android scheduler logs.
+4. QuickScan result detection shares the same production completion signal as the app notification path.
+
+**Validation:**
+- Built and installed `app-debug.apk` against `http://127.0.0.1:8789`.
+- `npm run test:all -- Journey-UX-20NotificationConsolidation-Validation Journey-UX-13NotificationNavigation-Validation Journey-UX-12BackgroundProcessing-Validation Journey-UX-11AutoSubmitIntent-Validation Pluct-Test-Validation-10ErrorHandling Journey-UX-22VideoTitleFallback-Validation Journey-UX-05RedundantVisuals-Validation Journey-EdgeCase-04MultipleNotifications-Validation Journey-EdgeCase-03NetworkLoss-Validation Journey-QuickScan Journey-TTTranscribeIntegration Journey-APIConnectivity Journey-TokenVendingValidation`
+- Playwright MCP validated `http://127.0.0.1:8789/admin/dashboard`: local health connected, users loaded, refresh worked, select-all/clear worked, and console warnings/errors were zero.
+- Business Engine health confirmed `ttt: healthy` and circuit breaker `closed`.
+- Hugging Face `hf` CLI was checked but is not installed on PATH in this Windows environment.
+
+### v2.7.0 - Senior-Friendly Visual Flow + Notification Return Path
 
 **UX/Reliability Improvements:**
 1. Compact transcript cards now show thumbnail, status icon, author, duration, confidence, and preview in one scannable row.

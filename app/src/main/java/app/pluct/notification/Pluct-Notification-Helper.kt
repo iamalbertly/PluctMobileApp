@@ -46,6 +46,33 @@ object PluctNotificationHelper {
         )
     }
 
+    private fun progressTitle(progress: Int): String = "$progress% -> Text"
+
+    private fun progressText(message: String): String {
+        val lower = message.lowercase()
+        return when {
+            "network" in lower || "connection" in lower || "reconnect" in lower -> "Wi-Fi -> Resume"
+            "server" in lower || "busy" in lower -> "Wait -> Retry"
+            "download" in lower -> "Video -> Audio"
+            "extract" in lower || "audio" in lower -> "Audio -> Text"
+            "transcrib" in lower -> "Audio -> Text"
+            "final" in lower || "complete" in lower -> "Almost done"
+            "start" in lower || "prepar" in lower -> "Video -> Text"
+            else -> message.take(48)
+        }
+    }
+
+    private fun errorText(error: String): String {
+        val lower = error.lowercase()
+        return when {
+            "credit" in lower || "insufficient" in lower -> "Add credits -> Continue"
+            "network" in lower || "connection" in lower || "resolve host" in lower -> "No internet -> Saved"
+            "tttranscribe" in lower || "service" in lower || "server" in lower || "500" in lower -> "Try again soon. Video saved."
+            "timeout" in lower || "still working" in lower -> "Still working. Check soon."
+            else -> error.take(72)
+        }
+    }
+
     /**
      * UX FIX #2: Safe notification icon retrieval with dedicated monochrome icon
      * Android 13+ requires monochrome icons for status bar visibility
@@ -211,8 +238,10 @@ object PluctNotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("Pluct ready")
-            .setContentText("$videoTitle - $processingTier analysis completed")
+            .setContentTitle("100% -> Pluct")
+            .setContentText("Tap -> Open")
+            .setSubText("${videoTitle.take(24)} ${processingTier.take(12)}".trim())
+            .setTicker("100% -> Pluct")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -239,8 +268,10 @@ object PluctNotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("Done")
-            .setContentText("$videoTitle - Transcript ready")
+            .setContentTitle("100% -> Text")
+            .setContentText("Tap -> Open")
+            .setSubText(videoTitle.take(24))
+            .setTicker("100% -> Text")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -287,18 +318,19 @@ object PluctNotificationHelper {
         )
         
         val safeProgress = progress.coerceIn(0, 99)
+        val simpleText = progressText(message)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("$safeProgress% Pluct")
-            .setContentText(message)
+            .setContentTitle(progressTitle(safeProgress))
+            .setContentText(simpleText)
             .setSubText("$safeProgress%")
-            .setTicker("$safeProgress% $message")
+            .setTicker("$safeProgress% $simpleText")
             .setProgress(100, safeProgress, false)
             .setContentIntent(pendingIntent)
             .setOnlyAlertOnce(true)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Cancel",
+                "Stop",
                 cancelPendingIntent
             )
             .setOngoing(true)
@@ -358,22 +390,19 @@ object PluctNotificationHelper {
         
         // UX FIX #3: Enhanced preview with word count and first sentence for context
         val wordCount = transcript.split(Regex("\\s+")).filter { it.isNotBlank() }.size
-        // UX FIX #3 (v2.5): Extract first sentence for more meaningful collapsed preview
-        val firstSentence = transcript.split(Regex("[.!?]")).firstOrNull()?.trim() ?: transcript.take(100)
-        val preview = if (firstSentence.length > 120) firstSentence.take(120) + "..." else firstSentence
-        val titleWithContext = "Done ($wordCount words)"
+        val titleWithContext = "100% -> Text"
 
         // UX FIX #1: Build notification with HIGH priority for sound+vibration
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context))
             .setContentTitle(titleWithContext)
-            .setContentText(preview)
-            .setTicker("Pluct done")
+            .setContentText("Tap -> Copy ($wordCount words)")
+            .setTicker("100% -> Text")
             .setStyle(NotificationCompat.BigTextStyle().bigText(transcript.take(500)))
             .setContentIntent(pendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_share,
-                "Copy Transcript",
+                "Copy",
                 copyPendingIntent
             )
             .setAutoCancel(true)
@@ -429,10 +458,12 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        val simpleError = errorText(error)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_ERROR)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("Pluct failed")
-            .setContentText(error)
+            .setContentTitle("! Pluct")
+            .setContentText(simpleError)
+            .setTicker("! Pluct $simpleError")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -501,11 +532,13 @@ object PluctNotificationHelper {
         )
         
         val safeProgress = progress.coerceIn(0, 99)
+        val simpleText = progressText(message)
         return NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("$safeProgress% Pluct")
-            .setContentText(message)
+            .setContentTitle(progressTitle(safeProgress))
+            .setContentText(simpleText)
             .setSubText("$safeProgress%")
+            .setTicker("$safeProgress% $simpleText")
             .setProgress(100, safeProgress, false)
             .setContentIntent(pendingIntent)
             .setOnlyAlertOnce(true)

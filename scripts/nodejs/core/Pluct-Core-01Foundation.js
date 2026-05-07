@@ -511,6 +511,27 @@ class PluctCoreFoundation {
                 return { success: true, message: 'Transcript result found in UI' };
             }
 
+            const isOutsidePluct = normalizedDump.includes('package="com.ldmnq.launcher3"') ||
+                normalizedDump.includes('package="com.zhiliaoapp.musically"');
+            if (isOutsidePluct) {
+                const notificationResult = await this.executeCommand(
+                    'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"pluct_complete" /c:"100% -> Text" /c:"Copy" /c:"TikTok"',
+                    undefined,
+                    undefined,
+                    { allowFailure: true }
+                );
+                const notificationDump = notificationResult.output || '';
+                if (notificationDump.includes('app.pluct') &&
+                    (notificationDump.includes('100% -> Text') || notificationDump.includes('pluct_complete')) &&
+                    notificationDump.includes('Copy')) {
+                    this.logger.info('?o. Transcript result detected in Pluct notification');
+                    return { success: true, message: 'Transcript result found in notification' };
+                }
+
+                await this.ensureAppForeground();
+                await this.sleep(1200);
+            }
+
             await this.sleep(5000);
         }
 

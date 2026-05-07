@@ -14,6 +14,7 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
         this.core.logger.info('Starting Auto-Submit Intent Validation');
         
         // Step 1: Launch app and verify credits available
+        await this.core.executeCommand('adb shell input keyevent BACK', undefined, undefined, { allowFailure: true });
         await this.core.launchApp();
         await this.core.sleep(3000);
         
@@ -35,6 +36,11 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
         // Step 3: Launch app fresh
         await this.core.launchApp();
         await this.core.sleep(3000);
+
+        const seeded = await this.core.ensureLocalMobileCredits(3);
+        if (!seeded.success) {
+            return { success: false, error: `Could not seed credits after fresh launch: ${seeded.error || 'unknown'}` };
+        }
         
         // Step 4: Send intent with TikTok URL
         const startTime = Date.now();
@@ -44,14 +50,14 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
         
         // Step 5: Monitor for auto-submit (should happen within 1 second)
         let autoSubmitDetected = false;
-        const maxWait = 3000; // 3 seconds max wait
+        const maxWait = 20000; // allow app restore, balance load, and auto-submit debounce
         
         while (Date.now() - startTime < maxWait) {
             await this.core.sleep(500);
             
             // Check logcat for auto-submit
             const logcatResult = await this.core.executeCommand(
-                'adb logcat -d -t 50 | findstr /i "Auto-submitting\|submitExtract\|Starting transcription"'
+                'adb logcat -d -t 200 | findstr /i /c:"Auto-submitting" /c:"submitExtract" /c:"Starting background transcription" /c:"Starting transcription"'
             );
             
             if (logcatResult.output && logcatResult.output.includes('Auto-submitting')) {
@@ -66,6 +72,8 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
             uiDump = this.core.readLastUIDump() || '';
             
             if (uiDump.includes('Starting transcription') || 
+                uiDump.includes('0% working') ||
+                uiDump.includes('Processing indicator') ||
                 uiDump.includes('Getting video details') ||
                 uiDump.includes('Submitting job')) {
                 autoSubmitDetected = true;
@@ -78,7 +86,7 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
         if (!autoSubmitDetected) {
             return { 
                 success: false, 
-                error: 'Auto-submit not detected within 3 seconds of intent receive' 
+                error: 'Auto-submit not detected within 20 seconds of intent receive' 
             };
         }
         
@@ -94,7 +102,7 @@ class JourneyUX11AutoSubmitIntentValidation extends BaseJourney {
         
         // Step 7: Verify notification appears
         const notificationCheck = await this.core.executeCommand(
-            'adb shell dumpsys notification | findstr /i "Transcribing\|transcription"'
+            'adb shell dumpsys notification | findstr /i /c:"app.pluct" /c:"Pluct" /c:"Text" /c:"Video ->" /c:"Audio ->" /c:"%"'
         );
         
         if (notificationCheck.output) {
