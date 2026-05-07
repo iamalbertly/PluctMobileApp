@@ -30,7 +30,8 @@ object PluctDatabaseModule {
             .addMigrations(
                 PluctDatabaseMigration.MIGRATION_2_3,
                 PluctDatabaseMigration.MIGRATION_3_4,
-                PluctDatabaseMigration.MIGRATION_4_5  // UX FIX #1: transcriptCachedAt field
+                PluctDatabaseMigration.MIGRATION_4_5,  // UX FIX #1: transcriptCachedAt field
+                PluctDatabaseMigration.MIGRATION_5_6   // UX FIX #3: confidence field
             )
             .fallbackToDestructiveMigration() // Fallback for other migrations
             .build()

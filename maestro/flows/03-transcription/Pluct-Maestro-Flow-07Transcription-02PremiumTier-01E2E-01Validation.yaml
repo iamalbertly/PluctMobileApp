@@ -10,7 +10,7 @@ appId: app.pluct
     optional: true
 - tapOn:
     id: "url_input_field"
-- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
+- inputText: "https://vt.tiktok.com/ZSaMj8uAJ/"
 - waitForAnimationToEnd
 - assertVisible:
     text: "Generate Insights"

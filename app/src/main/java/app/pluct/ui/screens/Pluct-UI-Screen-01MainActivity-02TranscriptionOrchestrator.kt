@@ -103,7 +103,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                             appendLine("  Method: GET")
                             appendLine("  Endpoint: /v1/credits/balance")
                             appendLine("  User ID: ${userIdentification.userId}")
-                            appendLine("  Base URL: https://pluct-business-engine.romeo-lya2.workers.dev")
+                            appendLine("  Base URL: ${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}")
                         },
                         responseBody = buildString {
                             appendLine("ERROR DETAILS:")
@@ -304,5 +304,4 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
         }
     }
 }
-
 

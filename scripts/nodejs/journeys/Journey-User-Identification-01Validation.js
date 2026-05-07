@@ -99,8 +99,9 @@ class JourneyUserIdentificationValidation extends BaseJourney {
 
             // Step 6: Test API communication
             this.core.logger.info('🔍 Step 6: Testing API communication...');
-            const apiLogResult = await this.core.executeCommand('adb logcat -d | findstr "pluct-business-engine"');
-            if (apiLogResult.success && apiLogResult.output.includes('pluct-business-engine.romeo-lya2.workers.dev')) {
+            const businessEngineHost = new URL(this.core.config.businessEngineUrl).host;
+            const apiLogResult = await this.core.executeCommand(`adb logcat -d | findstr "${businessEngineHost}"`);
+            if (apiLogResult.success && apiLogResult.output.includes(businessEngineHost)) {
                 this.core.logger.info('✅ API communication is working');
             } else {
                 this.core.logger.warn('⚠️ API communication logs not found');

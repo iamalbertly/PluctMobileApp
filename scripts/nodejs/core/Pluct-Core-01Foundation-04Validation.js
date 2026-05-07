@@ -35,6 +35,11 @@ class PluctCoreFoundationValidation {
                 return { success: false, error: 'App installation check failed' };
             }
 
+            const bridgeResult = await this.configureLocalBusinessEngineBridge();
+            if (!bridgeResult.success) {
+                return { success: false, error: bridgeResult.error };
+            }
+
             // Stop noisy foreground apps that interfere with UI automation (observed overlays from com.expensphere).
             await this.commands.executeCommand('adb shell am force-stop com.expensphere', undefined, undefined, { allowFailure: true });
 
@@ -44,13 +49,36 @@ class PluctCoreFoundationValidation {
                 details: {
                     adb: adbResult,
                     device: deviceResult,
-                    app: appResult
+                    app: appResult,
+                    localBusinessEngineBridge: bridgeResult
                 }
             };
         } catch (error) {
             this.logger.error(`Environment validation failed: ${error.message}`);
             return { success: false, error: error.message };
         }
+    }
+
+    async configureLocalBusinessEngineBridge() {
+        const baseUrl = (this.config.businessEngineUrl || '').toLowerCase();
+        const isLoopback = baseUrl.includes('://127.0.0.1:') || baseUrl.includes('://localhost:');
+        if (!isLoopback) {
+            return { success: true, skipped: true, reason: 'remote business engine' };
+        }
+
+        const portMatch = baseUrl.match(/:(\d+)(?:\/|$)/);
+        const port = portMatch ? portMatch[1] : '8787';
+        this.logger.info(`Configuring Android bridge for local Business Engine on port ${port}...`);
+
+        const reverseResult = await this.commands.executeCommand(`adb reverse tcp:${port} tcp:${port}`, undefined, undefined, { allowFailure: true });
+        if (!reverseResult.success) {
+            return {
+                success: false,
+                error: `Unable to expose local Business Engine to Android device with adb reverse tcp:${port} tcp:${port}`
+            };
+        }
+
+        return { success: true, port };
     }
 
     /**

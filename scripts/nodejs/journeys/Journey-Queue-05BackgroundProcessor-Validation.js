@@ -16,15 +16,19 @@ class JourneyQueue05BackgroundProcessorValidation extends BaseJourney {
             await this.core.sleep(2000);
             
             await this.ensureAppForeground();
+            await this.core.ensureCaptureCardReady();
             
-            let urlTap = await this.core.tapByTestTag('url_input_field');
+            let urlTap = await this.core.tapByTestTag('video_url_input');
+            if (!urlTap.success) {
+                urlTap = await this.core.tapByTestTag('url_input_field');
+            }
             if (!urlTap.success) {
                 urlTap = await this.core.tapByText('Paste TikTok Link');
             }
             await this.core.inputText(this.core.config.url);
             await this.core.sleep(1000);
             
-            const extractTap = await this.core.tapByTestTag('extract_script_button');
+            const extractTap = await this.core.ui.buttonTapping.tapExtractScriptButton();
             if (extractTap.success) {
                 await this.core.sleep(1000);
                 const saveTap = await this.core.tapByText('Save for Later');
@@ -49,11 +53,16 @@ class JourneyQueue05BackgroundProcessorValidation extends BaseJourney {
             await this.core.sleep(5000);
             
             const workManagerLog = await this.core.executeCommand(
-                'adb logcat -d -t 200 | findstr /i "PluctQueueProcessorWorker.*enqueued.*scheduled"'
+                'adb logcat -d -t 250 | findstr /i "PluctQueueProcessor\\|Queue processor\\|pluct_queue_processor\\|WorkManager"',
+                undefined,
+                undefined,
+                { allowFailure: true }
             );
+            const workManagerOutput = workManagerLog.output || '';
             
-            if (workManagerLog.output.includes('PluctQueueProcessorWorker') || 
-                workManagerLog.output.includes('scheduled')) {
+            if (workManagerOutput.includes('PluctQueueProcessor') ||
+                workManagerOutput.includes('Queue processor') ||
+                workManagerOutput.includes('scheduled')) {
                 this.core.logger.info('✅ WorkManager work scheduled');
             } else {
                 this.core.logger.warn('⚠️ WorkManager schedule log not found (may be scheduled silently)');
@@ -64,11 +73,16 @@ class JourneyQueue05BackgroundProcessorValidation extends BaseJourney {
             await this.core.sleep(10000);
             
             const workerLog = await this.core.executeCommand(
-                'adb logcat -d -t 200 | findstr /i "PluctQueueProcessorWorker.*doWork"'
+                'adb logcat -d -t 250 | findstr /i "Queue processor worker started\\|Queue processor completed\\|Completed queued video\\|Worker result SUCCESS"',
+                undefined,
+                undefined,
+                { allowFailure: true }
             );
+            const workerOutput = workerLog.output || '';
             
-            if (workerLog.output.includes('doWork') || 
-                workerLog.output.includes('Queue processor')) {
+            if (workerOutput.includes('Queue processor') ||
+                workerOutput.includes('Completed queued video') ||
+                workerOutput.includes('Worker result SUCCESS')) {
                 this.core.logger.info('✅ Worker execution detected');
             } else {
                 this.core.logger.warn('⚠️ Worker execution not detected (may run later)');
@@ -107,10 +121,16 @@ class JourneyQueue05BackgroundProcessorValidation extends BaseJourney {
             // Step 8: Verify notification updated
             this.core.logger.info('📱 Step 8: Verifying notification...');
             const notification = await this.core.executeCommand(
-                'adb shell dumpsys notification | findstr /i "pluct_queue"'
+                'adb shell dumpsys notification | findstr /i "pluct_queue\\|Pluct Queue\\|Pluct Complete"',
+                undefined,
+                undefined,
+                { allowFailure: true }
             );
+            const notificationOutput = notification.output || '';
             
-            if (notification.output.includes('pluct_queue')) {
+            if (notificationOutput.includes('pluct_queue') ||
+                notificationOutput.includes('Pluct Queue') ||
+                notificationOutput.includes('Pluct Complete')) {
                 this.core.logger.info('✅ Notification found');
             }
             
@@ -122,7 +142,7 @@ class JourneyQueue05BackgroundProcessorValidation extends BaseJourney {
             await this.failWithDiagnostics(error.message);
             return { success: false, error: error.message };
         } finally {
-            await this.core.executeCommand('adb shell svc wifi enable');
+            await this.core.executeCommand('adb shell svc wifi enable', undefined, undefined, { allowFailure: true });
         }
     }
 }

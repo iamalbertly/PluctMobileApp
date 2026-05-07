@@ -430,6 +430,8 @@ class PluctCoreFoundationUI {
                 .replace(/!/g, '\\!');
 
         try {
+            await this.clearFocusedTextInput();
+
             // Always try direct input first (works better for BasicTextField), then fall back to clipboard.
             try {
                 // Clear existing text first
@@ -442,18 +444,23 @@ class PluctCoreFoundationUI {
                 const directResult = await this.executeCommand(`adb shell input text "${escapedText}"`);
                 await this.sleep(500);
 
-                if (directResult && directResult.success) {
-                    return directResult;
-                }
-
                 // If text already appears in the UI, avoid double-inserting via clipboard.
                 try {
                     await this.dumpUIHierarchy();
-                    if (this.lastUIDump && this.lastUIDump.includes(rawText)) {
+                    const expectedPrefix = rawText.substring(0, Math.min(rawText.length, 20));
+                    if (this.lastUIDump && (
+                        this.lastUIDump.includes(rawText) ||
+                        this.lastUIDump.includes(expectedPrefix) ||
+                        (/tiktok\.com/i.test(rawText) && /tiktok\.com/i.test(this.lastUIDump))
+                    )) {
                         return { success: true, output: 'Text detected in UI after direct input' };
                     }
                 } catch (_) {
                     // Ignore UI dump errors and fall back to clipboard.
+                }
+
+                if (directResult && directResult.success && !/^https?:\/\//i.test(rawText)) {
+                    return directResult;
                 }
                 this.logger.warn('Direct text input did not report success, falling back to clipboard');
             } catch (directError) {
@@ -464,6 +471,27 @@ class PluctCoreFoundationUI {
             return await this.inputTextViaClipboard(rawText);
         } catch (error) {
             this.logger.error(`Input text failed: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async clearFocusedTextInput() {
+        try {
+            const clearTap = await this.tapByContentDesc('Clear URL');
+            if (clearTap.success) {
+                await this.sleep(300);
+                await this.tapFirstEditText();
+                return { success: true, method: 'clear_button' };
+            }
+
+            await this.executeCommand('adb shell input keyevent KEYCODE_MOVE_END', undefined, undefined, { allowFailure: true });
+            for (let i = 0; i < 8; i++) {
+                await this.executeCommand('adb shell input keyevent --longpress KEYCODE_DEL', undefined, undefined, { allowFailure: true });
+                await this.sleep(50);
+            }
+            return { success: true, method: 'keyevent_delete' };
+        } catch (error) {
+            this.logger.warn(`Input clear skipped: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
@@ -605,8 +633,11 @@ class PluctCoreFoundationUI {
                 'paste_button': 'Paste from clipboard',
                 'url_history_button': 'Show URL history',
                 'error_retry_button': 'Retry operation',
-                'extract_script_button': 'Extract Script option',
-                'url_input_field': 'Video URL input field'
+                'extract_script_button': 'Extract Script',
+                'extract_script_action_button': 'Extract Script',
+                'url_input_field': 'Video URL input field',
+                'video_url_input': 'Video URL input field',
+                'tiktok_url_input': 'Video URL input field'
             };
             
             const contentDesc = contentDescMap[testTag];

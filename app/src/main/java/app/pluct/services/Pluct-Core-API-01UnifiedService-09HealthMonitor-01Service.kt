@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -38,6 +37,25 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
 
     private var healthMonitoringJob: Job? = null
 
+    suspend fun refreshNow(): Map<String, HealthStatus> {
+        return withContext(Dispatchers.IO) {
+            val healthResult = httpClient.executeRequest("GET", "/health/services", null, null)
+            if (healthResult.isSuccess) {
+                val (_, tttHealth) = parseHealthResponse(healthResult.getOrNull())
+                val updated = buildMap {
+                    put("api", HealthStatus.HEALTHY)
+                    tttHealth?.let { put("ttt", it) }
+                }
+                _healthStatus.value = updated
+                updated
+            } else {
+                val updated = mapOf("api" to HealthStatus.UNHEALTHY)
+                _healthStatus.value = updated
+                updated
+            }
+        }
+    }
+
     /**
      * Start health monitoring
      */
@@ -49,22 +67,7 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
         
         healthMonitoringJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
-                val healthResult = withContext(Dispatchers.IO) { 
-                    httpClient.executeRequest("GET", "/health", null, null) 
-                }
-                if (healthResult.isSuccess) {
-                    val raw = healthResult.getOrNull()
-                    val (apiHealth, tttHealth) = parseHealthResponse(raw)
-                    _healthStatus.update { current ->
-                        buildMap {
-                            putAll(current)
-                            put("api", apiHealth)
-                            tttHealth?.let { put("ttt", it) }
-                        }
-                    }
-                } else {
-                    _healthStatus.update { mapOf("api" to HealthStatus.UNHEALTHY) }
-                }
+                refreshNow()
                 delay(HEALTH_CHECK_INTERVAL_MS)
             }
         }
@@ -89,7 +92,9 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
             val json = Json { ignoreUnknownKeys = true }
             val obj = json.parseToJsonElement(jsonPayload).jsonObject
             val connectivity = obj["connectivity"]?.jsonObject
+            val services = obj["ttt"]?.jsonObject
             val ttt = connectivity?.get("ttt")?.jsonPrimitive?.content?.lowercase()
+                ?: services?.get("status")?.jsonPrimitive?.content?.lowercase()
             val tttHealth = when (ttt) {
                 "healthy" -> HealthStatus.HEALTHY
                 "unhealthy" -> HealthStatus.UNHEALTHY

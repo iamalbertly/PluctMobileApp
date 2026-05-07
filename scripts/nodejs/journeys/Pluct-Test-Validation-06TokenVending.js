@@ -21,7 +21,7 @@ class PluctTestValidationTokenVending extends BaseJourney {
             
             // Test token vending endpoint
             const vendResponse = await this.core.httpPost(
-                'https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token',
+                `${this.core.config.businessEngineUrl}/v1/vend-token`,
                 { userId: 'mobile' },
                 { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' }
             );
@@ -31,12 +31,13 @@ class PluctTestValidationTokenVending extends BaseJourney {
             }
             
             const vendData = JSON.parse(vendResponse.body);
-            if (!vendData.token || !vendData.expiresAt) {
+            const expiry = vendData.expiresAt || vendData.expiresIn;
+            if (!vendData.token || !expiry) {
                 return { success: false, error: 'Invalid token vending response format' };
             }
             
             this.core.logger.info('✅ Token vending validation passed');
-            return { success: true, details: { tokenReceived: true, expiresAt: vendData.expiresAt } };
+            return { success: true, details: { tokenReceived: true, expiresAt: vendData.expiresAt, expiresIn: vendData.expiresIn } };
             
         } catch (error) {
             this.core.logger.error(`❌ Token vending validation failed: ${error.message}`);

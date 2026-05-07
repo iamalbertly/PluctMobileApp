@@ -13,6 +13,28 @@ class PluctSmartTestRunner {
         this.executionStrategy = null;
         this.startTime = null;
         this.forceFullRun = false;
+        this.latestChangedTests = [
+            'Pluct-Test-Validation-10ErrorHandling',
+            'Pluct-Test-Validation-10ErrorHandling.js',
+            'Journey-UX-22VideoTitleFallback-Validation',
+            'Journey-UX-22VideoTitleFallback-Validation.js',
+            'Journey-UX-05RedundantVisuals-Validation',
+            'Journey-UX-05RedundantVisuals-Validation.js',
+            'Journey-QuickScan',
+            'Journey-QuickScan.js'
+        ];
+        this.highPriorityTests = [
+            'Journey-TTTranscribeIntegration',
+            'Journey-TTTranscribeIntegration.js',
+            'Journey-APIConnectivity',
+            'Journey-APIConnectivity.js',
+            'Journey-TokenVendingValidation.js',
+            'TokenVendingValidation',
+            'Pluct-Test-Validation-04APIConnectivity',
+            'Pluct-Test-Validation-04APIConnectivity.js',
+            'Pluct-Test-Validation-06TokenVending',
+            'Pluct-Test-Validation-06TokenVending.js'
+        ];
     }
 
     /**
@@ -41,18 +63,40 @@ class PluctSmartTestRunner {
      * Determine execution strategy for given tests
      */
     determineExecutionStrategy(allTests) {
+        const orderedTests = this.orderTestsForCustomerRisk(allTests);
         if (this.forceFullRun) {
             this.executionStrategy = {
                 strategy: 'full',
                 reason: 'Force full run requested',
-                testsToRun: allTests,
+                testsToRun: orderedTests,
                 failedTestsCount: 0
             };
             return this.executionStrategy;
         }
         
-        this.executionStrategy = this.tracker.getExecutionStrategy(allTests);
+        this.executionStrategy = this.tracker.getExecutionStrategy(orderedTests);
         return this.executionStrategy;
+    }
+
+    orderTestsForCustomerRisk(allTests) {
+        const uniqueTests = Array.from(new Set(allTests));
+        const failed = new Set(this.tracker.getFailedTestsFromPreviousRuns());
+        const take = (predicate) => uniqueTests.filter(predicate);
+        const latest = take(test => this.latestChangedTests.includes(test));
+        const failedTests = take(test => failed.has(test) && !latest.includes(test));
+        const priority = take(test =>
+            this.highPriorityTests.includes(test) &&
+            !latest.includes(test) &&
+            !failedTests.includes(test)
+        );
+        const remaining = uniqueTests.filter(test =>
+            !latest.includes(test) &&
+            !failedTests.includes(test) &&
+            !priority.includes(test)
+        );
+        const ordered = [...latest, ...failedTests, ...priority, ...remaining];
+        this.core.logger.info(`ðŸŽ¯ Customer-risk order: ${ordered.join(' -> ')}`);
+        return ordered;
     }
 
     /**

@@ -4,7 +4,7 @@ class APIConnectivityJourney extends BaseJourney {
     async execute() {
         this.core.logger.info('🔗 Validating Business Engine and TTTranscribe connectivity...');
 
-        const beBase = process.env.BE_BASE_URL || 'https://pluct-business-engine.romeo-lya2.workers.dev';
+        const beBase = this.core.config.businessEngineUrl;
         const health = await this.core.httpGet(`${beBase}/health`);
         if (this.core.writeJsonArtifact) {
             this.core.writeJsonArtifact('be_health.json', health);
@@ -18,7 +18,7 @@ class APIConnectivityJourney extends BaseJourney {
             this.core.logger.info(`✅ Business Engine health check passed with status: ${health.status}`);
         }
 
-        const userId = 'mobile-automation';
+        const userId = process.env.TEST_USER_ID || `mobile-automation-${Date.now()}`;
         const envJwt = process.env.BE_USER_JWT;
         const userJwt = envJwt || this.core.generateTestJWT(userId);
         if (!userJwt) {
@@ -61,7 +61,7 @@ class APIConnectivityJourney extends BaseJourney {
         }
         
         // More resilient transcription test
-        if (transcribe.status !== 200) {
+        if (transcribe.status !== 200 && transcribe.status !== 202) {
             this.core.logger.warn(`⚠️ Transcribe request returned status: ${transcribe.status}`);
             // Continue with test but log the issue
         } else {
@@ -72,14 +72,18 @@ class APIConnectivityJourney extends BaseJourney {
         let jobId;
         try {
             if (transcribe.body) {
-                jobId = JSON.parse(transcribe.body).jobId;
+                const body = JSON.parse(transcribe.body);
+                jobId = body.jobId || body.id || body.requestId || body.request_id;
             }
         } catch (_) {}
         if (jobId) {
             const start = Date.now();
             let last;
             while (Date.now() - start < 160000) {
-                const st = await this.core.httpGet(`${beBase}/ttt/status/${jobId}`);
+                const st = await this.core.httpGet(
+                    `${beBase}/ttt/status/${jobId}`,
+                    { Authorization: `Bearer ${serviceToken}` }
+                );
                 last = st;
                 if (this.core.writeJsonArtifact) {
                     this.core.writeJsonArtifact('be_status.json', st);

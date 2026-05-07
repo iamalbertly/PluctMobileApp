@@ -25,6 +25,7 @@ data class VideoItem(
     val queueReason: QueueReason? = null,
     val queuedAt: Long? = null,
     val jobId: String? = null,  // Transcription job ID for status resumption
-    val transcriptCachedAt: Long? = null  // UX FIX #5: Timestamp when transcript was cached for invalidation
+    val transcriptCachedAt: Long? = null,  // UX FIX #5: Timestamp when transcript was cached for invalidation
+    val confidence: Double? = null  // UX FIX #3: Confidence score for transcript accuracy (0.0-1.0)
 )
 

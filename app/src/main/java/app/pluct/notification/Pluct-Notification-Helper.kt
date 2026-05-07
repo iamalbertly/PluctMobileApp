@@ -17,6 +17,7 @@ import app.pluct.PluctUIScreen01MainActivity
 import app.pluct.R
 import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
+import app.pluct.notification.PluctNotificationCancelReceiver
 
 object PluctNotificationHelper {
     private const val CHANNEL_ID_PROGRESS = "pluct_processing"
@@ -259,12 +260,31 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        // UX FIX #4: Add cancel action
+        val cancelIntent = Intent(context, PluctNotificationCancelReceiver::class.java).apply {
+            action = PluctNotificationCancelReceiver.ACTION_CANCEL_TRANSCRIPTION
+            putExtra(PluctNotificationCancelReceiver.EXTRA_URL, url)
+            putExtra(PluctNotificationCancelReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        
+        val cancelPendingIntent = PendingIntent.getBroadcast(
+            context,
+            notificationId + 1000, // Different request code to avoid conflicts
+            cancelIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("Transcribing...")
             .setContentText(message)
             .setProgress(100, progress, false)
             .setContentIntent(pendingIntent)
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Cancel",
+                cancelPendingIntent
+            )
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

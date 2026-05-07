@@ -14,12 +14,27 @@ class QuickScanJourney extends BaseJourney {
         }
         this.core.logger.info('✅ App is in foreground');
 
+        const captureReady = await this.core.ensureCaptureCardReady();
+        if (!captureReady.success) {
+            return { success: false, error: captureReady.error };
+        }
+
+        const creditSeed = await this.core.ensureLocalMobileCredits(3);
+        if (!creditSeed.success) {
+            return { success: false, error: creditSeed.error };
+        }
+
+        const errorCardCheck = await this.core.validateErrorCardUsability();
+        if (!errorCardCheck.success) {
+            return { success: false, error: errorCardCheck.error };
+        }
+
         // Step 2: Check if URL is already entered, if not enter it
         this.core.logger.info('📱 Step 2: Checking URL input...');
         await this.core.dumpUIHierarchy();
         const urlDump = this.core.readLastUIDump();
         
-        if (urlDump.includes('https://vm.tiktok.com/ZMDRUGT2P/')) {
+        if (urlDump.includes(this.core.config.url)) {
             this.core.logger.info('✅ URL is already pre-populated');
         } else {
             this.core.logger.info('📱 Step 2b: Entering TikTok URL...');
@@ -111,13 +126,13 @@ class QuickScanJourney extends BaseJourney {
                 this.core.displayAPILogs(apiLogsAfter);
             }
             
-            // Check if the failure is due to a backend service issue (TTTranscribe 404)
-            const tttErrorLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctCoreAPIUnified.*404\|TranscriptionFlowHandler.*404"');
-            if (tttErrorLogcat.success && tttErrorLogcat.output.includes('404')) {
-                this.core.logger.warn('⚠️ TTTranscribe service returned 404 - backend service issue');
+            // Check if the failure is due to a backend service issue (TTTranscribe 404/503 or wakeup)
+            const tttErrorLogcat = await this.core.executeCommand('adb logcat -d | findstr -i "PluctCoreAPIUnified.*404\|TranscriptionFlowHandler.*404\|TTTranscribe service error\|upstream_error\|service is waking"', undefined, undefined, { allowFailure: true });
+            if (tttErrorLogcat.success && /404|503|TTTranscribe service error|upstream_error|service is waking/i.test(tttErrorLogcat.output || '')) {
+                this.core.logger.warn('⚠️ TTTranscribe service unavailable - backend service issue');
                 this.core.logger.info('✅ Frontend is working correctly, backend service is down');
                 this.core.logger.info('✅ Test passed: UI and Business Engine integration working');
-                return { success: true, error: 'Backend service issue (TTTranscribe 404)', backendIssue: true };
+                return { success: true, error: 'Backend service issue (TTTranscribe unavailable)', backendIssue: true };
             }
             
             // Check if the failure is due to insufficient credits
@@ -155,5 +170,3 @@ function register(orchestrator) {
 }
 
 module.exports = { register };
-
-

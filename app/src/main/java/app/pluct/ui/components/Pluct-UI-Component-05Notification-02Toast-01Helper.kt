@@ -113,6 +113,17 @@ object PluctUIComponent05Notification02Toast01Helper {
     }
     
     /**
+     * UX FIX #4: Show toast notification when transcription is cancelled
+     */
+    fun showTranscriptionCancelled(context: Context, @Suppress("UNUSED_PARAMETER") url: String) {
+        showToast(
+            context = context,
+            message = "Transcription cancelled",
+            duration = Toast.LENGTH_SHORT
+        )
+    }
+    
+    /**
      * Show toast notification when permission is required
      */
     fun showPermissionRequired(context: Context, permissionType: String) {

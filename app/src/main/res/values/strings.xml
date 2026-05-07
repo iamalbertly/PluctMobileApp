@@ -17,4 +17,58 @@
     <string name="cd_recent_transcripts">Recent Transcripts</string>
     <string name="cd_status_panel">Processing Status</string>
     <string name="cd_capture_sheet">Capture Sheet</string>
+    <!-- Contextual permission dialog (ALB-36: no hardcoded English in Compose) -->
+    <string name="contextual_permission_title">Get Notified</string>
+    <string name="contextual_permission_icon">🔔</string>
+    <string name="contextual_permission_body_primary">Get notified when transcripts finish, even when the app is closed.</string>
+    <string name="contextual_permission_body_secondary">You can turn this off anytime in settings.</string>
+    <string name="contextual_permission_enable">Enable</string>
+    <string name="contextual_permission_not_now">Not Now</string>
+    <string name="cd_contextual_permission_title">Contextual permission title</string>
+    <string name="cd_contextual_permission_content">Contextual permission content</string>
+    <string name="cd_contextual_permission_enable">Enable notifications</string>
+    <string name="cd_contextual_permission_not_now">Not now</string>
+    <string name="cd_contextual_permission_dialog">Contextual permission dialog</string>
+    <!-- Insufficient credits dialogs (PLU-15) -->
+    <string name="insufficient_credits_title">Insufficient Credits</string>
+    <string name="insufficient_credits_need">You need %1$d credits to continue.</string>
+    <string name="insufficient_credits_current_balance">Current balance: %1$d credits</string>
+    <string name="insufficient_credits_required">Required: %1$d credits</string>
+    <string name="insufficient_credits_purchase_more">Purchase %1$d more credits to transcribe this video.</string>
+    <string name="insufficient_credits_note_refund">Note: Credits are held during processing and automatically refunded if transcription fails.</string>
+    <string name="insufficient_credits_purchase">Purchase Credits</string>
+    <string name="insufficient_credits_add_credits_now">Add Credits Now</string>
+    <string name="insufficient_credits_save_for_later">Save for Later</string>
+    <string name="insufficient_credits_cancel">Cancel</string>
+    <string name="insufficient_credits_queue_suggestion">Save this video for later? We\'ll process it automatically once you add credits.</string>
+    <string name="cd_insufficient_credits_wallet_icon">Insufficient credits</string>
+    <string name="cd_insufficient_credits_schedule_icon">Scheduled processing</string>
+    <string name="cd_insufficient_credits_dialog">Insufficient credits dialog</string>
+    <string name="cd_insufficient_credits_dialog_queue">Insufficient credits dialog with queue option</string>
+    <string name="cd_insufficient_credits_purchase">Purchase credits</string>
+    <string name="cd_insufficient_credits_add_credits">Add credits now</string>
+    <string name="cd_insufficient_credits_save_for_later">Save for later</string>
+    <string name="cd_insufficient_credits_cancel">Cancel</string>
+    <!-- Cost estimate dialog (PLU-15) -->
+    <string name="cost_estimate_confirm_title">Confirm Transcription</string>
+    <string name="cost_estimate_approx">This video will cost approximately:</string>
+    <string name="cost_estimate_balance">Your current balance: %1$d credits</string>
+    <string name="cost_estimate_not_enough">Not enough credits for this transcription</string>
+    <string name="cost_estimate_continue_question">Do you want to continue?</string>
+    <string name="cost_estimate_note_refund">Note: Credits are held during processing and automatically refunded if transcription fails.</string>
+    <string name="cost_estimate_continue">Continue</string>
+    <string name="cost_estimate_cancel">Cancel</string>
+    <string name="cd_cost_estimate_dialog_title">Cost estimate dialog title</string>
+    <string name="cd_cost_estimate_dialog_content">Cost estimate dialog content</string>
+    <string name="cd_cost_estimate_confirm_button">Confirm transcription</string>
+    <string name="cd_cost_estimate_cancel_button">Cancel transcription</string>
+    <string name="cd_cost_estimate_dialog">Cost estimate confirmation dialog</string>
+    <plurals name="insufficient_credits_queued_videos">
+        <item quantity="one">You have %d video already in queue.</item>
+        <item quantity="other">You have %d videos already in queue.</item>
+    </plurals>
+    <plurals name="cost_estimate_credit_line">
+        <item quantity="one">%1$d credit</item>
+        <item quantity="other">%1$d credits</item>
+    </plurals>
 </resources>

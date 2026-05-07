@@ -1,69 +1,89 @@
 package app.pluct.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
-/**
- * Pluct-UI-Component-08InlineHint-01Card
- * Non-blocking inline hint card for users who skip onboarding tutorial
- * Follows naming convention: [Project]-[UI]-[Component]-[InlineHint]-[Sequence][Card]
- */
 @Composable
 fun PluctUIComponent08InlineHint01Card(
     onShowTutorial: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .semantics {
                 testTag = "inline_hint_card"
                 contentDescription = "Inline tutorial hint"
             },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Transparent,
+        tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Hint icon and text
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Text(
-                    text = "💡",
-                    fontSize = 24.sp,
-                    modifier = Modifier.padding(end = 12.dp)
+        Box(
+            modifier = Modifier.background(
+                Brush.horizontalGradient(
+                    colors = listOf(Color(0xFF20C7C9), Color(0xFF6D35E8), Color(0xFF8F2DE2))
                 )
-                
-                Column(
-                    modifier = Modifier.weight(1f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.18f)
                 ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Share any TikTok video with Pluct to get started",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        text = "Paste TikTok. Get text.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
                     )
-                    
                     TextButton(
                         onClick = onShowTutorial,
                         modifier = Modifier.semantics {
@@ -72,29 +92,31 @@ fun PluctUIComponent08InlineHint01Card(
                         },
                         contentPadding = PaddingValues(0.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Text(
-                            "Show me how →",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            text = "Show how",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
-            }
-            
-            // Dismiss button
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.semantics {
-                    testTag = "inline_hint_dismiss_button"
-                    contentDescription = "Dismiss hint"
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .width(40.dp)
+                        .semantics {
+                            testTag = "inline_hint_dismiss_button"
+                            contentDescription = "Dismiss hint"
+                        }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
             }
         }
     }

@@ -1,12 +1,25 @@
 package app.pluct.ui.components
 
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -14,13 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
-/**
- * Pluct-UI-03Header - Modern header component with credit balance and settings
- * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation of Concern][CoreResponsibility]
- * Provides proper content descriptions for UI testing
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctHeader(
@@ -31,96 +38,17 @@ fun PluctHeader(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TopAppBar(
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Pluct",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.semantics {
-                        contentDescription = "Pluct app title"
-                    }
-                )
-                
-                // Credit Balance Display
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .semantics {
-                            contentDescription = "Credit balance display showing $creditBalance credits"
-                        }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AccountBalanceWallet,
-                        contentDescription = "Credit balance icon",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.width(6.dp))
-                    
-                    if (isCreditBalanceLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics {
-                                    contentDescription = "Loading credit balance"
-                                }
-                        )
-                    } else if (creditBalanceError != null) {
-                        Text(
-                            text = "Error",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 14.sp,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance error: $creditBalanceError"
-                            }
-                        )
-                    } else {
-                        Column {
-                            Text(
-                                text = "$creditBalance credits",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.semantics {
-                                    contentDescription = "Credit balance: $creditBalance credits"
-                                }
-                            )
-                            // Note: Credit holds will be shown here when backend supports it
-                            // Format: "($available available, $held pending)"
-                        }
-                    }
-                }
-            }
-        },
-        actions = {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier
-                    .semantics {
-                        contentDescription = "Settings button"
-                        testTag = "settings_button"
-                    }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null // Remove to avoid overriding parent semantics
-                )
-            }
-        },
-        modifier = modifier.semantics {
-            contentDescription = "App header with credit balance and settings"
-        }
+    PluctHeaderBar(
+        creditBalance = creditBalance,
+        isCreditBalanceLoading = isCreditBalanceLoading,
+        creditBalanceError = creditBalanceError,
+        onRefreshCreditBalance = onRefreshCreditBalance,
+        onSettingsClick = onSettingsClick,
+        refreshable = false,
+        modifier = modifier
     )
 }
 
-/**
- * Alternative header with clickable credit balance for refresh
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctHeaderWithRefreshableBalance(
@@ -131,97 +59,131 @@ fun PluctHeaderWithRefreshableBalance(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    PluctHeaderBar(
+        creditBalance = creditBalance,
+        isCreditBalanceLoading = isCreditBalanceLoading,
+        creditBalanceError = creditBalanceError,
+        onRefreshCreditBalance = onRefreshCreditBalance,
+        onSettingsClick = onSettingsClick,
+        refreshable = true,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PluctHeaderBar(
+    creditBalance: Int,
+    isCreditBalanceLoading: Boolean,
+    creditBalanceError: String?,
+    onRefreshCreditBalance: () -> Unit,
+    onSettingsClick: () -> Unit,
+    refreshable: Boolean,
+    modifier: Modifier = Modifier
+) {
     TopAppBar(
         title = {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Pluct",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.semantics {
-                        contentDescription = "Pluct app title"
-                    }
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.semantics { contentDescription = "Pluct app title" }
                 )
-                
-                // Clickable Credit Balance Display
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable { onRefreshCreditBalance() }
-                        .semantics {
-                            contentDescription = if (isCreditBalanceLoading) {
-                                "Loading credit balance - tap to refresh"
-                            } else if (creditBalanceError != null) {
-                                "Credit balance error: $creditBalanceError - tap to refresh"
-                            } else {
-                                "Credit balance: $creditBalance credits - tap to refresh"
-                            }
-                        }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AccountBalanceWallet,
-                        contentDescription = "Credit balance icon",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.width(6.dp))
-                    
-                    if (isCreditBalanceLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics {
-                                    contentDescription = "Loading credit balance"
-                                    testTag = "credit_balance_loading"
-                                }
-                        )
-                    } else if (creditBalanceError != null) {
-                        Text(
-                            text = "Error",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 14.sp,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Credit balance error: $creditBalanceError"
-                            }
-                        )
-                    } else {
-                        Column {
-                            Text(
-                                text = "$creditBalance credits",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.semantics {
-                                    contentDescription = "Credit balance: $creditBalance credits"
-                                }
-                            )
-                            // Note: Credit holds will be shown here when backend supports it
-                            // Format: "($available available, $held pending)"
-                        }
-                    }
-                }
+                CreditBalanceChip(
+                    creditBalance = creditBalance,
+                    isLoading = isCreditBalanceLoading,
+                    error = creditBalanceError,
+                    onRefresh = onRefreshCreditBalance,
+                    refreshable = refreshable
+                )
             }
         },
         actions = {
             IconButton(
                 onClick = onSettingsClick,
                 modifier = Modifier
+                    .size(44.dp)
                     .semantics {
                         contentDescription = "Settings button"
                         testTag = "settings_button"
                     }
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null // Remove to avoid overriding parent semantics
-                )
+                Icon(Icons.Default.Settings, contentDescription = null)
             }
         },
         modifier = modifier.semantics {
-            contentDescription = "App header with refreshable credit balance and settings"
+            contentDescription = "App header with credit balance and settings"
         }
     )
+}
+
+@Composable
+private fun CreditBalanceChip(
+    creditBalance: Int,
+    isLoading: Boolean,
+    error: String?,
+    onRefresh: () -> Unit,
+    refreshable: Boolean
+) {
+    val lowBalance = creditBalance in 1..2
+    val label = when {
+        isLoading -> "..."
+        error != null -> "!"
+        else -> "$creditBalance credits"
+    }
+    val description = when {
+        isLoading -> "Loading credit balance"
+        error != null -> "Credit balance error: $error"
+        lowBalance -> "Credit balance: $creditBalance credits - low balance"
+        else -> "Credit balance: $creditBalance credits"
+    } + if (refreshable) " - tap to refresh" else ""
+
+    Surface(
+        color = if (error != null || lowBalance) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        },
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .then(if (refreshable) Modifier.clickable { onRefresh() } else Modifier)
+            .semantics { contentDescription = description }
+    ) {
+        Row(
+            modifier = Modifier
+                .width(116.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (error != null || lowBalance) Icons.Default.Warning else Icons.Filled.AccountBalanceWallet,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = if (error != null || lowBalance) {
+                    MaterialTheme.colorScheme.onErrorContainer
+                } else {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                }
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            } else {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (error != null || lowBalance) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
+            }
+        }
+    }
 }

@@ -150,14 +150,16 @@ class PluctCoreFoundationUtils {
      */
     async httpGet(url, headers = {}) {
         try {
+            const http = require('http');
             const https = require('https');
             const { URL } = require('url');
             
             return new Promise((resolve) => {
                 const parsedUrl = new URL(url);
+                const transport = parsedUrl.protocol === 'http:' ? http : https;
                 const options = {
                     hostname: parsedUrl.hostname,
-                    port: parsedUrl.port || 443,
+                    port: parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
                     path: parsedUrl.pathname + parsedUrl.search,
                     method: 'GET',
                     headers: {
@@ -166,7 +168,7 @@ class PluctCoreFoundationUtils {
                     }
                 };
 
-                const req = https.request(options, (res) => {
+                const req = transport.request(options, (res) => {
                     let data = '';
                     res.on('data', (chunk) => data += chunk);
                     res.on('end', () => {
@@ -200,6 +202,7 @@ class PluctCoreFoundationUtils {
      */
     async httpPost(url, data, headers = {}) {
         try {
+            const http = require('http');
             const https = require('https');
             const { URL } = require('url');
             
@@ -207,9 +210,10 @@ class PluctCoreFoundationUtils {
             
             return new Promise((resolve) => {
                 const parsedUrl = new URL(url);
+                const transport = parsedUrl.protocol === 'http:' ? http : https;
                 const options = {
                     hostname: parsedUrl.hostname,
-                    port: parsedUrl.port || 443,
+                    port: parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
                     path: parsedUrl.pathname + parsedUrl.search,
                     method: 'POST',
                     headers: {
@@ -220,7 +224,7 @@ class PluctCoreFoundationUtils {
                     }
                 };
 
-                const req = https.request(options, (res) => {
+                const req = transport.request(options, (res) => {
                     let responseData = '';
                     res.on('data', (chunk) => responseData += chunk);
                     res.on('end', () => {

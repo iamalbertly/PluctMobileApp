@@ -103,8 +103,8 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow06Submission02Handler(
                     jobId = null,
                     force = true
                 )
-                if (retryToken.isSuccess) {
-                    currentVendToken = retryToken.getOrNull()!!
+                retryToken.getOrNull()?.let { token ->
+                    currentVendToken = token
                     hasRefreshedAuth = true
                     submitResult = submitTranscriptionJob(sanitizedUrl, currentVendToken, clientRequestId)
                 }
@@ -137,7 +137,8 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow06Submission02Handler(
             )
             return Result.failure(submitResult.exceptionOrNull() ?: Exception("Submit failed"))
         }
-        val jobId = recoveredJobId ?: submitResult.getOrNull()!!.jobId
+        val jobId = recoveredJobId ?: submitResult.getOrNull()?.jobId 
+            ?: return Result.failure(Exception("Submit succeeded but jobId is missing"))
         updateDebug(
             OperationStep.SUBMIT,
             jobId,

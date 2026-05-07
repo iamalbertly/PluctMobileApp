@@ -1,5 +1,7 @@
 package app.pluct.core.api
 
+import app.pluct.BuildConfig
+
 /**
  * Pluct-Core-API-00Constants - Single source of truth for API constants
  * Follows naming convention: [Project]-[Core]-[API]-[Constants]
@@ -7,7 +9,7 @@ package app.pluct.core.api
  * Consolidates all BASE_URL and API endpoint constants
  */
 object PluctCoreAPI00Constants {
-    const val BASE_URL = "https://pluct-business-engine.romeo-lya2.workers.dev"
+    val BASE_URL: String = BuildConfig.ENGINE_BASE_URL.trimEnd('/')
     
     // Polling intervals
     const val POLL_INTERVAL_MS_FAST = 1500L // Faster polling for first 10 attempts

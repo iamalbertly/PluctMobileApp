@@ -33,4 +33,15 @@ object PluctDatabaseMigration {
             db.execSQL("ALTER TABLE videos ADD COLUMN transcriptCachedAt INTEGER DEFAULT NULL")
         }
     }
+
+    /**
+     * UX FIX #3: Migration for confidence field
+     * Adds nullable Double column for transcript confidence score (0.0-1.0)
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add confidence column to videos table
+            db.execSQL("ALTER TABLE videos ADD COLUMN confidence REAL DEFAULT NULL")
+        }
+    }
 }

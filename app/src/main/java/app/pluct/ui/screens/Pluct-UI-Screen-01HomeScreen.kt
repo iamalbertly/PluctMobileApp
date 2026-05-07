@@ -213,8 +213,8 @@ private fun HomeContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Inline hint for users who skipped tutorial
         if (inlineHintVisible) {

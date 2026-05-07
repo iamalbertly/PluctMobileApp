@@ -4,7 +4,8 @@
       "Bash(powershell -Command \"./gradlew assembleDebug --console=plain 2>&1\")",
       "Bash(adb:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

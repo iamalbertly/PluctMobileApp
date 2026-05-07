@@ -59,6 +59,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         retryHandler = retryHandler
     )
     @Volatile private var vendTokenBlockedUntil = 0L
+    @Volatile private var serverTimeWarmupComplete = false
 
     private val healthMonitor = PluctCoreAPI01UnifiedService09HealthMonitor01Service(httpClient)
     val healthStatus: StateFlow<Map<String, HealthStatus>> = healthMonitor.healthStatus
@@ -144,18 +145,22 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     }
 
     suspend fun checkUserBalance(): Result<CreditBalanceResponse> {
+        ensureServerTimeWarmup()
         return balanceHandler.checkUserBalance()
     }
 
     suspend fun getEstimate(url: String): Result<EstimateResponse> {
+        ensureServerTimeWarmup()
         return balanceHandler.getEstimate(url)
     }
 
     suspend fun vendToken(clientRequestId: String = "req_${System.currentTimeMillis()}"): Result<VendTokenResponse> {
+        ensureServerTimeWarmup()
         return tokenHandler.vendToken(clientRequestId)
     }
 
     suspend fun getMetadata(url: String, timeoutMs: Long? = null): Result<MetadataResponse> {
+        ensureServerTimeWarmup()
         return metadataHandler.getMetadata(url, timeoutMs)
     }
 
@@ -165,6 +170,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     }
 
     suspend fun getServiceToken(forceRefresh: Boolean = false): Result<String> {
+        ensureServerTimeWarmup()
         return tokenHandler.getServiceToken(forceRefresh)
     }
 
@@ -177,7 +183,20 @@ class PluctCoreAPIUnifiedService @Inject constructor(
     }
 
     suspend fun processTikTokVideo(url: String, isBackground: Boolean = false): Result<TranscriptionStatusResponse> {
-        return transcriptionFlowHandler.processTikTokVideo(url, isBackground, healthStatus.value)
+        ensureServerTimeWarmup()
+        val currentHealth = healthStatus.value
+        val effectiveHealth = if (currentHealth["ttt"] != HealthStatus.HEALTHY) {
+            healthMonitor.refreshNow()
+        } else {
+            currentHealth
+        }
+        return transcriptionFlowHandler.processTikTokVideo(url, isBackground, effectiveHealth)
+    }
+
+    private suspend fun ensureServerTimeWarmup() {
+        if (serverTimeWarmupComplete) return
+        val warmedHealth = healthMonitor.refreshNow()
+        serverTimeWarmupComplete = warmedHealth["api"] == HealthStatus.HEALTHY
     }
 
     private suspend fun <T> execute(

@@ -61,6 +61,7 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
     ): Result<TranscriptionStatusResponse> {
         var currentPollAuthToken = pollAuthToken
         var currentHasRefreshedAuth = hasRefreshedAuth
+        var completedWithoutTranscriptAttempts = 0
 
         // Use adaptive polling intervals to reduce backend load
         val getPollInterval = { attempt: Int ->
@@ -176,7 +177,12 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
             val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
             val transcript = extraction.transcript
 
-            if (transcript == null && (status.status.equals("completed", ignoreCase = true) || status.status.equals("done", ignoreCase = true))) {
+            val serverCompleted = status.status.equals("completed", ignoreCase = true) ||
+                status.status.equals("done", ignoreCase = true) ||
+                status.status.equals("success", ignoreCase = true)
+
+            if (transcript == null && serverCompleted) {
+                completedWithoutTranscriptAttempts += 1
                 debugLogManager.logError(
                     category = "TRANSCRIPTION",
                     operation = "transcript_extraction_failed",
@@ -192,6 +198,28 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
                     },
                     requestUrl = "$baseUrl/ttt/poll/$jobId"
                 )
+                if (completedWithoutTranscriptAttempts >= 3) {
+                    updateDebug(
+                        OperationStep.FAILED,
+                        jobId,
+                        pollingAttempt,
+                        maxPollAttempts,
+                        OperationTimelineEntry(
+                            OperationStep.POLLING,
+                            System.currentTimeMillis(),
+                            System.currentTimeMillis(),
+                            null, null, null,
+                            "Completed response did not include transcript",
+                            expected = "completed status with transcript text",
+                            received = "status=${status.status}; transcriptSource=${extraction.source}",
+                            nextAction = "Stop polling; ask user to try a clearer video",
+                            correlationId = flowRequestId,
+                            retryCount = pollingAttempt
+                        )
+                    )
+                    return cleanupAndReturn(Result.failure(Exception("Transcription finished but no speech text was returned. Try a clearer video or retry in a moment.")))
+                }
+                return@repeat
             }
 
             if (transcript != null) {
@@ -203,10 +231,7 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(
                 )
             }
 
-            val isCompleted = status.status.equals("completed", ignoreCase = true)
-                || status.status.equals("done", ignoreCase = true)
-                || transcript != null
-                || status._cacheHit == true
+            val isCompleted = transcript != null
 
             if (isCompleted) {
                 if (status._cacheHit == true) {

@@ -44,7 +44,7 @@ class JourneyDuplicate01ProcessingLockValidation extends BaseJourney {
             const startLog = await this.core.executeCommand(
                 'adb logcat -d | findstr /i "processTikTokVideo Starting transcription registered processing"'
             );
-            if (!startLog.success || !startLog.stdout.includes('processTikTokVideo')) {
+            if (!startLog.success || !(startLog.output || startLog.stdout || '').includes('processTikTokVideo')) {
                 this.core.logger.warn('⚠️ First submission may not have started');
             }
             
@@ -90,7 +90,7 @@ class JourneyDuplicate01ProcessingLockValidation extends BaseJourney {
             );
             
             if (dbCheck.success) {
-                const count = parseInt(dbCheck.stdout.trim()) || 0;
+                const count = parseInt((dbCheck.output || dbCheck.stdout || '').trim()) || 0;
                 if (count === 1) {
                     this.core.logger.success(`✅ Database has exactly 1 PROCESSING entry (expected)`);
                 } else {
@@ -107,9 +107,9 @@ class JourneyDuplicate01ProcessingLockValidation extends BaseJourney {
             return {
                 success: true,
                 details: {
-                    duplicatePreventionDetected: hasDuplicatePrevention,
+                    duplicatePreventionDetected: duplicateLog.success,
                     duplicateMessageInUI: hasDuplicateMessage,
-                    processingEntriesCount: dbCheck.success ? parseInt(dbCheck.stdout.trim()) : null
+                    processingEntriesCount: dbCheck.success ? parseInt((dbCheck.output || dbCheck.stdout || '').trim()) : null
                 }
             };
         } catch (error) {
@@ -123,7 +123,7 @@ class JourneyDuplicate01ProcessingLockValidation extends BaseJourney {
 }
 
 function register(orchestrator) {
-    orchestrator.registerJourney('Duplicate-01ProcessingLock-Validation', new JourneyDuplicate01ProcessingLockValidation());
+    orchestrator.registerJourney('Duplicate-01ProcessingLock-Validation', new JourneyDuplicate01ProcessingLockValidation(orchestrator.core));
 }
 
 module.exports = { JourneyDuplicate01ProcessingLockValidation, register };

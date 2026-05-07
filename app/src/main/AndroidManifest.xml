@@ -76,6 +76,15 @@
             android:exported="false"
             android:permission="android.permission.BIND_SERVICE" />
         
+        <!-- UX FIX #4: BroadcastReceiver for canceling transcription notifications -->
+        <receiver
+            android:name=".notification.PluctNotificationCancelReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="app.pluct.CANCEL_TRANSCRIPTION" />
+            </intent-filter>
+        </receiver>
+        
     </application>
 
 </manifest>

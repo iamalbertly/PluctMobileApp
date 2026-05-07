@@ -92,23 +92,32 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
 4. **Run Automated Tests**
    ```bash
+   # Run all tests with real-time output
    npm run test:all
+   
+   # Run in dev mode (stops on first error)
+   cross-env DEV_MODE=1 npm run test:all
+   
+   # Run specific category
+   npm run test:core
+   npm run test:ui
+   npm run test:transcription
    ```
-   The canonical test entrypoint is `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js` which runs all Maestro YAML user journey tests. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
+   The canonical test entrypoint is `npm run test:all`, backed by the Node journey orchestrator in `scripts/nodejs`. Test URLs include `https://vt.tiktok.com/ZS9bDyvc5/` for validation. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
-All tests use **Maestro**, a YAML-based UI testing framework. The Node.js orchestrator (`maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`) discovers and runs all flows.
+All current automatic journeys use the Node/ADB orchestration in `scripts/nodejs`. Browser dashboard validation uses Playwright MCP. The runner fails fast on the first broken UI, API, or device step and prints focused UI/logcat diagnostics.
 
 ### **Quick Start**
 ```bash
 npm run test:all
 ```
 
-This runs all categorized test flows (01-core, 02-ui, 03-transcription, 04-queue, 05-edge-cases, 06-ux-improvements, 07-intent-fixes, 08-onboarding, 09-onboarding-improvements) in sequence and reports results.
+This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, high-priority API/transcription/token paths next, then remaining journeys.
 
 ### **Common Test Commands**
 ```bash
@@ -122,13 +131,12 @@ npm run test:transcription         # 03-transcription tests only
 
 # Run specific focused tests
 npm run test:ux-fixes              # UX improvements test suite
-npm run test:maestro               # Explicit maestro orchestrator run
 
 # Development mode (stops on first failure)
 cross-env DEV_MODE=1 npm run test:all
 
-# Filter tests by category
-cross-env MAESTRO_CATEGORY=02-ui npm run test:all
+# Validate updated TikTok and Business Engine paths first
+npm run test:all -- Pluct-Test-Validation-10ErrorHandling Journey-QuickScan Journey-TTTranscribeIntegration Journey-APIConnectivity Journey-TokenVendingValidation
 ```
 
 ### **Testing Validation Checklist**
@@ -140,32 +148,32 @@ cross-env MAESTRO_CATEGORY=02-ui npm run test:all
 - ✅ **Adaptive Polling**: Backend load reduction from ~120 req/min to ~18 req/min
 - ✅ **Credit Management**: Balance loading, insufficient credits, queue fallback
 
-### **New Validation Tests** (UX/Reliability Improvements)
-The following Maestro flows validate the 5 UX/reliability fixes:
+### **Focused Validation Tests** (UX/Reliability Improvements)
+Current high-signal journeys live in `scripts/nodejs/journeys` and run through `npm run test:all`.
 
-1. **`maestro/flows/03-transcription/06-adaptive-polling-validation.yaml`**
-   - Validates polling intervals scale from 2s to 10s
-   - Confirms backend load reduction metrics
-   - Tests 3-minute transcription job with adaptive intervals
+1. **`scripts/nodejs/journeys/Journey-TTTranscribeIntegration.js`**
+   - Validates Business Engine to TTTranscribe connectivity
+   - Confirms valid TikTok URLs return usable metadata
+   - Fails fast before wasting credits or worker time
 
-2. **`maestro/flows/05-edge-cases/04-circuit-breaker-auto-reset.yaml`**
-   - Simulates network failures to trigger circuit breaker
-   - Validates auto-reset after 30s silence
-   - Confirms recovery to CLOSED state on success
+2. **`scripts/nodejs/journeys/Journey-UX-05RedundantVisuals-Validation.js`**
+   - Validates the refreshed compact home journey
+   - Confirms invalid or stale URLs do not pass as real jobs
+   - Keeps senior-friendly visible text and primary actions in view
 
-3. **`maestro/flows/02-ui/06-error-categorization-consistency.yaml`**
+3. **`scripts/nodejs/journeys/Pluct-Test-Validation-10ErrorHandling.js`**
    - Tests network error categorization → "Check Connection" + "Retry"
    - Tests rate-limit categorization → "Retry Later"
    - Tests credits error categorization → "Add Credits"
    - Tests server error categorization → "Retry"
-   - Validates consistency across all error paths
+   - Validates consistency across the high-risk failure paths
 
 ### **Monitoring Test Execution**
-Maestro tests write artifacts to `artifacts/` including:
+Node/ADB journeys write artifacts to `artifacts/` including:
 - `ui_dump_latest.xml` — Latest UI hierarchy
 - `video_added_ui_dump.xml` — Post-transcription state
 - `status_history.json` — Status transitions
-- Maestro logs with request/response details
+- Node journey logs with request/response details
 
 ## 🛠️ **Architecture & Technical Improvements**
 
@@ -193,10 +201,10 @@ Maestro tests write artifacts to `artifacts/` including:
    - `UnifiedHandler` error messaging (refactored)
    - `UserMessageFormatter` categorization (consolidated)
 
-3. **Legacy Test Orchestrators**: `npm run test:all` replaces:
+3. **Legacy Test Orchestrators**: `npm run test:all` is the canonical runner for:
    - `scripts/nodejs/Pluct-Main-01Orchestrator.js` (removed)
    - All `Pluct-Test-Focused-*.js` runners (consolidated)
-   - Entry point now: `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`
+   - Entry point now: `scripts/nodejs/journeys/Pluct-Journey-01Orchestrator.js`
 
 ### **Recent Tech Debt Cleanups**
 
@@ -226,12 +234,12 @@ Maestro tests write artifacts to `artifacts/` including:
 - Calculates total polling time for timeout thresholds
 
 ### **Legacy Code Consolidation**
-The following Node.js orchestrators in `scripts/nodejs/` are marked for deletion (`DeleteThisFile_` prefix) as they were replaced by the canonical Maestro orchestrator:
+The following older focused runners in `scripts/nodejs/` are marked for deletion (`DeleteThisFile_` prefix) when replaced by the canonical Node journey orchestrator:
 - `Pluct-Main-01Orchestrator.js`
 - `Pluct-Test-Focused-*.js` (all focused test runners)
 - Individual test runner files
 
-**Transition**: All test execution now routes through `npm run test:all`, which invokes `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js`.
+**Transition**: All test execution now routes through `npm run test:all`, which invokes `scripts/nodejs/journeys/Pluct-Journey-01Orchestrator.js`.
 
 ## 🚀 **Building and Testing**
 
@@ -249,22 +257,22 @@ The following Node.js orchestrators in `scripts/nodejs/` are marked for deletion
    ```bash
    npm run test:all
    ```
-   See [TESTING.md](TESTING.md) for complete testing documentation. The canonical orchestrator is `maestro/Pluct-Maestro-Test-01Runner-01Orchestrator.js` — `npm run test:all` invokes it.
+   See [TESTING.md](TESTING.md) for complete testing documentation. The canonical orchestrator is `scripts/nodejs/journeys/Pluct-Journey-01Orchestrator.js`; `npm run test:all` invokes it.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
-All tests use **Maestro**, a YAML-based UI testing framework. See [TESTING.md](TESTING.md) for complete documentation.
+Focused validation uses Node journeys with ADB/device automation and Puppeteer-style service checks. See [TESTING.md](TESTING.md) for complete documentation.
 
 ### **Quick Start**
 ```bash
 npm run test:all
 ```
 
-### **Legacy Node.js Tests (Deprecated)**
-The app previously used Node.js-based testing. These tests are deprecated in favor of Maestro:
+### **Node Journey Coverage**
+The current focused journeys validate the core user paths:
 
 - **🎯 App Launch**: UI component validation and initialization
 - **📤 Share Intent**: TikTok URL handling and capture sheet display
@@ -487,6 +495,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
+### v2.6.0 - UX Improvements + Tech Debt Cleanup (Current)
+
+**5 UX/Reliability Improvements:**
+1. **Network Restoration Handler**: Wired `handleNetworkRestored` to queue processor - automatically processes queued videos when network is restored
+2. **Low Balance Warning**: Added proactive warning when balance < 3 credits (threshold updated from <= 2 to < 3) with visual indicator in header
+3. **Confidence Score Display**: Added confidence score percentage badge to transcript detail screen and video list items
+4. **Cancel Notification Action**: Added cancel button to in-progress transcription notifications, allowing users to cancel background jobs
+5. **Empty Transcript Error Message**: Enhanced error message with troubleshooting tips and retry suggestions when transcription completes but no text is found
+
+**3 Tech Debt Cleanups:**
+1. **Non-Null Assertions**: Fixed 17 unnecessary `!!` operators across codebase, replaced with safe calls and proper null handling
+2. **Elvis Operators**: Reviewed 30 `?:` operators - all found to be necessary for proper fallback behavior
+3. **Unused Parameter**: Removed unused `error` parameter from `ErrorClassifier.categorizeByMessage()` function
+
+**Testing Updates:**
+- Updated Node journey test URLs to include stable valid TikTok links for broader test coverage
+- Fixed app launch issue with pre-launch fallback
+- Fixed YAML syntax errors in test files
+- Test runner now shows real-time output for better visibility
+
+**Database Schema:**
+- Added `confidence` field to `VideoItem` entity (database version 6)
+- Migration added: `MIGRATION_5_6` adds confidence column
+
 ### v2.5.0 - Battery Optimization + 5xx Retry + First Sentence Preview
 5 UX/Reliability Fixes:
 1. **Shadowed Variable Fix (pollExistingJob)**: Renamed to `videoForCompletion`, `videoForFailure` in poll loop
@@ -560,7 +592,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Better Button Contrast**: 0.7 alpha for disabled text (was 0.38)
 - **API Connectivity**: Real Business Engine integration
 - **Transcription Pipeline**: Complete TTTranscribe workflow
-- **Test Automation**: Maestro YAML-based test orchestration
+- **Test Automation**: Node/ADB journey orchestration through `npm run test:all`
 
 ---
 

@@ -43,7 +43,7 @@ object PluctCoreCategorization01ErrorClassifier {
         // Categorize based on error details
         val category = when {
             error is PluctCoreAPIDetailedError -> categorizDetailedError(error, lowerMessage)
-            else -> categorizeByMessage(lowerMessage, error)
+            else -> categorizeByMessage(lowerMessage)
         }
 
         // Provide user-friendly message and actions based on category
@@ -133,8 +133,7 @@ object PluctCoreCategorization01ErrorClassifier {
     /**
      * Categorize error based on message pattern alone
      */
-    @Suppress("UNUSED_PARAMETER")
-    private fun categorizeByMessage(lowerMessage: String, error: Throwable?): ErrorCategory {
+    private fun categorizeByMessage(lowerMessage: String): ErrorCategory {
         return when {
             lowerMessage.contains("timeout") || lowerMessage.contains("connection") ||
             lowerMessage.contains("network") || lowerMessage.contains("unavailable") ||

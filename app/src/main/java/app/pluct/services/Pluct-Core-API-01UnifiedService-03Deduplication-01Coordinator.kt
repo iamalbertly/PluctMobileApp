@@ -82,8 +82,12 @@ class PluctCoreAPI01UnifiedService03Deduplication01Coordinator @Inject construct
             if (videoRepository != null) {
                 val processingVideo = videoRepository.getProcessingVideoByUrl(url)
                 if (processingVideo != null && processingVideo.status == ProcessingStatus.PROCESSING) {
-                    Log.w(TAG, "URL $url has existing processing entry in database (DuplicateGuard check)")
-                    return DeduplicationResult.AlreadyProcessing("Video is already being processed", processingVideo)
+                    if (processingVideo.jobId.isNullOrBlank()) {
+                        Log.w(TAG, "URL $url has stale processing entry without jobId; allowing retry")
+                    } else {
+                        Log.w(TAG, "URL $url has existing processing entry in database (DuplicateGuard check)")
+                        return DeduplicationResult.AlreadyProcessing("Video is already being processed", processingVideo)
+                    }
                 }
             }
 

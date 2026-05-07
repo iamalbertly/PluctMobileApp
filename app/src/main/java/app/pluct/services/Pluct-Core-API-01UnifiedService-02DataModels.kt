@@ -120,6 +120,8 @@ data class TranscriptionStatusResponse(
 @Serializable
 data class TranscriptionResult(
     val transcription: String? = null,
+    val transcript: String? = null,
+    val text: String? = null,
     val confidence: Double? = null,
     val language: String? = null,
     val duration: Double? = null, // Changed to Double to match production (50.48)

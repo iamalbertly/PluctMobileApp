@@ -104,7 +104,7 @@ class PluctJourneyOrchestrator {
             'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js',
             'Journey-Refactor-05NamingConsistency-Validation.js',
             'Journey-Refactor-06PreWarmingOptimization-Validation.js'
-            // Note: Onboarding tests migrated to Maestro YAML format
+            // Note: Onboarding tests use the Node journey validation path.
             // Add other journeys here in the desired order
         ];
         
@@ -192,7 +192,7 @@ class PluctJourneyOrchestrator {
             'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js': 'Refactor-04ComingSoonDialogRemoval-Validation',
             'Journey-Refactor-05NamingConsistency-Validation.js': 'Refactor-05NamingConsistency-Validation',
             'Journey-Refactor-06PreWarmingOptimization-Validation.js': 'Refactor-06PreWarmingOptimization-Validation'
-            // Note: Onboarding tests migrated to Maestro YAML format
+            // Note: Onboarding tests use the Node journey validation path.
         };
     }
 
@@ -221,7 +221,7 @@ class PluctJourneyOrchestrator {
             let result = await (journey.run ? journey.run() : journey.execute());
 
             // If the journey reported success, double-check for silent API/UI failures.
-            if (result.success) {
+            if (result.success && !result.skipped) {
                 const apiCheck = await this.core.checkRecentAPIErrors(400);
                 if (!apiCheck.success) {
                     this.core.logger.error('❌ API errors detected in logcat after journey execution');

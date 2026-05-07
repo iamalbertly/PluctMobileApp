@@ -17,7 +17,7 @@ class PluctTestValidationAPIConnectivity extends BaseJourney {
             this.core.logger.info('🔍 Validating API connectivity...');
             
             // Test Business Engine health endpoint
-            const healthResponse = await this.core.httpGet('https://pluct-business-engine.romeo-lya2.workers.dev/health');
+            const healthResponse = await this.core.httpGet(`${this.core.config.businessEngineUrl}/health`);
             if (!healthResponse.success || healthResponse.status !== 200) {
                 return { success: false, error: 'Business Engine health check failed' };
             }
@@ -28,7 +28,7 @@ class PluctTestValidationAPIConnectivity extends BaseJourney {
             }
             
             // Test credit balance endpoint (without auth for basic connectivity)
-            const balanceResponse = await this.core.httpGet('https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance');
+            const balanceResponse = await this.core.httpGet(`${this.core.config.businessEngineUrl}/v1/credits/balance`);
             // We expect this to fail with 401, which is correct behavior
             if (balanceResponse.status !== 401) {
                 return { success: false, error: 'Credit balance endpoint not responding correctly' };

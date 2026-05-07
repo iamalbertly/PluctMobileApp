@@ -22,7 +22,7 @@ class PluctCoreFoundationCommands {
         }
 
         try {
-            const result = await this._executeCommandDirect('adb devices', timeout);
+            let result = await this._executeCommandDirect('adb devices', timeout);
             if (!result.success) {
                 this.logger.error(`❌ ADB connection check failed: ${result.error}`);
                 if (result.stderr) {
@@ -32,7 +32,7 @@ class PluctCoreFoundationCommands {
                     this.logger.error(`   ADB stdout: ${result.output}`);
                 }
                 this._adbConnected = false;
-        this._lastAdbReset = 0;
+                this._lastAdbReset = 0;
                 this._adbConnectionChecked = true;
                 return false;
             }
@@ -57,7 +57,7 @@ class PluctCoreFoundationCommands {
             }
 
             // Parse device list
-            const deviceLines = (result.output || '').split('\n').filter(line => {
+            let deviceLines = (result.output || '').split('\n').filter(line => {
                 const trimmed = line.trim();
                 return trimmed && 
                        trimmed.includes('device') && 
@@ -66,11 +66,26 @@ class PluctCoreFoundationCommands {
             });
 
             if (deviceLines.length === 0) {
+                await this._recoverOfflineAdbDevice(timeout);
+                const recoveredDevices = await this._executeCommandDirect('adb devices', timeout);
+                if (recoveredDevices.success) {
+                    result = recoveredDevices;
+                    deviceLines = (result.output || '').split('\n').filter(line => {
+                        const trimmed = line.trim();
+                        return trimmed &&
+                               trimmed.includes('device') &&
+                               !trimmed.includes('List of devices') &&
+                               !trimmed.includes('daemon');
+                    });
+                }
+            }
+
+            if (deviceLines.length === 0) {
                 this.logger.error('❌ ADB connection check: No devices found');
                 this.logger.error(`   ADB output: ${result.output || 'empty'}`);
                 this.logger.error(`   Full output: ${result.fullOutput || 'empty'}`);
                 this._adbConnected = false;
-        this._lastAdbReset = 0;
+                this._lastAdbReset = 0;
                 this._adbConnectionChecked = true;
                 return false;
             }
@@ -87,10 +102,49 @@ class PluctCoreFoundationCommands {
                 this.logger.error(`   Stack: ${error.stack}`);
             }
             this._adbConnected = false;
-        this._lastAdbReset = 0;
+            this._lastAdbReset = 0;
             this._adbConnectionChecked = true;
             return false;
         }
+    }
+
+    async _recoverOfflineAdbDevice(timeout = 5000) {
+        this.logger.warn('Recovering offline ADB device...');
+        this._adbConnectionChecked = false;
+        this._adbConnected = false;
+
+        try {
+            await this._executeCommandDirect('adb kill-server', timeout);
+            await this.sleep(1000);
+            await this._executeCommandDirect('adb start-server', timeout);
+            await this.sleep(2000);
+
+            let devices = await this._executeCommandDirect('adb devices', timeout);
+            if ((devices.output || '').split('\n').some(line => line.trim().endsWith('device'))) {
+                this.logger.info('ADB recovered after server restart');
+                return true;
+            }
+
+            if (process.platform === 'win32') {
+                const ldPlayerPath = process.env.PLUCT_LDPLAYER_PATH || 'C:\\LDPlayer\\LDPlayer9\\dnplayer.exe';
+                const restartCommand = `powershell -NoProfile -Command "if (Test-Path '${ldPlayerPath}') { Get-Process dnplayer -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 8; Start-Process -FilePath '${ldPlayerPath}' -ArgumentList 'index=0' -WindowStyle Hidden; Start-Sleep -Seconds 45 }"`;
+                await this._executeCommandDirect(restartCommand, 70000);
+                await this._executeCommandDirect('adb kill-server', timeout);
+                await this.sleep(1000);
+                await this._executeCommandDirect('adb start-server', timeout);
+                await this.sleep(3000);
+                devices = await this._executeCommandDirect('adb devices', timeout);
+                const recovered = (devices.output || '').split('\n').some(line => line.trim().endsWith('device'));
+                if (recovered) {
+                    this.logger.info('ADB recovered after LDPlayer restart');
+                }
+                return recovered;
+            }
+        } catch (error) {
+            this.logger.warn(`ADB device recovery failed: ${error.message}`);
+        }
+
+        return false;
     }
 
         /**
@@ -230,6 +284,12 @@ class PluctCoreFoundationCommands {
 
                 if (isSigterm && attempt < maxRetries) {
                     await this._resetAdbServer();
+                }
+
+                if ((errorText.includes('device offline') || errorText.includes('no devices')) && attempt < maxRetries) {
+                    this._adbConnectionChecked = false;
+                    this._adbConnected = false;
+                    await this._recoverOfflineAdbDevice(Math.min(timeout, 5000));
                 }
 
                 if (!isRetryable || attempt >= maxRetries) {

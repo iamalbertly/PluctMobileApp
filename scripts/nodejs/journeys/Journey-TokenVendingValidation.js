@@ -7,19 +7,19 @@ class TokenVendingValidationJourney extends BaseJourney {
     }
 
     async execute() {
+        const beBase = this.core.config.businessEngineUrl;
+        const testUrl = this.core.getActiveUrl ? this.core.getActiveUrl() : this.core.config.url;
         this.core.logger.info('🎯 Testing Token Vending System Validation...');
 
-        // 1) Launch app to home
-        const fg = await this.ensureAppForeground();
-        if (!fg.success) return { success: false, error: 'App not in foreground' };
+        // 1) Launch app to home with a fresh local user so repeated validation does not deplete credits.
+        const appReady = await this.core.resetAppToFreshCaptureState();
+        if (!appReady.success) return { success: false, error: appReady.error || 'App not ready' };
 
         // 2) Test Business Engine health
         this.core.logger.info('🔍 Testing Business Engine health...');
-        const healthResult = await this.core.executeCommand(
-            `powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://pluct-business-engine.romeo-lya2.workers.dev/health' -UseBasicParsing; $response.StatusCode } catch { 0 }"`
-        );
+        const healthResult = await this.core.httpGet(`${beBase}/health`);
         
-        if (!healthResult.success || healthResult.output.trim() !== '200') {
+        if (!healthResult.success || healthResult.status !== 200) {
             return { success: false, error: 'Business Engine health check failed' };
         }
         
@@ -27,58 +27,38 @@ class TokenVendingValidationJourney extends BaseJourney {
 
         // 3) Test Token Vending endpoint
         this.core.logger.info('🔍 Testing Token Vending endpoint...');
-        const vendResult = await this.core.executeCommand(
-            `powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token' -Method POST -ContentType 'application/json' -Body '{\"clientRequestId\":\"test-${Date.now()}\"}' -UseBasicParsing; $response.StatusCode } catch { 0 }"`
+        const vendResult = await this.core.httpPost(
+            `${beBase}/v1/vend-token`,
+            { userId: 'mobile-automation', clientRequestId: `test-${Date.now()}` }
         );
         
         // Token vending should return 401 (unauthorized) without JWT, which is expected
-        if (!vendResult.success || (vendResult.output.trim() !== '401' && vendResult.output.trim() !== '200')) {
-            this.core.logger.warn(`⚠️ Token vending returned unexpected status: ${vendResult.output.trim()}`);
+        if (!vendResult.success || (vendResult.status !== 401 && vendResult.status !== 200)) {
+            this.core.logger.warn(`⚠️ Token vending returned unexpected status: ${(vendResult.status || vendResult.error)}`);
         }
         
         this.core.logger.info('✅ Token Vending endpoint accessible');
 
         // 4) Test TTTranscribe endpoint
         this.core.logger.info('🔍 Testing TTTranscribe endpoint...');
-        const tttResult = await this.core.executeCommand(
-            `powershell -Command "try { $response = Invoke-WebRequest -Uri 'https://pluct-business-engine.romeo-lya2.workers.dev/ttt/transcribe' -Method POST -ContentType 'application/json' -Body '{\"url\":\"https://vm.tiktok.com/ZMDRUGT2P/\"}' -UseBasicParsing; $response.StatusCode } catch { 0 }"`
+        const tttResult = await this.core.httpPost(
+            `${beBase}/ttt/transcribe`,
+            { url: testUrl }
         );
         
         // TTTranscribe should return 401 (unauthorized) without JWT, which is expected
-        if (!tttResult.success || (tttResult.output.trim() !== '401' && tttResult.output.trim() !== '200')) {
-            this.core.logger.warn(`⚠️ TTTranscribe returned unexpected status: ${tttResult.output.trim()}`);
+        if (!tttResult.success || (tttResult.status !== 401 && tttResult.status !== 200)) {
+            this.core.logger.warn(`⚠️ TTTranscribe returned unexpected status: ${(tttResult.status || tttResult.error)}`);
         }
         
         this.core.logger.info('✅ TTTranscribe endpoint accessible');
 
-        // 5) Test app integration by opening capture sheet
-        this.core.logger.info('🔍 Testing app integration...');
-        const openResult = await this.core.openCaptureSheet();
-        if (!openResult.success) {
-            return { success: false, error: `Failed to open capture sheet: ${openResult.error}` };
+        // 5) Test current app integration without creating a failed transcription item.
+        this.core.logger.info('Testing app capture readiness...');
+        const captureReady = await this.core.ensureCaptureCardReady();
+        if (!captureReady.success) {
+            return { success: false, error: `Capture card not ready: ${captureReady.error}` };
         }
-
-        // Wait for sheet to load
-        await this.core.sleep(2000);
-
-        // Enter test URL
-        const urlTap = await this.core.tapByText('TikTok URL');
-        if (!urlTap.success) {
-            const fallbackTap = await this.core.tapFirstEditText();
-            if (!fallbackTap.success) return { success: false, error: 'URL field not found' };
-        }
-        
-        // inputText automatically clears the field, so no need to call clearEditText
-        await this.core.inputText('https://vm.tiktok.com/ZMDRUGT2P/');
-
-        // 6) Validate URL and check for processing (optional - normalizeTikTokUrl may not exist)
-        if (this.core.normalizeTikTokUrl) {
-            const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMDRUGT2P/');
-            if (!normalized.valid) {
-                return { success: false, error: 'Invalid TikTok URL' };
-            }
-        }
-
         this.core.logger.info('✅ Token Vending System validation completed');
         return { 
             success: true, 

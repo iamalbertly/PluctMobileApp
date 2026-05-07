@@ -131,7 +131,7 @@ class PluctUIScreen01MainActivity05CreditManager(
                         operation = "vendToken",
                         message = error.message ?: "Vend token failed",
                         exception = error,
-                        requestUrl = "https://pluct-business-engine.romeo-lya2.workers.dev/v1/vend-token"
+                        requestUrl = "${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}/v1/vend-token"
                     )
                 }
 

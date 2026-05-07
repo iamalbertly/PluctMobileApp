@@ -85,14 +85,14 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         val flowRequestId = "flow_${System.currentTimeMillis()}"
 
         val tttHealth = healthStatus["ttt"]
-        if (tttHealth == HealthStatus.UNHEALTHY) {
+        if (tttHealth == HealthStatus.UNHEALTHY || tttHealth == HealthStatus.DEGRADED) {
             debugLogManager.logWarning(
                 category = "TRANSCRIPTION",
                 operation = "ttt_unhealthy",
-                message = "TTTranscribe health check reports unhealthy; delaying submission",
+                message = "TTTranscribe health check reports unavailable; delaying submission",
                 details = "URL=$sanitizedUrl; Health=$tttHealth"
             )
-            return Result.failure(Exception("TTTranscribe service is temporarily unavailable. Please retry in a few moments."))
+            return Result.failure(Exception("Transcription service is waking up. Please retry in a few moments."))
         }
         
         // Use unified deduplication coordinator to check and register processing
@@ -178,6 +178,17 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
 
         // Helper to ensure cleanup on all exit paths
         suspend fun cleanupAndReturn(result: Result<TranscriptionStatusResponse>): Result<TranscriptionStatusResponse> {
+            if (result.isFailure) {
+                val failedVideo = videoRepository?.getVideoByUrl(sanitizedUrl)
+                if (failedVideo != null && failedVideo.status == ProcessingStatus.PROCESSING) {
+                    videoRepository?.updateVideo(
+                        failedVideo.copy(
+                            status = ProcessingStatus.FAILED,
+                            failureReason = result.exceptionOrNull()?.message ?: "Transcription failed"
+                        )
+                    )
+                }
+            }
             deduplicationCoordinator.unregisterProcessing(sanitizedUrl, clientRequestId)
             return result
         }
@@ -238,8 +249,9 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         }
         
         if (metadataResult.isSuccess) {
-            val metadata = metadataResult.getOrNull()!!
-            updateDebug(
+            val metadata = metadataResult.getOrNull()
+            if (metadata != null) {
+                updateDebug(
                 OperationStep.METADATA,
                 null, null, null,
                 OperationTimelineEntry(
@@ -255,7 +267,8 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
                     nextAction = "Proceed to submit (token already vended in parallel)",
                     correlationId = flowRequestId
                 )
-            )
+                )
+            }
         } else {
             val metaError = metadataResult.exceptionOrNull()
             val message = metaError?.message ?: "Metadata unavailable (timeout/fallback)"
@@ -281,7 +294,9 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         if (tokenResult.isFailure) {
             return cleanupAndReturn(tokenResult.map { throw Exception("unreachable") })
         }
-        val vendToken = tokenResult.getOrNull()!!
+        val vendToken = tokenResult.getOrNull() ?: return cleanupAndReturn(
+            Result.failure(Exception("Token vending failed but result was not failure"))
+        )
 
         // Submit transcription using extracted submission handler
         val submissionHandler = PluctCoreAPI01UnifiedService08TranscriptionFlow06Submission02Handler(
@@ -306,7 +321,10 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
             return cleanupAndReturn(submissionResult.map { throw Exception("unreachable") })
         }
         
-        val (jobId, hasRefreshedAuth) = submissionResult.getOrNull()!!
+        val submissionPair = submissionResult.getOrNull() ?: return cleanupAndReturn(
+            Result.failure(Exception("Submission failed but result was not failure"))
+        )
+        val (jobId, hasRefreshedAuth) = submissionPair
 
         // Poll for completion using extracted polling handler
         val pollingHandler = PluctCoreAPI01UnifiedService08TranscriptionFlow07Polling02Handler(

@@ -10,8 +10,18 @@ appId: app.pluct
     timeout: 2000
 - tapOn:
     id: "url_input_field"
-- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
-- waitForAnimationToEnd
+    optional: true
+- tapOn:
+    text: "Paste TikTok Link"
+    optional: true
+- inputText: "https://vt.tiktok.com/ZSaMj8uAJ/"
+- waitForAnimationToEnd:
+    timeout: 2000
+# Wait for inline submit button to appear
+- extendedWaitUntil:
+    visible:
+      id: "extract_script_button"
+    timeout: 10000
 - tapOn:
     id: "extract_script_button"
 - waitForAnimationToEnd

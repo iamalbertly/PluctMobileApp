@@ -8,10 +8,9 @@ import android.net.NetworkRequest
 import android.util.Log
 import app.pluct.core.network.PluctNetworkConnectivityChecker
 import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.repository.PluctVideoRepository
-// TECH DEBT #3: Removed unused import PluctNotificationHelper
-import app.pluct.services.PluctQueueManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,7 +61,11 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
             val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             val isValidated = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            _isNetworkAvailable.value = hasInternet && isValidated
+            val isAvailable = hasInternet && isValidated
+            _isNetworkAvailable.value = isAvailable
+            if (!isAvailable) {
+                networkLossDetected = true
+            }
             Log.d(TAG, "Network capabilities changed: internet=$hasInternet, validated=$isValidated")
         }
     }
@@ -87,6 +90,12 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
         connectivityManager.unregisterNetworkCallback(networkCallback)
         Log.d(TAG, "Network monitoring stopped")
     }
+
+    fun markNetworkLossDetected() {
+        networkLossDetected = true
+        _isNetworkAvailable.value = false
+        Log.w(TAG, "Network loss marked by worker")
+    }
     
     /**
      * UX IMPROVEMENT #3: Check if network loss was detected and queue video proactively
@@ -94,26 +103,59 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
      * Technical Debt #2: Properly handles network loss queueing in coroutine context
      */
     suspend fun checkAndQueueOnNetworkLoss(): Boolean {
-        if (networkLossDetected && !_isNetworkAvailable.value) {
-            Log.w(TAG, "Network loss detected, queueing video: $url")
-            
-            val existingVideo = videoRepository.getVideoByUrl(url)
-            if (existingVideo != null && existingVideo.status == ProcessingStatus.PROCESSING) {
-                val queueResult = queueManager.queueVideo(
-                    url = url,
-                    tier = existingVideo.tier,
-                    reason = QueueReason.NO_INTERNET
-                )
-                
-                if (queueResult.isSuccess) {
-                    Log.d(TAG, "Video queued successfully due to network loss")
-                    networkLossDetected = false // Reset flag after successful queue
-                    return true
-                } else {
-                    Log.e(TAG, "Failed to queue video on network loss: ${queueResult.exceptionOrNull()?.message}")
-                }
-            }
+        val currentlyUnavailable = !_isNetworkAvailable.value ||
+            !PluctNetworkConnectivityChecker.isNetworkAvailable(context)
+
+        if (!currentlyUnavailable || !networkLossDetected) {
+            return false
         }
+
+        Log.w(TAG, "Network loss detected, queueing video: $url")
+
+        val existingVideo = videoRepository.getVideoByUrl(url)
+        if (existingVideo == null) {
+            val queueResult = queueManager.queueVideo(
+                url = url,
+                tier = ProcessingTier.EXTRACT_SCRIPT,
+                reason = QueueReason.NO_INTERNET
+            )
+            if (queueResult.isSuccess) {
+                Log.d(TAG, "Video queued successfully due to network loss")
+                networkLossDetected = false
+                return true
+            }
+            Log.e(TAG, "Failed to queue missing video on network loss: ${queueResult.exceptionOrNull()?.message}")
+            return false
+        }
+
+        if (existingVideo.status == ProcessingStatus.COMPLETED) {
+            Log.d(TAG, "Video completed before network loss queue was needed")
+            networkLossDetected = false
+            return true
+        }
+
+        if (existingVideo.status == ProcessingStatus.QUEUED) {
+            Log.d(TAG, "Video already queued safely")
+            networkLossDetected = false
+            return true
+        }
+
+        if (existingVideo.status == ProcessingStatus.PROCESSING || existingVideo.status == ProcessingStatus.FAILED) {
+            val queuedVideo = existingVideo.copy(
+                status = ProcessingStatus.QUEUED,
+                queueReason = QueueReason.NO_INTERNET,
+                queuedAt = System.currentTimeMillis(),
+                failureReason = "Network lost. Waiting to retry."
+            )
+            val updateResult = videoRepository.updateVideo(queuedVideo)
+            if (updateResult.isSuccess) {
+                Log.d(TAG, "Video queued successfully due to network loss")
+                networkLossDetected = false
+                return true
+            }
+            Log.e(TAG, "Failed to update video queue state on network loss: ${updateResult.exceptionOrNull()?.message}")
+        }
+
         return false
     }
     
@@ -127,10 +169,9 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
     /**
      * Handle network restored - retry queued videos
      * Must be called from coroutine scope
-     * TECH DEBT #1: Reserved for future use when queue processor is implemented
+     * UX FIX #1: Wired to queue processor - triggers immediate processing of queued videos
      */
-    @Suppress("unused") // TECH DEBT #1: Reserved for future queue processor integration
-    private suspend fun handleNetworkRestored() {
+    suspend fun handleNetworkRestored() {
         Log.d(TAG, "Network restored, checking for queued videos")
         
         // Find queued videos with NO_INTERNET reason
@@ -147,6 +188,9 @@ class PluctCoreBackground01TranscriptionWorkerNetworkMonitor(
                 queuedCount = queuedVideos.size,
                 message = "Network restored. Processing queued video(s)..."
             )
+            
+            // UX FIX #1: Trigger queue processor to process videos immediately
+            PluctQueueProcessorWorker.triggerImmediateProcessing(context)
         }
     }
     

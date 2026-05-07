@@ -58,7 +58,7 @@ class PluctCoreServiceBackgroundStatus04StatusVerifier(
                 return true // Assume active on error
             }
             
-            val status = statusResult.getOrNull()!!
+            val status = statusResult.getOrNull() ?: return true // Assume active if status is null
             val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
             val transcript = extraction.transcript
             

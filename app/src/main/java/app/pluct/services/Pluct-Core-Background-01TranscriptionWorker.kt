@@ -119,7 +119,6 @@ class PluctCoreBackground01TranscriptionWorker(
         }
     }
     
-    @Suppress("UNUSED_PARAMETER") // TECH DEBT #1: networkMonitor reserved for future offline queueing
     private suspend fun processNewTranscription(url: String, notificationId: Int, networkMonitor: PluctCoreBackground01TranscriptionWorkerNetworkMonitor): Result {
         // CRITICAL FIX #2: Check for existing video before creating duplicate
         val existingVideo = videoRepository.getVideoByUrl(url)
@@ -130,10 +129,11 @@ class PluctCoreBackground01TranscriptionWorker(
             }
             if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingVideo.transcript != null) {
                 Log.d(TAG, "Video $url already completed, returning existing transcript")
-                // UX IMPROVEMENT #4: Show completion notification with clear message
-                showCompletionNotification(url, existingVideo.transcript!!, notificationId)
+                // TECH DEBT #1: Use safe let instead of !! assertion
+                val cachedTranscript = existingVideo.transcript
+                showCompletionNotification(url, cachedTranscript, notificationId)
                 return Result.success(workDataOf(
-                    "transcript" to existingVideo.transcript,
+                    "transcript" to cachedTranscript,
                     "job_id" to (existingVideo.jobId ?: ""),
                     "status" to "completed",
                     "message" to "This video was already transcribed. Transcript is available in your recent videos."
@@ -152,17 +152,14 @@ class PluctCoreBackground01TranscriptionWorker(
             onSuccess = { statusResponse ->
                 val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(statusResponse)
                 val transcriptText = extraction.transcript
-                val jobId = statusResponse.jobId
-                
-                // Update video entry with jobId if available
-                if (jobId != null) {
-                    // TECH DEBT #2: Renamed to avoid shadowing outer existingVideo
-                    val videoForJobUpdate = videoRepository.getVideoByUrl(url)
-                    if (videoForJobUpdate != null) {
-                        val updatedVideo = videoForJobUpdate.copy(jobId = jobId)
-                        videoRepository.insertVideo(updatedVideo)
-                        Log.d(TAG, "Updated video with jobId: $jobId")
-                    }
+                val responseJobId = statusResponse.jobId // TECH DEBT #3: Non-null per data model
+
+                // Update video entry with jobId (always available per data model)
+                val videoForJobUpdate = videoRepository.getVideoByUrl(url)
+                if (videoForJobUpdate != null) {
+                    val updatedVideo = videoForJobUpdate.copy(jobId = responseJobId)
+                    videoRepository.insertVideo(updatedVideo)
+                    Log.d(TAG, "Updated video with jobId: $responseJobId")
                 }
                 
                 if (!transcriptText.isNullOrBlank()) {
@@ -174,16 +171,17 @@ class PluctCoreBackground01TranscriptionWorker(
                             status = app.pluct.data.entity.ProcessingStatus.COMPLETED,
                             progress = 100,
                             transcript = completedTranscript,
-                            jobId = jobId
+                            jobId = responseJobId, // TECH DEBT #2: Use renamed variable
+                            transcriptCachedAt = System.currentTimeMillis()
                         )
                         videoRepository.insertVideo(completedVideo)
                         Log.d(TAG, "Updated video to completed status")
                     }
-                    
+
                     showCompletionNotification(url, completedTranscript, notificationId)
                     Result.success(workDataOf(
                         "transcript" to completedTranscript,
-                        "job_id" to (jobId ?: ""),
+                        "job_id" to responseJobId, // TECH DEBT #2: Remove redundant Elvis (non-null)
                         "status" to "completed"
                     ))
                 } else {
@@ -202,6 +200,14 @@ class PluctCoreBackground01TranscriptionWorker(
                 }
             },
             onFailure = { error ->
+                if (isNetworkRelatedError(error)) {
+                    networkMonitor.markNetworkLossDetected()
+                    if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                        showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                        return@fold Result.failure(workDataOf("error" to "Network lost, video queued"))
+                    }
+                }
+
                 // Update video entry with failed status
                 val currentVideo = videoRepository.getVideoByUrl(url)
                 if (currentVideo != null) {
@@ -222,9 +228,10 @@ class PluctCoreBackground01TranscriptionWorker(
         // UX IMPROVEMENT #5: First verify current status before polling
         val existingVideo = videoRepository.getVideoByUrl(url)
         if (existingVideo != null) {
-            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingVideo.transcript != null) {
+            val existingTranscript = existingVideo.transcript
+            if (existingVideo.status == app.pluct.data.entity.ProcessingStatus.COMPLETED && existingTranscript != null) {
                 Log.d(TAG, "Video $url already completed in database, returning existing transcript")
-                showCompletionNotification(url, existingVideo.transcript!!, notificationId)
+                showCompletionNotification(url, existingTranscript, notificationId)
                 return Result.success(workDataOf(
                     "transcript" to existingVideo.transcript,
                     "job_id" to jobId,
@@ -275,16 +282,14 @@ class PluctCoreBackground01TranscriptionWorker(
             // Check if network is available before making API call
             // PAUSE/RESUME: Wait for network instead of immediately failing
             if (!networkMonitor.isNetworkCurrentlyAvailable()) {
+                networkMonitor.markNetworkLossDetected()
                 consecutiveNetworkFailures++
                 Log.w(TAG, "Network unavailable (attempt $consecutiveNetworkFailures/$maxNetworkRetries), waiting for reconnection...")
 
-                if (consecutiveNetworkFailures >= maxNetworkRetries) {
-                    Log.w(TAG, "Max network retries exceeded, queueing video")
-                    if (networkMonitor.checkAndQueueOnNetworkLoss()) {
-                        showProgressNotification(url, progress, "Paused - Waiting for connection...", notificationId)
-                        showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
-                        return Result.failure(workDataOf("error" to "Network lost, video queued"))
-                    }
+                if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                    showProgressNotification(url, progress, "Paused - Waiting for connection...", notificationId)
+                    showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                    return Result.failure(workDataOf("error" to "Network lost, video queued"))
                 }
 
                 // Show paused state in notification
@@ -292,10 +297,13 @@ class PluctCoreBackground01TranscriptionWorker(
                 return@repeat // Skip this iteration, wait for next
             }
 
-            // Network restored - reset failure counter
+            // Network restored - reset failure counter and trigger queue processing
             if (consecutiveNetworkFailures > 0) {
                 Log.d(TAG, "Network restored after $consecutiveNetworkFailures failures, resuming polling")
                 consecutiveNetworkFailures = 0
+                
+                // UX FIX #1: Trigger queue processor to handle any queued videos
+                networkMonitor.handleNetworkRestored()
             }
             
             val statusResult = apiService.checkTranscriptionStatus(jobId, serviceToken)
@@ -399,9 +407,7 @@ class PluctCoreBackground01TranscriptionWorker(
                 }
 
                 // UX IMPROVEMENT: Distinguish between network errors and upstream service errors
-                val isNetworkRelated = error?.message?.contains("network", ignoreCase = true) == true ||
-                    error?.message?.contains("connection", ignoreCase = true) == true ||
-                    error?.message?.contains("timeout", ignoreCase = true) == true
+                val isNetworkRelated = isNetworkRelatedError(error)
 
                 // UX FIX #4: Detect 5xx server errors for exponential backoff retry
                 val is5xxServerError = (error is app.pluct.services.PluctCoreAPIDetailedError &&
@@ -419,8 +425,14 @@ class PluctCoreBackground01TranscriptionWorker(
                     showProgressNotification(url, progress, "Server busy - Retrying in ${backoffDelay/1000}s...", notificationId)
                     kotlinx.coroutines.delay(backoffDelay)
                 } else if (isNetworkRelated) {
+                    networkMonitor.markNetworkLossDetected()
                     consecutiveNetworkFailures++
                     Log.w(TAG, "Network-related API error (attempt $consecutiveNetworkFailures/$maxNetworkRetries)")
+                    if (networkMonitor.checkAndQueueOnNetworkLoss()) {
+                        showProgressNotification(url, progress, "Paused - Waiting for connection...", notificationId)
+                        showErrorNotification(url, "Network lost. Video queued and will process when connection is restored.", notificationId)
+                        return Result.failure(workDataOf("error" to "Network lost, video queued"))
+                    }
                     showProgressNotification(url, progress, "Connection issue - Retrying...", notificationId)
                 }
 
@@ -474,6 +486,15 @@ class PluctCoreBackground01TranscriptionWorker(
             error = error,
             notificationId = notificationId
         )
+    }
+
+    private fun isNetworkRelatedError(error: Throwable?): Boolean {
+        val message = error?.message ?: return false
+        return message.contains("network", ignoreCase = true) ||
+            message.contains("connection", ignoreCase = true) ||
+            message.contains("timeout", ignoreCase = true) ||
+            message.contains("unable to resolve host", ignoreCase = true) ||
+            message.contains("failed to connect", ignoreCase = true)
     }
     
     override suspend fun getForegroundInfo(): ForegroundInfo {

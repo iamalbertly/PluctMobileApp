@@ -47,7 +47,7 @@ fun PluctUIScreen01HomeScreen04Settings04CreditsSection(
             } else if (!isCreditRequestInFlight) {
                 // Request form
                 Text(
-                    text = "To add credits, send mobile money and paste your bank/SMS confirmation message below.",
+                    text = "Send payment, then paste the SMS here.",
                     style = MaterialTheme.typography.bodySmall
                 )
                 OutlinedTextField(
@@ -59,7 +59,7 @@ fun PluctUIScreen01HomeScreen04Settings04CreditsSection(
                             contentDescription = "Paste payment confirmation message"
                             testTag = "settings_reference_input"
                         },
-                    placeholder = { Text("Paste confirmation message") },
+                    placeholder = { Text("Paste payment SMS") },
                     maxLines = 4,
                     minLines = 2,
                     enabled = !isCreditRequestInFlight
@@ -71,11 +71,11 @@ fun PluctUIScreen01HomeScreen04Settings04CreditsSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics {
-                        contentDescription = "Request credits"
+                        contentDescription = "Add credits"
                         testTag = "settings_request_credits_button"
                     }
             ) {
-                Text("Request Credits")
+                Text("Add Credits")
             }
         }
     }

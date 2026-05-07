@@ -138,6 +138,10 @@ class PluctCoreAPIHTTPClientResponseParser {
                 val progress = jsonResponse["progress"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 val resultObj = jsonResponse["result"]?.jsonObject
                 val transcription = resultObj?.get("transcription")?.jsonPrimitive?.content
+                    ?: resultObj?.get("transcript")?.jsonPrimitive?.content
+                    ?: resultObj?.get("text")?.jsonPrimitive?.content
+                    ?: jsonResponse["transcript"]?.jsonPrimitive?.content
+                    ?: jsonResponse["text"]?.jsonPrimitive?.content
 
                 if (jobId.isNotEmpty() && status.isNotEmpty()) {
                     return TranscriptionStatusResponse(
@@ -148,6 +152,8 @@ class PluctCoreAPIHTTPClientResponseParser {
                         result = resultObj?.let {
                             TranscriptionResult(
                                 transcription = transcription,
+                                transcript = it["transcript"]?.jsonPrimitive?.content,
+                                text = it["text"]?.jsonPrimitive?.content,
                                 confidence = it["confidence"]?.jsonPrimitive?.content?.toDoubleOrNull(),
                                 language = it["language"]?.jsonPrimitive?.content,
                                 duration = it["duration"]?.jsonPrimitive?.content?.toDoubleOrNull()

@@ -105,7 +105,7 @@ object PluctUIScreen01MainActivity04EffectsHandler02ProgressPoller {
                 // Reset failure count on success
                 consecutiveFailures = 0
                 
-                val status = statusResult.getOrNull()!!
+                val status = statusResult.getOrNull() ?: continue
                 val progress = status.progress
                 val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(status)
                 val transcript = extraction.transcript

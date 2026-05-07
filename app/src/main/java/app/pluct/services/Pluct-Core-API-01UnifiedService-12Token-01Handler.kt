@@ -52,8 +52,7 @@ class PluctCoreAPI01UnifiedService12Token01Handler(
         )
         
         // Cache successful response for idempotency using unified coordinator
-        if (result.isSuccess) {
-            val response = result.getOrNull()!!
+        result.getOrNull()?.let { response ->
             deduplicationCoordinator.cacheResponse(clientRequestId, response, ttlSeconds = 300)
         }
         

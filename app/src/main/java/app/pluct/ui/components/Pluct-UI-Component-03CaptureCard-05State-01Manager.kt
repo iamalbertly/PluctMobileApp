@@ -137,9 +137,10 @@ object PluctUIComponent03CaptureCard05State01Manager {
         creditBalance: Int,
         freeUsesRemaining: Int,
         isSubmitting: Boolean,
-        context: Context
+        context: Context,
+        isUrlValid: Boolean = true
     ): Pair<Boolean, String?> {
-        if (urlText.isBlank() || isSubmitting) {
+        if (urlText.isBlank() || isSubmitting || !isUrlValid) {
             return Pair(false, null)
         }
         

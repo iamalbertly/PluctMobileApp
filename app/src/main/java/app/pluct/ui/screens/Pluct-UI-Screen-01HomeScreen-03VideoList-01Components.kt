@@ -47,8 +47,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
@@ -85,58 +85,47 @@ fun PluctVideoItemCard(
                 }
             )
             .semantics { contentDescription = "Video item: ${video.title}" },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    StatusBadge(video)
                     Text(
                         text = getVideoDisplayTitle(video),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 2
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                IconButton(onClick = onDelete) {
+                StatusBadge(video)
+
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(
-                    onClick = onClick,
-                    modifier = Modifier.semantics {
-                        contentDescription = "View Details"
-                        testTag = "view_details_button"
-                    }
-                ) {
-                    Text("View Details")
                 }
             }
 
             if (video.status == ProcessingStatus.PROCESSING) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 PluctProcessingIndicator(
                     currentOperation = debugInfo?.getCurrentOperationDescription() ?: "Processing...",
                     debugInfo = debugInfo,
@@ -144,51 +133,52 @@ fun PluctVideoItemCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = video.url,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             if (!video.transcript.isNullOrEmpty()) {
-                // Add success indicator
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
-                    modifier = Modifier.padding(bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Completed",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Transcript ready",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Completed",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Transcript ready",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    // UX FIX #3: Show confidence score if available
+                    video.confidence?.let { confidence ->
+                        Text(
+                            text = "${(confidence * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = video.transcript.take(150) + if (video.transcript.length > 150) "..." else "",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = video.transcript.take(92) + if (video.transcript.length > 92) "..." else "",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.3f
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 
-                // One-tap copy button
-                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp),
+                        .padding(top = 2.dp),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -224,10 +214,8 @@ fun PluctVideoItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (video.status == ProcessingStatus.FAILED) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onRetry,
                     modifier = Modifier.fillMaxWidth(),
@@ -265,40 +253,26 @@ private fun StatusBadge(video: VideoItem) {
         modifier = Modifier.padding(bottom = 8.dp)
     ) {
         Text(
-            text = video.status.name,
+            text = when (video.status) {
+                ProcessingStatus.COMPLETED -> "DONE"
+                ProcessingStatus.PROCESSING -> "WORKING"
+                ProcessingStatus.FAILED -> "FIX"
+                ProcessingStatus.QUEUED -> "WAIT"
+                ProcessingStatus.UNKNOWN -> "CHECK"
+            },
             style = MaterialTheme.typography.labelSmall,
             color = when (video.status) {
                 ProcessingStatus.COMPLETED -> MaterialTheme.colorScheme.onPrimaryContainer
                 ProcessingStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
 }
 
-/**
- * UX FIX: Improved video title fallback logic
- * Provides meaningful titles even when metadata is unavailable
- * Priority: title > author > URL extraction > generic fallback
- */
-@Composable
 private fun getVideoDisplayTitle(video: VideoItem): String {
-    return when {
-        video.title.isNotBlank() -> video.title
-        video.author.isNotBlank() -> "Video by @${video.author}"
-        video.url.contains("@") -> {
-            // Extract creator handle from TikTok URL using regex
-            val handleMatch = Regex("@([^/?]+)").find(video.url)
-            if (handleMatch != null) {
-                val handle = handleMatch.groupValues[1]
-                "Video by @$handle"
-            } else {
-                "TikTok Video"
-            }
-        }
-        else -> "TikTok Video"
-    }
+    return getVideoDetailDisplayTitle(video).ifBlank { "TikTok transcript" }
 }
 
 @Composable
@@ -331,17 +305,7 @@ private fun QuickActionsMenu(
             leadingIcon = { Icon(Icons.Default.Share, "Share") },
             onClick = {
                 val shareText = buildString {
-                    // UX FIX: Use improved title fallback instead of "Untitled Video"
-                    val displayTitle = when {
-                        video.title.isNotBlank() -> video.title
-                        video.author.isNotBlank() -> "Video by @${video.author}"
-                        video.url.contains("@") -> {
-                            val handleMatch = Regex("@([^/?]+)").find(video.url)
-                            if (handleMatch != null) "Video by @${handleMatch.groupValues[1]}" else "TikTok Video"
-                        }
-                        else -> "TikTok Video"
-                    }
-                    appendLine("Transcript for $displayTitle")
+                    appendLine("Transcript for ${getVideoDisplayTitle(video)}")
                     if (video.author.isNotBlank()) appendLine("By ${video.author}")
                     appendLine("URL: ${video.url}")
                     appendLine()

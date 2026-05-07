@@ -71,7 +71,20 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
                     appendLine("  transcriptSource=${extraction.source}")
                 }
             )
-            val userMessage = "Transcription completed but no text was found. The video may be silent or the audio quality was too low. Please try another video."
+            // UX FIX #5: Improved error message with troubleshooting tips
+            val userMessage = buildString {
+                appendLine("Transcription completed but no text was found.")
+                appendLine()
+                appendLine("Possible reasons:")
+                appendLine("• The video may be silent or have no speech")
+                appendLine("• Audio quality may be too low")
+                appendLine("• Background music may be too loud")
+                appendLine()
+                appendLine("Try:")
+                appendLine("• A different video with clear speech")
+                appendLine("• A video with subtitles/captions enabled")
+                appendLine("• Retrying after a few moments")
+            }.trim()
             return ProcessResult(
                 success = false,
                 newBalance = currentBalance,
@@ -97,6 +110,9 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             jobId = statusResponse.jobId
         )
         
+        // UX FIX #3: Extract confidence score from response (check both top-level and result.confidence)
+        val confidenceScore = statusResponse.confidence ?: statusResponse.result?.confidence
+        
         // Update video item with completed status and transcript
         val completedItem = existingVideo.copy(
             status = ProcessingStatus.COMPLETED,
@@ -105,7 +121,8 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
             jobId = statusResponse.jobId,
             title = currentVideoItem?.title ?: existingVideo.title,
-            author = currentVideoItem?.author ?: existingVideo.author
+            author = currentVideoItem?.author ?: existingVideo.author,
+            confidence = confidenceScore  // UX FIX #3: Save confidence score
         )
         
         // Save to database
@@ -153,9 +170,9 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             }
         )
         
-        // Check for low balance warning
+        // UX FIX #2: Check for low balance warning when balance < 3
         var successMessage: String? = null
-        if (newBalance <= 2 && newBalance > 0) {
+        if (newBalance < 3 && newBalance > 0) {
             successMessage = "Transcription complete. Warning: You only have $newBalance credits left."
         }
         

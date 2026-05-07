@@ -87,8 +87,7 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow02TokenVending01Handler(
             details = "Label: $label; Force: $force; JobId: $jobId"
         )
         val vendResult = vendToken(clientRequestId)
-        if (vendResult.isSuccess) {
-            val vendResponse = vendResult.getOrNull()!!
+        vendResult.getOrNull()?.let { vendResponse ->
             val token = extractVendToken(vendResponse)
             if (token.isNullOrBlank()) {
                 val msg = "Vend token missing in response"

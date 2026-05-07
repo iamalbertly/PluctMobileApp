@@ -17,12 +17,18 @@ class JourneyUX05RedundantVisualsValidation extends BaseJourney {
                 await this.failWithDiagnostics('Failed to bring app to foreground');
                 return { success: false, error: 'Failed to bring app to foreground' };
             }
+            let ready = await this.core.ensureCaptureCardReady();
+            if (!ready.success) ready = await this.core.resetAppToFreshCaptureState();
+            if (!ready.success) {
+                await this.failWithDiagnostics('Capture card not ready');
+                return { success: false, error: 'Capture card not ready' };
+            }
             await this.core.sleep(2000);
 
-            const testUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
+            const testUrl = process.env.TEST_TIKTOK_URL || 'https://vt.tiktok.com/ZS9bDyvc5/';
             let focusTap = await this.core.tapByTestTag('capture_component_label');
             if (!focusTap.success) {
-                focusTap = await this.core.tapByText('Paste TikTok URL');
+                focusTap = await this.core.tapByText('TikTok link');
             }
             if (!focusTap.success) {
                 focusTap = await this.core.tapFirstEditText();

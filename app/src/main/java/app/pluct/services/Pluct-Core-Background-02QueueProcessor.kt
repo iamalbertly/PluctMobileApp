@@ -5,12 +5,17 @@ import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import app.pluct.core.network.PluctNetworkConnectivityChecker
+import app.pluct.data.entity.ProcessingStatus
+import app.pluct.data.entity.QueueReason
 import app.pluct.data.repository.PluctVideoRepository
+import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -26,7 +31,6 @@ import java.util.concurrent.TimeUnit
 interface QueueProcessorEntryPoint {
     fun videoRepository(): PluctVideoRepository
     fun apiService(): PluctCoreAPIUnifiedService
-    fun queueManager(): PluctQueueManager
 }
 
 /**
@@ -48,14 +52,10 @@ class PluctQueueProcessorWorker(
     
     private val videoRepository: PluctVideoRepository by lazy { entryPoint.videoRepository() }
     private val apiService: PluctCoreAPIUnifiedService by lazy { entryPoint.apiService() }
-    private val queueManager: PluctQueueManager by lazy { 
-        // Create queue manager with repository
-        PluctQueueManager(entryPoint.videoRepository())
-    }
-    
     companion object {
         private const val TAG = "PluctQueueProcessor"
         private const val WORK_NAME = "pluct_queue_processor"
+        private const val IMMEDIATE_WORK_NAME = "pluct_queue_processor_immediate"
         private const val REPEAT_INTERVAL_MINUTES = 15L
         
         /**
@@ -80,6 +80,26 @@ class PluctQueueProcessorWorker(
             
             Log.d(TAG, "Scheduled periodic queue processing every $REPEAT_INTERVAL_MINUTES minutes")
         }
+        
+        /**
+         * UX FIX #1: Trigger immediate queue processing (e.g., when network is restored)
+         */
+        fun triggerImmediateProcessing(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            
+            val workRequest = OneTimeWorkRequestBuilder<PluctQueueProcessorWorker>()
+                .setConstraints(constraints)
+                .build()
+            
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                IMMEDIATE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                workRequest
+            )
+            Log.d(TAG, "Triggered immediate queue processing")
+        }
     }
     
     override suspend fun doWork(): Result {
@@ -93,9 +113,7 @@ class PluctQueueProcessorWorker(
                 return Result.retry()
             }
             
-            // Get current balance (simplified - would need to inject user identification)
-            // For now, we'll process videos that don't require credits (NO_INTERNET queued)
-            val queuedVideos = videoRepository.getVideosByStatus(app.pluct.data.entity.ProcessingStatus.QUEUED).first()
+            val queuedVideos = videoRepository.getVideosByStatus(ProcessingStatus.QUEUED).first()
             
             if (queuedVideos.isEmpty()) {
                 Log.d(TAG, "No queued videos to process")
@@ -104,26 +122,80 @@ class PluctQueueProcessorWorker(
             
             Log.d(TAG, "Found ${queuedVideos.size} queued video(s) to process")
             
-            // Process videos queued for network issues (they don't need credits)
             var processedCount = 0
-            queuedVideos.forEach { video ->
-                if (video.queueReason == app.pluct.data.entity.QueueReason.NO_INTERNET) {
-                    try {
-                        // Update status to PROCESSING
-                        val processingVideo = video.copy(
-                            status = app.pluct.data.entity.ProcessingStatus.PROCESSING,
-                            queueReason = null,
-                            queuedAt = null
-                        )
-                        videoRepository.updateVideo(processingVideo)
-                        
-                        // Start transcription (simplified - would need full processing logic)
-                        // For now, just mark as processing - actual processing happens in foreground
-                        Log.d(TAG, "Marked queued video for processing: ${video.url}")
-                        processedCount++
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing queued video ${video.url}: ${e.message}", e)
-                    }
+            val eligibleVideo = queuedVideos.firstOrNull { video ->
+                video.queueReason == QueueReason.NO_INTERNET || video.queueReason == QueueReason.SERVICE_UNAVAILABLE
+            }
+
+            if (eligibleVideo != null) {
+                try {
+                    val processingVideo = eligibleVideo.copy(
+                        status = ProcessingStatus.PROCESSING,
+                        queueReason = null,
+                        queuedAt = null,
+                        failureReason = null
+                    )
+                    videoRepository.updateVideo(processingVideo)
+
+                    val transcriptionResult = apiService.processTikTokVideo(eligibleVideo.url, isBackground = true)
+                    transcriptionResult.fold(
+                        onSuccess = { statusResponse ->
+                            val extraction = PluctCoreAPITranscriptionResult01Extractor.extract(statusResponse)
+                            val transcriptText = extraction.transcript
+                            if (!transcriptText.isNullOrBlank()) {
+                                videoRepository.updateVideo(processingVideo.copy(
+                                    status = ProcessingStatus.COMPLETED,
+                                    progress = 100,
+                                    transcript = transcriptText,
+                                    jobId = statusResponse.jobId,
+                                    transcriptCachedAt = System.currentTimeMillis()
+                                ))
+                                processedCount++
+                                Log.d(TAG, "Completed queued video in background: ${eligibleVideo.url}")
+                            } else {
+                                videoRepository.updateVideo(processingVideo.copy(
+                                    status = ProcessingStatus.FAILED,
+                                    failureReason = "Transcription completed but no transcript found"
+                                ))
+                                Log.w(TAG, "Queued video completed without transcript: ${eligibleVideo.url}")
+                            }
+                        },
+                        onFailure = { error ->
+                            val message = error.message ?: "Transcription failed"
+                            val retryReason = when {
+                                message.contains("credit", ignoreCase = true) -> QueueReason.INSUFFICIENT_CREDITS
+                                message.contains("network", ignoreCase = true) -> QueueReason.NO_INTERNET
+                                message.contains("connection", ignoreCase = true) -> QueueReason.NO_INTERNET
+                                message.contains("waking", ignoreCase = true) -> QueueReason.SERVICE_UNAVAILABLE
+                                message.contains("temporarily", ignoreCase = true) -> QueueReason.SERVICE_UNAVAILABLE
+                                message.contains("service", ignoreCase = true) -> QueueReason.SERVICE_UNAVAILABLE
+                                else -> null
+                            }
+
+                            if (retryReason != null) {
+                                videoRepository.updateVideo(eligibleVideo.copy(
+                                    status = ProcessingStatus.QUEUED,
+                                    queueReason = retryReason,
+                                    queuedAt = System.currentTimeMillis(),
+                                    failureReason = message
+                                ))
+                                Log.w(TAG, "Requeued video after retryable background failure: $message")
+                            } else {
+                                videoRepository.updateVideo(processingVideo.copy(
+                                    status = ProcessingStatus.FAILED,
+                                    failureReason = message
+                                ))
+                                Log.e(TAG, "Queued video failed in background: $message")
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing queued video ${eligibleVideo.url}: ${e.message}", e)
+                    videoRepository.updateVideo(eligibleVideo.copy(
+                        status = ProcessingStatus.QUEUED,
+                        queuedAt = System.currentTimeMillis(),
+                        failureReason = e.message ?: "Queue processing failed"
+                    ))
                 }
             }
             
@@ -135,4 +207,3 @@ class PluctQueueProcessorWorker(
         }
     }
 }
-

@@ -9,61 +9,43 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
     async execute() {
         this.core.logger.info('🎯 Testing TTTranscribe Integration...');
 
-        // 1) Launch app to home
-        const fg = await this.ensureAppForeground();
-        if (!fg.success) return { success: false, error: 'App not in foreground' };
+        // 1) Launch app to home with a fresh local user so repeated validations do not hit stale 0-credit state.
+        const captureReady = await this.core.resetAppToFreshCaptureState();
+        if (!captureReady.success) return { success: false, error: captureReady.error };
 
-        // 2) Open capture sheet
-        const openResult = await this.core.openCaptureSheet();
-        if (!openResult.success) {
-            return { success: false, error: `Failed to open capture sheet: ${openResult.error}` };
+        const creditSeed = await this.core.ensureLocalMobileCredits(3);
+        if (!creditSeed.success) return { success: false, error: creditSeed.error };
+
+        const errorCardCheck = await this.core.validateErrorCardUsability();
+        if (!errorCardCheck.success) {
+            return { success: false, error: errorCardCheck.error };
         }
 
-        // Wait for sheet to load
-        await this.core.sleep(2000);
-
-        // 3) Enter test URL
-        const urlTap = await this.core.tapByText('TikTok URL');
+        // 2) Enter test URL in the current capture card
+        let urlTap = await this.core.tapByTestTag('video_url_input');
         if (!urlTap.success) {
-            const fallbackTap = await this.core.tapFirstEditText();
-            if (!fallbackTap.success) return { success: false, error: 'URL field not found' };
-        }
-        
-        await this.core.clearEditText();
-        await this.core.inputText('https://vm.tiktok.com/ZMDRUGT2P/');
-
-        // 4) Validate URL
-        const normalized = await this.core.normalizeTikTokUrl('https://vm.tiktok.com/ZMDRUGT2P/');
-        if (!normalized.valid) {
-            return { success: false, error: 'Invalid TikTok URL' };
-        }
-
-        // 5) Trigger transcription (this will test the full flow)
-        this.core.logger.info('🔍 Triggering transcription process...');
-        
-        // Look for submit/process button
-        const submitResult = await this.core.tapByText('Process Video');
-        if (!submitResult.success) {
-            // Try alternative button text
-            const altSubmitResult = await this.core.tapByText('Process');
-            if (!altSubmitResult.success) {
-                // Try transcribe button
-                const transcribeResult = await this.core.tapByText('Transcribe');
-                if (!transcribeResult.success) {
-                    // Try quick scan button
-                    const quickScanResult = await this.core.tapByText('Quick Scan');
-                    if (!quickScanResult.success) {
-                        // Try test tag approach
-                        const testTagResult = await this.core.tapByTestTag('submit_button');
-                        if (!testTagResult.success) {
-                            return { success: false, error: 'Could not find process/transcribe button' };
-                        }
-                    }
-                }
+            urlTap = await this.core.tapByText('TikTok URL');
+            if (!urlTap.success) {
+                const fallbackTap = await this.core.tapFirstEditText();
+                if (!fallbackTap.success) return { success: false, error: 'URL field not found' };
             }
         }
 
-        // 6) Wait for processing to start
+        await this.core.inputText(this.core.config.url);
+
+        // 3) Validate URL shape before spending a transcription attempt
+        if (!/^https?:\/\/[^\s]*tiktok\.com\//i.test(this.core.config.url)) {
+            return { success: false, error: 'Invalid TikTok URL' };
+        }
+
+        // 4) Trigger transcription through the current Extract Script control
+        this.core.logger.info('🔍 Triggering transcription process...');
+        const submitResult = await this.core.ui.buttonTapping.tapExtractScriptButton();
+        if (!submitResult.success) {
+            return { success: false, error: submitResult.error || 'Could not find Extract Script button' };
+        }
+
+        // 5) Wait for processing to start
         await this.core.sleep(3000);
 
         // 7) Check for processing indicators
@@ -78,26 +60,25 @@ class TTTranscribeIntegrationJourney extends BaseJourney {
             this.core.logger.warn('⚠️ No processing indicators found in UI');
         }
 
-        // 8) Monitor for completion or error
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        while (attempts < maxAttempts) {
-            await this.core.sleep(2000);
-            await this.core.dumpUIHierarchy();
-            const currentDump = this.core.readLastUIDump();
-            
-            if (currentDump.includes('Completed') || currentDump.includes('Success')) {
-                this.core.logger.info('✅ Transcription completed successfully');
-                break;
+        const result = await this.core.waitForTranscriptResult(180000, 1500);
+        if (!result.success) {
+            const uiErrors = await this.core.scanUIForErrors();
+            if (!uiErrors.success) {
+                return { success: false, error: uiErrors.error };
             }
-            
-            if (currentDump.includes('Error') || currentDump.includes('Failed')) {
-                this.core.logger.warn('⚠️ Transcription failed or error detected');
-                break;
+            const serviceLog = await this.core.executeCommand('adb logcat -d | findstr /i "TTTranscribe service error\\|upstream_error\\|service is waking\\|ttt/transcribe"', undefined, undefined, { allowFailure: true });
+            if (serviceLog.success && /TTTranscribe service error|upstream_error|service is waking/i.test(serviceLog.output || '')) {
+                return { success: false, error: 'TTTranscribe service unavailable during integration validation' };
             }
-            
-            attempts++;
+            return { success: false, error: `TTTranscribe result not completed: ${result.finalStage || 'unknown'}` };
+        }
+
+        const apiErrors = await this.core.checkRecentAPIErrors(500);
+        if (!apiErrors.success) {
+            return {
+                success: false,
+                error: `Backend errors detected after transcript completion: ${(apiErrors.errors || []).slice(0, 2).join(' | ')}`
+            };
         }
 
         this.core.logger.info('✅ TTTranscribe Integration test completed');

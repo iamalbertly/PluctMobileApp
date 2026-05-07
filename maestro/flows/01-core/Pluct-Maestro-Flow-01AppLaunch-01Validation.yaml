@@ -3,8 +3,10 @@ appId: app.pluct
 # Pluct-Maestro-Flow-01AppLaunch-01Validation.yaml
 # Validates app launch and main screen elements
 
+- stopApp
 - launchApp
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 5000
 - assertVisible:
     text: "Welcome to Pluct"
     optional: true

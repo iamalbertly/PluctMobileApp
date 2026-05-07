@@ -169,8 +169,10 @@ if (require.main === module) {
     
     // Parse command line arguments
     const args = process.argv.slice(2);
+    const npmForceFull = /^(true|1|yes)$/i.test(process.env.npm_config_force_full || '');
+    const envForceFull = /^(true|1|yes)$/i.test(process.env.FORCE_FULL || '');
     const options = {
-        forceFull: args.includes('--force-full') || args.includes('-f'),
+        forceFull: args.includes('--force-full') || args.includes('-f') || npmForceFull || envForceFull,
         tests: []
     };
     
@@ -184,15 +186,24 @@ if (require.main === module) {
             const name = args[idx + 1];
             options.tests.push(name.endsWith('.js') ? name : `${name}.js`);
         }
+        if (!arg.startsWith('--') && (idx === 0 || args[idx - 1] !== '--test')) {
+            options.tests.push(arg.endsWith('.js') ? arg : `${arg}.js`);
+        }
     });
 
     // Also support NPM env passthrough: npm_config_test, TEST_FILTER, TESTS
     const envFilter = process.env.npm_config_test || process.env.TEST_FILTER || process.env.TESTS || '';
     if (envFilter) {
-        envFilter.split(',').map(s => s.trim()).filter(Boolean).forEach(name => {
+        envFilter.split(',').map(s => s.trim()).filter(name => {
+            const tokens = name.split(/\s+/).filter(Boolean);
+            const isBooleanNoise = tokens.length > 0 && tokens.every(token => /^(true|false)$/i.test(token));
+            return name && !isBooleanNoise;
+        }).forEach(name => {
             options.tests.push(name.endsWith('.js') ? name : `${name}.js`);
         });
     }
+
+    options.tests = Array.from(new Set(options.tests));
 
     if (options.forceFull) {
         console.log('🔄 Force full test run requested - ignoring previous results');

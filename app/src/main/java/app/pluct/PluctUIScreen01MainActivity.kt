@@ -507,11 +507,18 @@ fun PluctMainContent(
     
     // Navigation State
     var selectedVideo by remember { mutableStateOf<VideoItem?>(null) }
+
+    LaunchedEffect(prefilledUrl) {
+        if (!prefilledUrl.isNullOrBlank() && selectedVideo != null) {
+            selectedVideo = null
+        }
+    }
     
     // Main UI
-    if (selectedVideo != null) {
+    val currentSelectedVideo = selectedVideo
+    if (currentSelectedVideo != null) {
         PluctVideoDetailScreen(
-            video = selectedVideo!!,
+            video = currentSelectedVideo,
             onBackClick = { selectedVideo = null },
             onUpgradeClick = { /* Handle upgrade */ }
         )

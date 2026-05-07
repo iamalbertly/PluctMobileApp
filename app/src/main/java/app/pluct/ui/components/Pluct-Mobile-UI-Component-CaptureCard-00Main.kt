@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -94,14 +95,6 @@ fun PluctUIComponent03CaptureCard(
     var isAutoSubmitting by remember { mutableStateOf(false) }
     var lastStepChangeTime by remember { mutableStateOf<Long?>(null) }
     var lastObservedStep by remember { mutableStateOf<OperationStep?>(null) }
-    
-    // Auto-show low credit modal when credits are 0 or negative
-    LaunchedEffect(creditBalance, freeUsesRemaining) {
-        if (creditBalance <= 0 && freeUsesRemaining <= 0 && !showGetCoinsDialog) {
-            showGetCoinsDialog = true
-        }
-    }
-
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
     val sanitizer = remember { PluctCoreValidationInputSanitizer() }
     val currentValidation = remember(urlText) { sanitizer.validateUrl(urlText) }
@@ -128,6 +121,16 @@ fun PluctUIComponent03CaptureCard(
             Log.w("CaptureCard", "URL validation failed: ${validationResult.errorMessage}")
             validationError = validationResult.errorMessage
             urlText = ""
+            isSubmitting = false
+            isAutoSubmitting = false
+            return@submit
+        }
+
+        if (creditBalance < 1 && freeUsesRemaining <= 0) {
+            Log.d("CaptureCard", "No credits available; queueing instead of submitting")
+            onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
+            showQueuePrompt = true
+            queuePromptReason = "Insufficient credits (need 1 credit or free use)"
             isSubmitting = false
             isAutoSubmitting = false
             return@submit
@@ -165,28 +168,13 @@ fun PluctUIComponent03CaptureCard(
             processingMessage = null
             urlText = ""
             validationError = null
+            persistentError = null
             isSubmitting = false
             timedOutOnce = false
             // Commit reservation on success
             reservationId?.let { id ->
                 scope.launch {
                     atomicCreditService.commitReservation(id)
-                }
-            }
-        }
-        
-        val onError: (String) -> Unit = { error ->
-            Log.e("CaptureCard", "API flow error: $error")
-            persistentError = PersistentError(
-                message = error,
-                timestamp = System.currentTimeMillis(),
-                category = "API_ERROR"
-            )
-            isSubmitting = false
-            // Release reservation on error
-            reservationId?.let { id ->
-                scope.launch {
-                    atomicCreditService.releaseReservation(id)
                 }
             }
         }
@@ -197,7 +185,6 @@ fun PluctUIComponent03CaptureCard(
 
         if (apiService != null) {
             Log.d("CaptureCard", "API service available, calling handleCompleteAPIFlow")
-            // Don't clear persistent error here - let it persist
             PluctUIComponent03CaptureCardAPIFlow.handleCompleteAPIFlow(
                 normalizedUrl = normalizedUrl,
                 apiService = apiService,
@@ -211,6 +198,11 @@ fun PluctUIComponent03CaptureCard(
                 onError = { error ->
                     Log.e("CaptureCard", "API flow failed: $error")
                     processingMessage = null
+                    reservationId?.let { id ->
+                        scope.launch {
+                            atomicCreditService.releaseReservation(id)
+                        }
+                    }
                     // Create persistent error that won't auto-dismiss
                     persistentError = PersistentError(
                         message = error,
@@ -233,9 +225,14 @@ fun PluctUIComponent03CaptureCard(
 
     // Clear error only on successful completion (not auto-dismiss)
     LaunchedEffect(debugInfo?.currentStep) {
-        if (debugInfo?.currentStep == OperationStep.COMPLETED || 
-            debugInfo?.currentStep == OperationStep.FAILED) {
+        if (debugInfo?.currentStep == OperationStep.COMPLETED) {
             persistentError = null
+            processingMessage = null
+            isSubmitting = false
+            isAutoSubmitting = false
+            lastStepChangeTime = null
+            lastObservedStep = null
+        } else if (debugInfo?.currentStep == OperationStep.FAILED) {
             processingMessage = null
             isSubmitting = false
             isAutoSubmitting = false
@@ -252,6 +249,7 @@ fun PluctUIComponent03CaptureCard(
                 urlText = sanitizedUrl
                 isPrefilledUrl = true
                 validationError = null
+                persistentError = null
                 if (sanitizer.isTikTokUrl(sanitizedUrl)) {
                     // TECHNICAL DEBT CLEANUP #1: Removed pre-warming call (function deprecated)
                 }
@@ -310,6 +308,12 @@ fun PluctUIComponent03CaptureCard(
                 Log.d("CaptureCard", "Auto-submit skipped: credit balance still loading")
             } else if (creditBalance < 1 && freeUsesRemaining <= 0) {
                 Log.d("CaptureCard", "Auto-submit skipped: insufficient credits (balance=$creditBalance, freeUses=$freeUsesRemaining)")
+                val validationResult = sanitizer.validateUrl(preFilledUrl)
+                if (validationResult.isValid) {
+                    onQueueForLater?.invoke(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
+                    showQueuePrompt = true
+                    queuePromptReason = "Insufficient credits (need 1 credit or free use)"
+                }
             }
         }
     }
@@ -334,7 +338,8 @@ fun PluctUIComponent03CaptureCard(
             creditBalance = creditBalance,
             freeUsesRemaining = freeUsesRemaining,
             isSubmitting = isSubmitting,
-            context = context
+            context = context,
+            isUrlValid = isUrlValid
         )
         showQueuePrompt = shouldShow
         queuePromptReason = reason
@@ -370,7 +375,7 @@ fun PluctUIComponent03CaptureCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Box(
             modifier = Modifier
@@ -379,45 +384,73 @@ fun PluctUIComponent03CaptureCard(
         )
         Column(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = "Paste a TikTok link",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .semantics { testTag = "capture_component_label" }
-            )
-            Text(
-                text = "We'll transcribe and auto-copy your results.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
+            // Helper message as collapsible info icon (progressive disclosure)
             ctaHelperMessage?.let { helper ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text(
-                        text = helper,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null) {
-                        TextButton(onClick = onRequestCredits) {
-                            Text("Request Credits")
-                        }
+                    var showDialog by remember { mutableStateOf(false) }
+                    
+                    IconButton(
+                        onClick = { showDialog = true },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .semantics {
+                                contentDescription = "Show help information"
+                                testTag = "helper_info_button"
+                            }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    if (showDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showDialog = false },
+                            title = { Text("Information") },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = helper,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    if (helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null) {
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        TextButton(onClick = { 
+                                            showDialog = false
+                                            onRequestCredits()
+                                        }) {
+                                            Text("Request Credits")
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showDialog = false }) {
+                                    Text("OK")
+                                }
+                            }
+                        )
                     }
                 }
             }
+            
             PluctURLInputField(
                 urlText = urlText,
                 onUrlTextChange = { newValue ->
+                    if (persistentError != null) {
+                        persistentError = null
+                    }
                     urlText = newValue
                     val result = sanitizer.validateUrl(newValue)
                     validationError = if (newValue.isBlank()) null else if (!result.isValid) result.errorMessage else null
@@ -439,7 +472,11 @@ fun PluctUIComponent03CaptureCard(
                         }
                     }
                 },
-                videoRepository = videoRepository
+                videoRepository = videoRepository,
+                onSubmit = if (isUrlValid && !isSubmitting) { { submitExtract() } } else null,
+                freeUsesRemaining = freeUsesRemaining,
+                creditBalance = creditBalance,
+                isSubmitting = isSubmitting
             )
 
             // Queue prompt for offline/no-credit scenarios
@@ -457,31 +494,24 @@ fun PluctUIComponent03CaptureCard(
                 sanitizer = sanitizer
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Processing state is now handled within PluctChoiceEngine button
+            // Processing state is now handled by inline submit button with CircularProgressIndicator
             if (persistentError == null && isSubmitting) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Unified error state: only show error if queue prompt is not showing
-            val unifiedErrorState = remember(persistentError, showQueuePrompt, validationError) {
+            // Unified error state: only show API errors in banner, validation errors show inline in input field
+            val unifiedErrorState = remember(persistentError, showQueuePrompt) {
                 when {
                     showQueuePrompt -> null // Queue prompt handles error display
                     persistentError != null -> persistentError
-                    validationError != null -> {
-                        val errorMsg = validationError
-                        PersistentError(
-                            message = errorMsg ?: "Validation error",
-                            timestamp = System.currentTimeMillis(),
-                            category = "VALIDATION"
-                        )
-                    }
                     else -> null
                 }
             }
 
-            // Show persistent error banner (doesn't auto-dismiss) - only if not showing queue prompt
+            // Show persistent error banner (doesn't auto-dismiss) - only API errors, not validation errors
+            // Validation errors are shown inline below the input field
             unifiedErrorState?.let { error ->
                 PluctUIComponent03CaptureCardErrorDisplay(
                     message = error.message,
@@ -490,7 +520,6 @@ fun PluctUIComponent03CaptureCard(
                     debugInfo = debugInfo,
                     debugLogManager = debugLogManager,
                     onViewInLogs = onViewInLogs,
-                    creditBalance = creditBalance,
                     onAddCredits = { showGetCoinsDialog = true },
                     onCheckConnection = {
                         // Could open network settings or just retry
@@ -519,42 +548,27 @@ fun PluctUIComponent03CaptureCard(
                 }
             }
 
-            if (!isProcessing) {
-                PluctChoiceEngine(
-                    urlText = urlText,
-                    freeUsesRemaining = freeUsesRemaining,
-                    creditBalance = creditBalance,
-                    isSubmitting = isSubmitting,
-                    onTierSubmit = submitExtract,
-                    onGetCoins = { showGetCoinsDialog = true },
-                    onInsightsClick = { showInsightsDialog = true },
-                    submittingLabel = when (activeStep) {
-                        app.pluct.services.OperationStep.METADATA -> "Getting video details..."
-                        app.pluct.services.OperationStep.VEND_TOKEN -> "Claiming credits..."
-                        app.pluct.services.OperationStep.SUBMIT -> "Submitting job..."
-                        app.pluct.services.OperationStep.POLLING -> "Waiting for transcript..."
-                        else -> "Starting..."
-                    },
-                    submittingHint = "Please wait"
-                )
-
-                if (isUrlValid && creditBalance < 2) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = { showGetCoinsDialog = true },
-                        modifier = Modifier.semantics {
-                            contentDescription = "Get coins button"
-                            testTag = "get_coins_button"
-                        }
-                    ) {
-                        Text("Low credits -- add more")
-                    }
-                }
-            } else {
+            // Processing indicator only shown when actively processing
+            // Inline submit button in input field handles submission, no separate button needed
+            if (isProcessing) {
                 PluctProcessingIndicator(
                     currentJobId = currentJobId,
                     debugInfo = debugInfo
                 )
+            }
+            
+            // Low credits warning (only when URL is valid and credits are low)
+            if (isUrlValid && freeUsesRemaining <= 0 && creditBalance in 1..1 && !isProcessing) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = { showGetCoinsDialog = true },
+                    modifier = Modifier.semantics {
+                        contentDescription = "Get coins button"
+                        testTag = "get_coins_button"
+                    }
+                ) {
+                    Text("Low credits - add more")
+                }
             }
 
             // Removed duplicate status text - button already shows status via submittingLabel

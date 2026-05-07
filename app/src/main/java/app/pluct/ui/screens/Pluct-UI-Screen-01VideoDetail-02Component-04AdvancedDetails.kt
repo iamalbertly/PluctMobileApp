@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.VideoItem
 
@@ -61,7 +62,7 @@ fun PluctVideoDetailAdvancedSection(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DetailRow(label = "URL", value = video.url)
+                    DetailRow(label = "Link", value = video.url)
                     DetailRow(label = "Status", value = video.status.name)
                     DetailRow(label = "Tier", value = video.tier.name)
                     DetailRow(label = "ID", value = video.id)
@@ -87,20 +88,22 @@ private fun DetailRow(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.3f)
+            modifier = Modifier.weight(0.32f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.7f)
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(0.68f)
         )
     }
 }

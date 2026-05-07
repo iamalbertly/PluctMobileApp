@@ -4,155 +4,110 @@ import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.URL
-import java.util.regex.Pattern
 import java.net.HttpURLConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Pluct-Core-Validation-01InputSanitizer - Input validation and sanitization service
- * Follows naming convention: [Project]-[ParentScope]-[ChildScope]-[Separation of Concern][CoreResponsibility]
- * Provides comprehensive input validation for URLs, user inputs, and API responses
- */
 @Singleton
 class PluctCoreValidationInputSanitizer @Inject constructor() {
-    
+
     companion object {
         private const val TAG = "PluctInputSanitizer"
-        
-        // URL patterns for supported platforms
-        // Updated to handle both short and long TikTok URLs with query parameters
-        private val TIKTOK_URL_PATTERN = Pattern.compile(
-            "https?://(?:www\\.)?(?:vm\\.)?tiktok\\.com/(?:@[\\w.-]+/video/)?[A-Za-z0-9]+(?:/|\\?)?",
-            Pattern.CASE_INSENSITIVE
-        )
-        
-        // Pattern to extract clean TikTok URL from long share URLs
-        private val TIKTOK_VIDEO_ID_PATTERN = Pattern.compile(
-            "tiktok\\.com/(?:@([\\w.-]+)/video/)?([0-9]+)",
-            Pattern.CASE_INSENSITIVE
-        )
-        
-        private val YOUTUBE_URL_PATTERN = Pattern.compile(
-            "https?://(?:www\\.)?(?:m\\.)?youtube\\.com/watch\\?v=[A-Za-z0-9_-]+",
-            Pattern.CASE_INSENSITIVE
-        )
-        
-        private val YOUTUBE_SHORT_PATTERN = Pattern.compile(
-            "https?://(?:www\\.)?youtu\\.be/[A-Za-z0-9_-]+",
-            Pattern.CASE_INSENSITIVE
-        )
-        
-        // General URL pattern
-        private val URL_PATTERN = Pattern.compile(
-            "https?://[\\w\\-]+(\\.[\\w\\-]+)+([\\w\\-\\.,@?^=%&:/~\\+#]*[\\w\\-\\@?^=%&/~\\+#])?",
-            Pattern.CASE_INSENSITIVE
-        )
-        
-        // Maximum lengths
+
+        private val URL_IN_TEXT_REGEX = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
+        private val HTTP_SIGNAL_REGEX = Regex("https?://", RegexOption.IGNORE_CASE)
+        private val SHORT_ID_REGEX = Regex("^[A-Za-z0-9]{8,32}$")
+        private val LONG_VIDEO_REGEX = Regex("^/@([A-Za-z0-9._-]{2,64})/video/([0-9]{10,25})/?$")
         private const val MAX_URL_LENGTH = 2048
         private const val MAX_TITLE_LENGTH = 500
         private const val MAX_DESCRIPTION_LENGTH = 2000
         private const val MAX_AUTHOR_LENGTH = 100
         private const val REDIRECT_HOPS = 3
-        
-        /**
-         * Sanitize TikTok URL by extracting video ID and creating clean URL
-         */
-        private fun sanitizeTikTokUrl(url: String): String {
-            val matcher = TIKTOK_VIDEO_ID_PATTERN.matcher(url)
-            if (matcher.find()) {
-                val username = matcher.group(1)
-                val videoId = matcher.group(2)
-                
-                return if (username != null && videoId != null) {
-                    "https://www.tiktok.com/@$username/video/$videoId"
-                } else if (videoId != null) {
-                    // If no username, just use video ID (will work with API)
-                    "https://www.tiktok.com/video/$videoId"
-                } else {
-                    url // Return original if can't extract
+
+        private fun cleanInput(input: String): String = input
+            .replace(Regex("[\\u200B-\\u200D\\uFEFF]"), "")
+            .trim()
+
+        private fun parseTikTokUrl(candidate: String): TikTokUrlParseResult {
+            val parsed = runCatching { URL(candidate) }.getOrNull()
+                ?: return TikTokUrlParseResult(false, error = "Paste one full TikTok link.")
+            val host = parsed.host.lowercase()
+            val path = parsed.path.orEmpty()
+
+            return when (host) {
+                "vt.tiktok.com", "vm.tiktok.com" -> {
+                    val id = path.trim('/').takeIf { SHORT_ID_REGEX.matches(it) }
+                        ?: return TikTokUrlParseResult(false, error = "TikTok link looks incomplete. Paste the full link again.")
+                    TikTokUrlParseResult(true, "https://$host/$id/", "TikTok short link ready")
                 }
+                "www.tiktok.com", "m.tiktok.com", "tiktok.com" -> {
+                    val match = LONG_VIDEO_REGEX.matchEntire(path)
+                        ?: return TikTokUrlParseResult(false, error = "Use a real TikTok video link, not a profile or search page.")
+                    val username = match.groupValues[1]
+                    val videoId = match.groupValues[2]
+                    TikTokUrlParseResult(true, "https://www.tiktok.com/@$username/video/$videoId", "TikTok video link ready")
+                }
+                else -> TikTokUrlParseResult(false, error = "Only TikTok video links work here.")
             }
-            return url
         }
     }
 
     fun isTikTokUrl(url: String): Boolean {
-        val trimmedUrl = url.trim()
-        return TIKTOK_URL_PATTERN.matcher(trimmedUrl).matches()
+        val trimmedUrl = extractUrlFromText(url)
+        return parseTikTokUrl(trimmedUrl).isValid
     }
 
-    fun isTikTokShortLink(url: String): Boolean = url.contains("vm.tiktok.com", ignoreCase = true)
-    
-    /**
-     * Validate and sanitize URL
-     */
+    fun isTikTokShortLink(url: String): Boolean {
+        val parsed = runCatching { URL(extractUrlFromText(url)) }.getOrNull() ?: return false
+        return parsed.host.equals("vm.tiktok.com", true) || parsed.host.equals("vt.tiktok.com", true)
+    }
+
+    fun extractUrlFromText(input: String): String {
+        val cleaned = cleanInput(input)
+        val candidate = URL_IN_TEXT_REGEX.find(cleaned)?.value ?: cleaned
+        return candidate
+            .trim()
+            .trimEnd('.', ',', ';', ')', ']', '}', '"', '\'')
+    }
+
     fun validateUrl(url: String): ValidationResult {
         if (url.isBlank()) {
-            return ValidationResult(false, errorMessage = "URL cannot be empty")
+            return ValidationResult(false, errorMessage = "Paste a TikTok link first.")
         }
-        
-        val trimmedUrl = url.trim()
-        
+
+        val cleanedInput = cleanInput(url)
+        val urlMatches = URL_IN_TEXT_REGEX.findAll(cleanedInput).map { it.value }.toList()
+        if (HTTP_SIGNAL_REGEX.findAll(cleanedInput).count() > 1 || urlMatches.size > 1) {
+            return ValidationResult(false, errorMessage = "Paste one TikTok link only.")
+        }
+
+        val trimmedUrl = extractUrlFromText(url)
         if (trimmedUrl.length > MAX_URL_LENGTH) {
             return ValidationResult(
                 isValid = false,
                 errorMessage = "URL too long (max $MAX_URL_LENGTH characters)"
             )
         }
-        
-        // Check if URL is properly formatted
+
         try {
             URL(trimmedUrl)
         } catch (e: Exception) {
-            return ValidationResult(
-                isValid = false,
-                errorMessage = "Invalid URL format: ${e.message}"
-            )
+            return ValidationResult(false, errorMessage = "Paste one full TikTok link.")
         }
-        
-        // Check for supported platforms and sanitize
-        val warnings = mutableListOf<String>()
-        var sanitizedUrl = trimmedUrl
-        val isSupported = when {
-            trimmedUrl.contains("tiktok.com", ignoreCase = true) -> {
-                // Sanitize TikTok URL to remove query parameters
-                sanitizedUrl = sanitizeTikTokUrl(trimmedUrl)
-                Log.d(TAG, "TikTok URL sanitized: $trimmedUrl -> $sanitizedUrl")
-                warnings.add("TikTok URL detected")
-                true
-            }
-            YOUTUBE_URL_PATTERN.matcher(trimmedUrl).matches() || 
-            YOUTUBE_SHORT_PATTERN.matcher(trimmedUrl).matches() -> {
-                warnings.add("YouTube URL detected")
-                true
-            }
-            URL_PATTERN.matcher(trimmedUrl).matches() -> {
-                warnings.add("Generic URL detected - may not be supported")
-                true
-            }
-            else -> false
+
+        val tiktok = parseTikTokUrl(trimmedUrl)
+        if (!tiktok.isValid) {
+            return ValidationResult(false, errorMessage = tiktok.error ?: "Only TikTok video links work here.")
         }
-        
-        if (!isSupported) {
-            return ValidationResult(
-                isValid = false,
-                errorMessage = "Unsupported URL format"
-            )
-        }
-        
+
+        Log.d(TAG, "TikTok URL sanitized: $trimmedUrl -> ${tiktok.sanitizedUrl}")
         return ValidationResult(
             isValid = true,
-            sanitizedValue = sanitizedUrl,
-            warnings = warnings
+            sanitizedValue = tiktok.sanitizedUrl.orEmpty(),
+            warnings = listOfNotNull(tiktok.warning)
         )
     }
 
-    /**
-     * Resolve TikTok shortlink redirects to canonical URL.
-     * Best-effort; runs on IO to avoid blocking the UI thread.
-     */
     suspend fun resolveTikTokRedirect(url: String, maxHops: Int = REDIRECT_HOPS): UrlResolutionResult {
         if (!isTikTokShortLink(url)) return UrlResolutionResult(originalUrl = url)
 
@@ -181,9 +136,10 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
                     val next = if (location.startsWith("http")) location else "https://www.tiktok.com$location"
                     chain.add(next)
                     if (!isTikTokShortLink(next)) {
+                        val validation = validateUrl(next)
                         return@withContext UrlResolutionResult(
                             originalUrl = url,
-                            resolvedUrl = sanitizeTikTokUrl(next),
+                            resolvedUrl = if (validation.isValid) validation.sanitizedValue else next,
                             redirectChain = chain.toList(),
                             error = null
                         )
@@ -200,7 +156,7 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
             }
             UrlResolutionResult(
                 originalUrl = url,
-                resolvedUrl = sanitizeTikTokUrl(current),
+                resolvedUrl = validateUrl(current).sanitizedValue.ifBlank { current },
                 redirectChain = chain.toList(),
                 error = "Max redirect depth reached"
             )
@@ -390,5 +346,12 @@ data class UrlResolutionResult(
     val originalUrl: String,
     val resolvedUrl: String? = null,
     val redirectChain: List<String> = emptyList(),
+    val error: String? = null
+)
+
+private data class TikTokUrlParseResult(
+    val isValid: Boolean,
+    val sanitizedUrl: String? = null,
+    val warning: String? = null,
     val error: String? = null
 )

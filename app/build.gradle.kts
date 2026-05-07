@@ -7,6 +7,10 @@ plugins {
     id("dagger.hilt.android.plugin")
 }
 
+val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
+    ?: System.getenv("PLUCT_ENGINE_BASE_URL")
+    ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
+
 android {
     namespace = "app.pluct"
     compileSdk = 34
@@ -22,6 +26,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "ENGINE_BASE_URL", "\"$pluctEngineBaseUrl\"")
     }
 
     buildTypes {

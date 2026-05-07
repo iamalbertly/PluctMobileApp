@@ -72,8 +72,9 @@ class PluctCoreCircuit02EnhancedBreaker {
      */
     suspend fun isOpen(): Boolean = mutex.withLock {
         // Auto-reset if silent for 30 seconds
-        if (state == State.OPEN && lastFailureTime != null) {
-            val timeSinceFailure = System.currentTimeMillis() - lastFailureTime!!
+        val lastFailure = lastFailureTime
+        if (state == State.OPEN && lastFailure != null) {
+            val timeSinceFailure = System.currentTimeMillis() - lastFailure
             if (timeSinceFailure > SILENCE_RESET_TIMEOUT_MS) {
                 state = State.HALF_OPEN
                 Log.d(TAG, "🔄 Circuit breaker auto-reset to HALF_OPEN after 30s silence")

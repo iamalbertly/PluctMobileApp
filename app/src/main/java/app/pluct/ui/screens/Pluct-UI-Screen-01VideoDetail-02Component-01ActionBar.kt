@@ -27,21 +27,19 @@ fun PluctVideoDetailActionBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp,
         color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.End
         ) {
-            // Copy Button (primary action)
-            FilledTonalButton(
+            FilledTonalIconButton(
                 onClick = onCopy,
                 modifier = Modifier
-                    .weight(1f)
                     .semantics {
                         contentDescription = "Copy transcript to clipboard"
                     }
@@ -51,17 +49,13 @@ fun PluctVideoDetailActionBar(
                     contentDescription = "Copy",
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(Modifier.width(4.dp))
-                Text("Copy")
             }
             
             Spacer(Modifier.width(8.dp))
             
-            // Share Button
-            OutlinedButton(
+            OutlinedIconButton(
                 onClick = onShare,
                 modifier = Modifier
-                    .weight(1f)
                     .semantics {
                         contentDescription = "Share transcript"
                     }
@@ -71,17 +65,13 @@ fun PluctVideoDetailActionBar(
                     contentDescription = "Share",
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(Modifier.width(4.dp))
-                Text("Share")
             }
             
             Spacer(Modifier.width(8.dp))
             
-            // Export Button
-            OutlinedButton(
+            OutlinedIconButton(
                 onClick = onExport,
                 modifier = Modifier
-                    .weight(1f)
                     .semantics {
                         contentDescription = "Export to TXT file"
                     }
@@ -91,8 +81,6 @@ fun PluctVideoDetailActionBar(
                     contentDescription = "Export",
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(Modifier.width(4.dp))
-                Text("Export")
             }
         }
     }

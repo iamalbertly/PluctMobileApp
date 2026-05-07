@@ -42,7 +42,9 @@ object PluctCoreAPI01UnifiedService08TranscriptionFlow05Canonicalization01Handle
             )
         )
         val resolutionResult = validator.resolveTikTokRedirect(sanitizedUrl)
-        val resolvedUrl = resolutionResult.resolvedUrl
+        val resolvedUrl = resolutionResult.resolvedUrl?.takeUnless {
+            it.contains("tiktok.com/@/video/", ignoreCase = true)
+        }
         val resolutionEnd = System.currentTimeMillis()
         
         if (!resolvedUrl.isNullOrBlank()) {

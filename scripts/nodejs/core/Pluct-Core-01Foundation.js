@@ -4,6 +4,9 @@ const PluctCoreFoundationValidation = require('./Pluct-Core-01Foundation-04Valid
 const PluctCoreFoundationLogcatValidator = require('./Pluct-Core-01Foundation-05Logcat-01Validator');
 const PluctCoreFoundationUtils = require('./Pluct-Core-01Foundation-05Utils');
 const { logInfo, logSuccess, logWarn, logError, isVerbose } = require('./Logger');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Pluct-Core-01Foundation - Core foundation functionality orchestrator
@@ -12,14 +15,15 @@ const { logInfo, logSuccess, logWarn, logError, isVerbose } = require('./Logger'
  */
 class PluctCoreFoundation {
     constructor() {
-        const shortUrl = 'https://vm.tiktok.com/ZMDRUGT2P/';
+        const shortUrl = process.env.TEST_TIKTOK_URL || 'https://vm.tiktok.com/ZMDRUGT2P/';
         const longUrl = 'https://www.tiktok.com/@thesunnahguy/video/7493203244727012630';
         const skipAppDataClear = process.env.PLUCT_SKIP_APP_CLEAR === '1' || process.env.PLUCT_PRESERVE_APP_DATA === '1';
+        const businessEngineUrl = (process.env.BE_BASE_URL || process.env.PLUCT_ENGINE_BASE_URL || 'https://pluct-business-engine.romeo-lya2.workers.dev').replace(/\/+$/, '');
         this.config = {
             // Use real TikTok URLs (short + long) for validation
             url: shortUrl,
             testUrls: [shortUrl, longUrl],
-            businessEngineUrl: 'https://pluct-business-engine.romeo-lya2.workers.dev',
+            businessEngineUrl,
             timeouts: { default: 10000, short: 2000, long: 15000 },
             retry: { maxAttempts: 3, delay: 1000 },
             skipAppDataClear
@@ -389,14 +393,9 @@ class PluctCoreFoundation {
         if (!uiDump) return null;
         const escaped = hint.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
         const patterns = [
-                /api error/,
-                /transcription failed/,
-                /session expired/,
-                /timed out/,
-                /insufficient credits/,
-                /unauthorized/,
-                /invalid url/
-            ];
+            new RegExp(`(?:text|content-desc)="[^"]*${escaped}[^"]*"[^>]*bounds="([^"]*)"`, 'i'),
+            new RegExp(`hint="${escaped}"[^>]*bounds="([^"]*)"`, 'i')
+        ];
         for (const pattern of patterns) {
             const match = pattern.exec(uiDump);
             if (match) return this.parseBounds(match[1]);
@@ -469,37 +468,48 @@ class PluctCoreFoundation {
         const startTime = Date.now();
 
         while (Date.now() - startTime < timeoutMs) {
-            // Check UI for completion indicators
             await this.dumpUIHierarchy();
             const uiDump = this.readLastUIDump();
+            const normalizedDump = uiDump.toLowerCase();
 
-            // Look for completion indicators in the UI
-            const hasEmptyState = uiDump.includes('No transcripts yet') || uiDump.includes('get your first transcript');
-            const hasTranscriptCard = uiDump.includes('Video item') || uiDump.includes('Transcript card');
-            const hasCompletionText = uiDump.includes('Completed') || uiDump.includes('Ready');
-            const hasTranscriptText = uiDump.includes('transcript') || uiDump.includes('Transcript');
-
-            if ((hasTranscriptText && !hasEmptyState) || hasTranscriptCard || hasCompletionText) {
-                this.logger.info('?o. Transcript result detected in UI');
-                return { success: true, message: 'Transcript result found in UI' };
-            }
-
-            // Check for error indicators
-            // Check for error indicators
             const errorSignals = [
                 'Transcription failed',
                 'Session expired',
                 'Insufficient credits',
+                'Out of credits',
+                'Payment Required',
+                'No transcript available',
+                'Service is waking up',
+                'temporarily unavailable',
+                'Request timed out',
                 'Failed'
             ];
-            if (errorSignals.some(signal => uiDump.includes(signal))) {
-                this.logger.warn('?? Error indicators found in UI');
-                return { success: false, error: 'Error indicators found in UI' };
+            const matchedError = errorSignals.find(signal => normalizedDump.includes(signal.toLowerCase()));
+            if (matchedError) {
+                this.logger.warn(`?? Error indicator found in UI: ${matchedError}`);
+                return { success: false, error: `Error indicator found in UI: ${matchedError}` };
             }
 
-            // Wait before next check
-            await this.sleep(5000);
-            // Wait before next check
+            const hasEmptyState = normalizedDump.includes('no transcripts yet') ||
+                normalizedDump.includes('get your first transcript');
+            const successSignals = [
+                'copy transcript to clipboard',
+                'share transcript',
+                'export to txt file',
+                'copy_transcript_button',
+                'share_transcript_button',
+                'export_txt_button'
+            ];
+            const matchedSuccess = successSignals.find(signal => normalizedDump.includes(signal));
+            const hasCompletedTranscriptCard = (uiDump.includes('Transcript card') || uiDump.includes('Video item')) &&
+                (uiDump.includes('Completed') || uiDump.includes('Ready')) &&
+                !hasEmptyState;
+
+            if (matchedSuccess || hasCompletedTranscriptCard) {
+                this.logger.info(`?o. Transcript result detected in UI${matchedSuccess ? ` via ${matchedSuccess}` : ''}`);
+                return { success: true, message: 'Transcript result found in UI' };
+            }
+
             await this.sleep(5000);
         }
 
@@ -507,13 +517,72 @@ class PluctCoreFoundation {
         return { success: false, error: `Timeout waiting for transcript result after ${timeoutMs}ms` };
     }
 
+    async validateErrorCardUsability() {
+        await this.dumpUIHierarchy();
+        const uiDump = this.readLastUIDump();
+        if (!uiDump.includes('content-desc="Error message"')) {
+            return { success: true, skipped: true };
+        }
+
+        const issues = [];
+        if (/\bFlow\s+[A-Za-z0-9_-]+/.test(uiDump) || /\bJob\s+[A-Za-z0-9_-]+/.test(uiDump)) {
+            issues.push('Collapsed error card exposes internal flow/job IDs');
+        }
+        if (uiDump.includes('View in Logs')) {
+            issues.push('Logs action is too long for the compact error card');
+        }
+        if (!/content-desc="Error: [^"]{1,120}"/.test(uiDump)) {
+            issues.push('Error card does not expose a concise user-facing message');
+        }
+
+        return {
+            success: issues.length === 0,
+            issues,
+            error: issues.join('; ')
+        };
+    }
+
+    async ensureCaptureCardReady() {
+        for (let attempt = 0; attempt < 6; attempt++) {
+            const dumpResult = await this.dumpUIHierarchy();
+            if (!dumpResult.success) {
+                await this.ensureAppForeground();
+                await this.sleep(1200);
+                continue;
+            }
+            const uiDump = this.readLastUIDump() || '';
+            const hasCaptureInput = uiDump.includes('Video URL input field') ||
+                uiDump.includes('Paste TikTok Link') ||
+                uiDump.includes('Paste from clipboard') ||
+                uiDump.includes('Always visible capture card') ||
+                uiDump.includes('video_url_input');
+            if (hasCaptureInput) {
+                return { success: true };
+            }
+
+            const isDetailScreen = uiDump.includes('Video Details') ||
+                uiDump.includes('Copy transcript to clipboard') ||
+                uiDump.includes('Share transcript') ||
+                uiDump.includes('Export to TXT file') ||
+                uiDump.includes('content-desc="Back button"');
+            if (isDetailScreen) {
+                this.logger.info('Returning from video detail to capture card...');
+                await this.executeCommand('adb shell input keyevent 4');
+                await this.sleep(1200);
+                continue;
+            }
+
+            await this.ensureAppForeground();
+            await this.sleep(1000);
+        }
+
+        return { success: false, error: 'Capture input not visible' };
+    }
+
     /**
      * Detect recent Business Engine / TTTranscribe failures in logcat.
      */
     async checkRecentAPIErrors(lines = 300) {
-        // Treat API errors as non-blocking for now to avoid failing journeys when backend returns expected 402s
-        return { success: true, hasErrors: false, errors: [] };
-
         try {
             const apiLogs = await this.captureAPILogs(lines);
             
@@ -523,8 +592,9 @@ class PluctCoreFoundation {
 
             // Filter to only PluctAPI errors (not system errors)
             const pluctAPIErrors = apiLogs.parsed.errors.filter(err => {
-                // Must contain PluctAPI tag
-                if (!err.includes('PluctAPI') && !err.includes('PluctCoreAPIHTTPClient')) return false;
+                if (!err.includes('PluctAPI') &&
+                    !err.includes('PluctCoreAPIHTTPClient') &&
+                    !err.includes('TTTranscribe')) return false;
                 
                 // Exclude system-level errors that leak through
                 const systemErrorPatterns = [
@@ -541,17 +611,20 @@ class PluctCoreFoundation {
                     /insufficient credits/i,
                     /insufficient_credits/i,
                     /payment required/i,
-                    /vend-token/i
+                    /vend-token/i,
+                    /\b402\b.*(credit|payment|vend-token)/i
                 ];
                 if (toleratedPatterns.some(p => p.test(err))) return false;
                 
                 // Must be actual API errors (status codes, error messages)
                 const apiErrorPatterns = [
-                    /\b(401|402|403|404|429|500|502|503|504)\b/,
+                    /\b(401|403|404|429|500|502|503|504)\b/,
                     /API.*(error|failed|failure)/i,
                     /Request failed/i,
                     /Authentication failed/i,
-                    /Insufficient credits/i
+                    /upstream_error/i,
+                    /service unavailable/i,
+                    /TTTranscribe.*(error|failed|failure)/i
                 ];
                 return apiErrorPatterns.some(p => p.test(err));
             });
@@ -646,6 +719,8 @@ class PluctCoreFoundation {
                 /session expired/,
                 /timed out/,
                 /insufficient credits/,
+                /out of credits/,
+                /payment required/,
                 /unauthorized/,
                 /invalid url/
             ];
@@ -668,6 +743,108 @@ class PluctCoreFoundation {
             this.logger.warn(`UI error scan failed: ${error.message}`);
             return { success: true, note: 'UI error scan unavailable' };
         }
+    }
+
+    async resetAppToFreshCaptureState() {
+        if (!this.config.skipAppDataClear) {
+            await this.executeCommand('adb shell pm clear app.pluct', undefined, undefined, { allowFailure: true });
+        } else if (this.clearAppCache) {
+            await this.clearAppCache();
+        }
+
+        const fg = await this.ensureAppForeground();
+        if (!fg.success) return fg;
+
+        for (let i = 0; i < 3; i++) {
+            const nextTap = await this.tapByText('Next');
+            if (!nextTap.success) {
+                const fallbackNext = await this.tapByCoordinates(416, 790);
+                if (!fallbackNext.success) break;
+            }
+            await this.sleep(700);
+        }
+
+        const getStartedTap = await this.tapByText('Get Started');
+        if (getStartedTap.success) await this.sleep(700);
+
+        const gotItTap = await this.tapByText('Got It');
+        if (!gotItTap.success) await this.tapByCoordinates(414, 760);
+        await this.sleep(700);
+
+        const skipTikTokTap = await this.tapByText("I'll Figure It Out");
+        if (!skipTikTokTap.success) await this.tapByCoordinates(182, 696);
+        await this.sleep(900);
+
+        return await this.ensureCaptureCardReady();
+    }
+
+    async getCurrentMobileUserId() {
+        const logResult = await this.executeCommand(
+            'adb logcat -d -t 400 | findstr /i "Generating JWT token for user:"',
+            undefined,
+            undefined,
+            { allowFailure: true }
+        );
+        const logMatch = (logResult.output || '').match(/Generating JWT token for user:\s*(mobile-[a-f0-9-]+)/i);
+        if (logMatch) return logMatch[1];
+
+        const androidId = await this.executeCommand('adb shell settings get secure android_id', undefined, undefined, { allowFailure: true });
+        const model = await this.executeCommand('adb shell getprop ro.product.model', undefined, undefined, { allowFailure: true });
+        const manufacturer = await this.executeCommand('adb shell getprop ro.product.manufacturer', undefined, undefined, { allowFailure: true });
+        const parts = [androidId.output, model.output, manufacturer.output].map(value => (value || '').trim());
+        if (parts.every(Boolean)) {
+            const shortHash = crypto.createHash('sha256').update(`${parts[0]}-${parts[1]}-${parts[2]}`).digest('hex').substring(0, 16);
+            return `mobile-${shortHash}`;
+        }
+        return null;
+    }
+
+    getLocalAdminKey() {
+        if (process.env.ENGINE_ADMIN_KEY) return process.env.ENGINE_ADMIN_KEY;
+        if (process.env.ADMIN_KEY) return process.env.ADMIN_KEY;
+
+        const candidates = [
+            path.resolve(process.cwd(), '..', 'pluct-business-engine', '.dev.vars'),
+            path.resolve(process.cwd(), '..', '..', 'pluct-business-engine', '.dev.vars')
+        ];
+        for (const candidate of candidates) {
+            if (!fs.existsSync(candidate)) continue;
+            const content = fs.readFileSync(candidate, 'utf8');
+            const match = content.match(/^ENGINE_ADMIN_KEY=(.+)$/m) || content.match(/^ADMIN_KEY=(.+)$/m);
+            if (match) return match[1].trim();
+        }
+        return null;
+    }
+
+    async ensureLocalMobileCredits(amount = 3) {
+        if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(this.config.businessEngineUrl)) {
+            return { success: true, skipped: true };
+        }
+
+        const userId = await this.getCurrentMobileUserId();
+        if (!userId) return { success: false, error: 'Unable to determine mobile user id for local credit seeding' };
+
+        const adminKey = this.getLocalAdminKey();
+        if (!adminKey) return { success: false, error: 'Local admin key unavailable for credit seeding' };
+
+        const response = await this.httpPost(
+            `${this.config.businessEngineUrl}/v1/credits/add`,
+            {
+                userId,
+                amount,
+                walletType: 'bonus',
+                reason: 'local automation credit seed',
+                clientRequestId: `local-credit-seed-${Date.now()}`
+            },
+            { Authorization: `Bearer ${adminKey}` }
+        );
+        if (!response.success || response.status !== 200) {
+            return { success: false, error: `Credit seed failed (${response.status || response.error})` };
+        }
+
+        await this.tapByContentDesc('Credit balance');
+        await this.sleep(700);
+        return { success: true, userId };
     }
 
     // Performance optimization methods

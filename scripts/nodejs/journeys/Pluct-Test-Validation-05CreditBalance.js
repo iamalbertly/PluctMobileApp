@@ -21,7 +21,7 @@ class PluctTestValidationCreditBalance extends BaseJourney {
             
             // Test credit balance endpoint with valid JWT
             const balanceResponse = await this.core.httpGet(
-                'https://pluct-business-engine.romeo-lya2.workers.dev/v1/credits/balance',
+                `${this.core.config.businessEngineUrl}/v1/credits/balance`,
                 { 'Authorization': `Bearer ${jwtToken}` }
             );
             

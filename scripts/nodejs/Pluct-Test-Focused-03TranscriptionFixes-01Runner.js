@@ -5,7 +5,7 @@
  * 5 scope layers: Project, Test, Focused, TranscriptionFixes, Runner
  * Terminates on first error during development phase
  */
-const PluctJourneyOrchestrator = require('./journeys/Pluct-Journey-01Orchestrator');
+const { PluctJourneyOrchestrator } = require('./journeys/Pluct-Journey-01Orchestrator');
 const PluctCoreFoundation = require('./core/Pluct-Core-01Foundation');
 
 class PluctTestFocusedTranscriptionFixesRunner {

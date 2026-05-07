@@ -5,12 +5,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.pluct.R
 
 /**
  * Pluct-UI-Component-09ContextualPermission-01Dialog
@@ -22,14 +24,26 @@ fun PluctUIComponent09ContextualPermission01Dialog(
     onDismiss: () -> Unit,
     onEnable: () -> Unit
 ) {
+    val permissionTitle = stringResource(R.string.contextual_permission_title)
+    val cdPermissionTitle = stringResource(R.string.cd_contextual_permission_title)
+    val cdPermissionContent = stringResource(R.string.cd_contextual_permission_content)
+    val iconEmoji = stringResource(R.string.contextual_permission_icon)
+    val bodyPrimary = stringResource(R.string.contextual_permission_body_primary)
+    val bodySecondary = stringResource(R.string.contextual_permission_body_secondary)
+    val enableLabel = stringResource(R.string.contextual_permission_enable)
+    val notNowLabel = stringResource(R.string.contextual_permission_not_now)
+    val cdEnable = stringResource(R.string.cd_contextual_permission_enable)
+    val cdNotNow = stringResource(R.string.cd_contextual_permission_not_now)
+    val cdDialog = stringResource(R.string.cd_contextual_permission_dialog)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Get Notified",
+                text = permissionTitle,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics {
-                    contentDescription = "Contextual permission title"
+                    contentDescription = cdPermissionTitle
                     testTag = "contextual_permission_title"
                 }
             )
@@ -39,26 +53,24 @@ fun PluctUIComponent09ContextualPermission01Dialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics {
-                        contentDescription = "Contextual permission content"
+                        contentDescription = cdPermissionContent
                         testTag = "contextual_permission_content"
                     },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Icon
                 Text(
-                    text = "🔔",
+                    text = iconEmoji,
                     fontSize = 48.sp,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
-                
-                // Value proposition
+
                 Text(
-                    text = "Get notified when transcripts finish, even when the app is closed.",
+                    text = bodyPrimary,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                
+
                 Text(
-                    text = "You can turn this off anytime in settings.",
+                    text = bodySecondary,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -68,26 +80,26 @@ fun PluctUIComponent09ContextualPermission01Dialog(
             Button(
                 onClick = onEnable,
                 modifier = Modifier.semantics {
-                    contentDescription = "Enable notifications"
+                    contentDescription = cdEnable
                     testTag = "contextual_permission_enable_button"
                 }
             ) {
-                Text("Enable")
+                Text(enableLabel)
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.semantics {
-                    contentDescription = "Not now"
+                    contentDescription = cdNotNow
                     testTag = "contextual_permission_dismiss_button"
                 }
             ) {
-                Text("Not Now")
+                Text(notNowLabel)
             }
         },
         modifier = Modifier.semantics {
-            contentDescription = "Contextual permission dialog"
+            contentDescription = cdDialog
             testTag = "contextual_permission_dialog"
         }
     )

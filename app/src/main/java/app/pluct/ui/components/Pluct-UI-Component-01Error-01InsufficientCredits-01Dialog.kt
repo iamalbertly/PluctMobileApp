@@ -6,7 +6,12 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
+import app.pluct.R
 
 /**
  * Pluct-UI-Component-01Error-01InsufficientCredits-01Dialog
@@ -20,37 +25,69 @@ fun PluctInsufficientCreditsDialog(
     onPurchase: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = stringResource(R.string.insufficient_credits_title)
+    val cdWallet = stringResource(R.string.cd_insufficient_credits_wallet_icon)
+    val cdDialog = stringResource(R.string.cd_insufficient_credits_dialog)
+    val cdPurchase = stringResource(R.string.cd_insufficient_credits_purchase)
+    val cdCancel = stringResource(R.string.cd_insufficient_credits_cancel)
+    val needMore = (requiredCredits - currentBalance).coerceAtLeast(0)
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.AccountBalanceWallet, "Credits") },
-        title = { Text("Insufficient Credits") },
+        modifier = Modifier.semantics {
+            contentDescription = cdDialog
+            testTag = "insufficient_credits_dialog"
+        },
+        icon = {
+            Icon(
+                imageVector = Icons.Default.AccountBalanceWallet,
+                contentDescription = cdWallet
+            )
+        },
+        title = {
+            Text(text = title)
+        },
         text = {
             Column {
-                Text("You need $requiredCredits credits to continue.")
+                Text(stringResource(R.string.insufficient_credits_need, requiredCredits))
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Current balance: $currentBalance credits")
-                Text("Required: $requiredCredits credits")
+                Text(stringResource(R.string.insufficient_credits_current_balance, currentBalance))
+                Text(stringResource(R.string.insufficient_credits_required, requiredCredits))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Purchase ${requiredCredits - currentBalance} more credits to transcribe this video.",
+                    stringResource(R.string.insufficient_credits_purchase_more, needMore),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Note: Credits are held during processing and automatically refunded if transcription fails.",
+                    stringResource(R.string.insufficient_credits_note_refund),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
         },
         confirmButton = {
-            Button(onClick = onPurchase) {
-                Text("Purchase Credits")
+            Button(
+                onClick = onPurchase,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .semantics {
+                        contentDescription = cdPurchase
+                        testTag = "insufficient_credits_purchase_button"
+                    }
+            ) {
+                Text(stringResource(R.string.insufficient_credits_purchase))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.semantics {
+                    contentDescription = cdCancel
+                    testTag = "insufficient_credits_cancel_button"
+                }
+            ) {
+                Text(stringResource(R.string.insufficient_credits_cancel))
             }
         }
     )

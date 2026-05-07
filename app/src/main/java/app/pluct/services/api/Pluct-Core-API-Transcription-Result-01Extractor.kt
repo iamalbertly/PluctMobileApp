@@ -17,12 +17,16 @@ object PluctCoreAPITranscriptionResult01Extractor {
         val candidates = listOf(
             status.transcript to "status.transcript",
             status.result?.transcription to "status.result.transcription",
+            status.result?.transcript to "status.result.transcript",
+            status.result?.text to "status.result.text",
             status.text to "status.text"
         )
 
         candidates.forEach { (value, label) ->
             if (value.isMeaningful()) {
-                return ExtractionResult(value!!.trim(), label)
+                // Safe to use value here since isMeaningful() ensures it's not null or blank
+                val trimmedValue = value?.trim() ?: return@forEach
+                return ExtractionResult(trimmedValue, label)
             }
         }
 

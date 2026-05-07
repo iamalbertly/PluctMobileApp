@@ -10,12 +10,21 @@ appId: app.pluct
     optional: true
 - tapOn:
     id: "url_input_field"
-- inputText: "https://vm.tiktok.com/ZMDRUGT2P/"
-- waitForAnimationToEnd
+    optional: true
+- tapOn:
+    text: "Paste TikTok Link"
+    optional: true
+- inputText: "https://vt.tiktok.com/ZSaMj8uAJ/"
+- waitForAnimationToEnd:
+    timeout: 2000
+# Wait for inline submit button to appear (Send icon inside input field)
+- extendedWaitUntil:
+    visible:
+      id: "extract_script_button"
+    timeout: 10000
+# Credit badge shows "Free (X)" instead of button text "FREE"
 - assertVisible:
-    id: "extract_script_button"
-- assertVisible:
-    text: "FREE"
+    text: "Free"
     optional: true
 - tapOn:
     id: "extract_script_button"

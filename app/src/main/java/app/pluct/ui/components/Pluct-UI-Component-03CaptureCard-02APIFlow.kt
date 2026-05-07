@@ -145,8 +145,7 @@ object PluctUIComponent03CaptureCardAPIFlow {
                 val duration = System.currentTimeMillis() - startTime
                 Log.d(tag, "API call completed in ${duration}ms")
 
-            if (result.isSuccess) {
-                val status = result.getOrNull()!!
+            result.getOrNull()?.let { status ->
                 Log.d(
                     tag,
                     "Flow successful. status=${status.status}, transcriptChars=${status.transcript?.length ?: 0}, confidence=${status.confidence}, language=${status.language}, duration=${status.duration}"
@@ -160,7 +159,7 @@ object PluctUIComponent03CaptureCardAPIFlow {
                 withContext(Dispatchers.Main) {
                     onSuccess("Transcription completed successfully!")
                 }
-            } else {
+            } ?: run {
                 val error = result.exceptionOrNull()
                 if (error is PluctCoreAPIDetailedError) {
                     PluctCoreAPIUnifiedServiceErrorCache.cacheError(normalizedUrl, error)

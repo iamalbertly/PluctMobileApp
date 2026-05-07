@@ -67,8 +67,13 @@ class PluctCoreRateLimitTracker @Inject constructor() {
         val cutoffTime = System.currentTimeMillis() - ONE_HOUR_MS
         
         // Remove timestamps older than cutoff
-        while (!requestTimestamps.isEmpty() && requestTimestamps.peekFirst()!! < cutoffTime) {
-            requestTimestamps.pollFirst()
+        while (!requestTimestamps.isEmpty()) {
+            val first = requestTimestamps.peekFirst()
+            if (first != null && first < cutoffTime) {
+                requestTimestamps.pollFirst()
+            } else {
+                break
+            }
         }
     }
     

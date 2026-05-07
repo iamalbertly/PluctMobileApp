@@ -22,28 +22,23 @@ fun PluctVideoDetailHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        // Title (large, bold, prominent)
-        // UX FIX: Use improved title fallback logic (same as video list)
         Text(
-            text = getVideoDisplayTitle(video),
-            style = MaterialTheme.typography.headlineMedium,
+            text = getVideoDetailDisplayTitle(video),
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Author (secondary, if available)
-        if (video.author.isNotBlank()) {
+
+        val displayAuthor = getVideoDetailDisplayAuthor(video)
+        if (displayAuthor.isNotBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "by ${video.author}",
-                style = MaterialTheme.typography.titleMedium,
+                text = displayAuthor,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-            
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -53,21 +48,64 @@ fun PluctVideoDetailHeader(
  * Provides meaningful titles even when metadata is unavailable
  * Priority: title > author > URL extraction > generic fallback
  */
-@Composable
-private fun getVideoDisplayTitle(video: VideoItem): String {
+internal fun getVideoDetailDisplayTitle(video: VideoItem): String {
     return when {
-        video.title.isNotBlank() -> video.title
-        video.author.isNotBlank() -> "Video by @${video.author}"
+        video.title.isNotBlank() && !isGenericVideoTitle(video.title) -> video.title
+        !video.transcript.isNullOrBlank() -> transcriptPreviewTitle(video.transcript)
+        getVideoDetailDisplayAuthor(video).isNotBlank() -> getVideoDetailDisplayAuthor(video).removePrefix("by ")
         video.url.contains("@") -> {
-            // Extract creator handle from TikTok URL using regex
             val handleMatch = Regex("@([^/?]+)").find(video.url)
             if (handleMatch != null) {
                 val handle = handleMatch.groupValues[1]
                 "Video by @$handle"
             } else {
-                "TikTok Video"
+                "TikTok transcript"
             }
         }
-        else -> "TikTok Video"
+        else -> "TikTok transcript"
+    }
+}
+
+internal fun getVideoDetailDisplayAuthor(video: VideoItem): String {
+    val author = video.author.trim().trimStart('@')
+    if (author.isBlank() || isGenericAuthor(author)) {
+        return ""
+    }
+    return "by @$author"
+}
+
+private fun isGenericVideoTitle(title: String): Boolean {
+    val normalized = title.trim().lowercase()
+    return normalized == "tiktok video" ||
+        normalized == "queued video" ||
+        normalized == "tiktok - make your day"
+}
+
+private fun isGenericAuthor(author: String): Boolean {
+    val normalized = author.trim().lowercase()
+    return normalized == "tiktok user" ||
+        normalized == "tiktok" ||
+        normalized == "creator"
+}
+
+private fun transcriptPreviewTitle(transcript: String?): String {
+    val compact = transcript.orEmpty()
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    if (compact.isBlank()) {
+        return "TikTok transcript"
+    }
+
+    val sentence = compact
+        .split('.', '?', '!')
+        .firstOrNull()
+        ?.trim()
+        .orEmpty()
+        .ifBlank { compact }
+
+    return if (sentence.length <= 72) {
+        sentence
+    } else {
+        sentence.take(69).trimEnd() + "..."
     }
 }
