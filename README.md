@@ -495,7 +495,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.6.0 - UX Improvements + Tech Debt Cleanup (Current)
+### v2.7.0 - Senior-Friendly Visual Flow + Notification Return Path (Current)
+
+**UX/Reliability Improvements:**
+1. Compact transcript cards now show thumbnail, status icon, author, duration, confidence, and preview in one scannable row.
+2. Completed cards use `OK` and a copy icon instead of relying on long English labels.
+3. Empty state is reduced to a single `Paste -> Text` value cue plus `Demo`.
+4. Error recovery buttons now pair each action with a universal icon: wallet, Wi-Fi, clock, or retry.
+5. Notification progress title now starts with the percentage, for example `42% Pluct`.
+6. Progress notifications only alert once while updating, reducing fatigue.
+7. Completion notifications use shorter `Done` copy and preserve the transcript preview.
+8. Progress, completion, and error notifications include a `TikTok` action to return users to the original video.
+9. Metadata handoff now preserves thumbnail, duration, author, and description when TTTranscribe/Business Engine returns them.
+
+**Edge Cases Covered:**
+1. Bad or missing thumbnail URLs fall back to the same status icon tile.
+2. Progress is clamped to `0..99` until completion so notifications do not overpromise.
+3. Completed transcript detection recognizes compact `OK` cards in Node/ADB journeys.
+4. Existing videos keep previous thumbnail/description if new metadata is partial.
+5. Notification `TikTok` action is skipped safely if the URL cannot be parsed.
+
+**Validation:**
+- Built and installed the debug APK after freeing generated cache space.
+- `npm run test:all -- Journey-UX-05RedundantVisuals-Validation Journey-UX-22VideoTitleFallback-Validation Pluct-Test-Validation-10ErrorHandling Journey-QuickScan Journey-TTTranscribeIntegration Journey-APIConnectivity Journey-TokenVendingValidation`
+- Playwright MCP validated the local Business Engine admin dashboard at `http://127.0.0.1:8789/admin/dashboard`: health connected, users loaded, refresh worked, and user details expanded.
+
+### v2.6.0 - UX Improvements + Tech Debt Cleanup
 
 **5 UX/Reliability Improvements:**
 1. **Network Restoration Handler**: Wired `handleNetworkRestored` to queue processor - automatically processes queued videos when network is restored

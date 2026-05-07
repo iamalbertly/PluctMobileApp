@@ -99,13 +99,14 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             id = System.currentTimeMillis().toString(),
             url = url,
             title = currentVideoItem?.title ?: "",
-            thumbnailUrl = "",
+            thumbnailUrl = currentVideoItem?.thumbnailUrl ?: "",
             author = currentVideoItem?.author ?: "",
-            duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
+            duration = currentVideoItem?.duration ?: (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
             status = ProcessingStatus.COMPLETED,
             progress = 100,
             transcript = transcriptText,
             timestamp = System.currentTimeMillis(),
+            description = currentVideoItem?.description,
             tier = tier,
             jobId = statusResponse.jobId
         )
@@ -122,6 +123,8 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             jobId = statusResponse.jobId,
             title = currentVideoItem?.title ?: existingVideo.title,
             author = currentVideoItem?.author ?: existingVideo.author,
+            thumbnailUrl = currentVideoItem?.thumbnailUrl ?: existingVideo.thumbnailUrl,
+            description = currentVideoItem?.description ?: existingVideo.description,
             confidence = confidenceScore  // UX FIX #3: Save confidence score
         )
         

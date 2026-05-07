@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -32,6 +33,17 @@ object PluctNotificationHelper {
      */
     fun generateNotificationId(url: String): Int {
         return url.hashCode().and(0x7FFFFFFF) // Mask to ensure positive
+    }
+
+    private fun buildOpenVideoPendingIntent(context: Context, url: String, requestCode: Int): PendingIntent? {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     /**
@@ -199,7 +211,7 @@ object PluctNotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("✨ Your AI Analysis is Ready!")
+            .setContentTitle("Pluct ready")
             .setContentText("$videoTitle - $processingTier analysis completed")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -227,7 +239,7 @@ object PluctNotificationHelper {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("✅ Quick Scan Complete")
+            .setContentTitle("Done")
             .setContentText("$videoTitle - Transcript ready")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -274,12 +286,16 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
+        val safeProgress = progress.coerceIn(0, 99)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("Transcribing...")
+            .setContentTitle("$safeProgress% Pluct")
             .setContentText(message)
-            .setProgress(100, progress, false)
+            .setSubText("$safeProgress%")
+            .setTicker("$safeProgress% $message")
+            .setProgress(100, safeProgress, false)
             .setContentIntent(pendingIntent)
+            .setOnlyAlertOnce(true)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "Cancel",
@@ -287,7 +303,10 @@ object PluctNotificationHelper {
             )
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
+        }
+        val notification = builder.build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, notification)
@@ -342,13 +361,14 @@ object PluctNotificationHelper {
         // UX FIX #3 (v2.5): Extract first sentence for more meaningful collapsed preview
         val firstSentence = transcript.split(Regex("[.!?]")).firstOrNull()?.trim() ?: transcript.take(100)
         val preview = if (firstSentence.length > 120) firstSentence.take(120) + "..." else firstSentence
-        val titleWithContext = "Transcription Complete ($wordCount words)"
+        val titleWithContext = "Done ($wordCount words)"
 
         // UX FIX #1: Build notification with HIGH priority for sound+vibration
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
             .setSmallIcon(getNotificationIcon(context))
             .setContentTitle(titleWithContext)
             .setContentText(preview)
+            .setTicker("Pluct done")
             .setStyle(NotificationCompat.BigTextStyle().bigText(transcript.take(500)))
             .setContentIntent(pendingIntent)
             .addAction(
@@ -360,7 +380,10 @@ object PluctNotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_HIGH) // UX FIX #1: Elevated priority
             .setDefaults(NotificationCompat.DEFAULT_ALL) // UX FIX #1: Sound+vibration+lights
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .build()
+        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
+        }
+        val notification = builder.build()
 
         // UX FIX #1: Trigger manual vibration as backup
         vibrateForCompletion(context)
@@ -406,14 +429,17 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_ERROR)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_ERROR)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("❌ Transcription Failed")
+            .setContentTitle("Pluct failed")
             .setContentText(error)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
+        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
+        }
+        val notification = builder.build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         try {
@@ -474,12 +500,15 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        val safeProgress = progress.coerceIn(0, 99)
         return NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("Transcribing...")
+            .setContentTitle("$safeProgress% Pluct")
             .setContentText(message)
-            .setProgress(100, progress, false)
+            .setSubText("$safeProgress%")
+            .setProgress(100, safeProgress, false)
             .setContentIntent(pendingIntent)
+            .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

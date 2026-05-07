@@ -494,6 +494,7 @@ class PluctCoreFoundation {
                 normalizedDump.includes('get your first transcript');
             const successSignals = [
                 'copy transcript to clipboard',
+                'copy transcript',
                 'share transcript',
                 'export to txt file',
                 'copy_transcript_button',
@@ -502,7 +503,7 @@ class PluctCoreFoundation {
             ];
             const matchedSuccess = successSignals.find(signal => normalizedDump.includes(signal));
             const hasCompletedTranscriptCard = (uiDump.includes('Transcript card') || uiDump.includes('Video item')) &&
-                (uiDump.includes('Completed') || uiDump.includes('Ready')) &&
+                (uiDump.includes('Completed') || uiDump.includes('Ready') || uiDump.includes('OK')) &&
                 !hasEmptyState;
 
             if (matchedSuccess || hasCompletedTranscriptCard) {

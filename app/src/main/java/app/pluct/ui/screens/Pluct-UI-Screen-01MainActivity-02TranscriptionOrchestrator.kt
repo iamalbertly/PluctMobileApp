@@ -241,7 +241,10 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                     if (existingVideo != null) {
                         currentVideoItem = existingVideo.copy(
                             title = metadata.title ?: "",
-                            author = metadata.author ?: ""
+                            author = metadata.author ?: "",
+                            thumbnailUrl = metadata.thumbnail ?: existingVideo.thumbnailUrl,
+                            duration = metadata.duration.toLong(),
+                            description = metadata.description
                         )
                         videoRepository.updateVideo(currentVideoItem)
                     }
@@ -304,4 +307,3 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
         }
     }
 }
-

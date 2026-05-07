@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -263,14 +266,12 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                                 testTag = "error_recovery_${action.label.lowercase().replace(" ", "_")}"
                             }
                     ) {
-                        if (action.label == "Retry") {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Retry",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
+                        Icon(
+                            imageVector = actionIcon(action.label),
+                            contentDescription = action.label,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = action.label,
                             style = MaterialTheme.typography.bodySmall,
@@ -377,6 +378,13 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
             }
         }
     }
+}
+
+private fun actionIcon(label: String) = when (label) {
+    "Add Credits" -> Icons.Default.AccountBalanceWallet
+    "Check Connection" -> Icons.Default.Wifi
+    "Retry Later" -> Icons.Default.Schedule
+    else -> Icons.Default.Refresh
 }
 
 private fun isRemoteServiceIssue(message: String): Boolean {

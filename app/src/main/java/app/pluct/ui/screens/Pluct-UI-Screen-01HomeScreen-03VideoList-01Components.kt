@@ -5,43 +5,20 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,12 +30,9 @@ import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
 import app.pluct.ui.components.PluctProcessingIndicator
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
-/**
- * Pluct-UI-Screen-01HomeScreen-03VideoList-01Components
- * Video list building blocks for Home screen.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PluctVideoItemCard(
@@ -72,273 +46,217 @@ fun PluctVideoItemCard(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showQuickActions by remember { mutableStateOf(false) }
+    val title = getVideoDisplayTitle(video)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = {
-                    if (video.status == ProcessingStatus.COMPLETED) {
-                        showQuickActions = true
-                    }
-                }
+                onLongClick = { if (video.status == ProcessingStatus.COMPLETED) showQuickActions = true }
             )
-            .semantics { contentDescription = "Video item: ${video.title}" },
+            .semantics { contentDescription = "Video item: $title" },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            VideoThumb(video)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = getVideoDisplayTitle(video),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatusBadge(video)
+                }
+                CompactVideoMeta(video)
+                if (video.status == ProcessingStatus.PROCESSING) {
+                    PluctProcessingIndicator(
+                        currentOperation = debugInfo?.getCurrentOperationDescription() ?: "${video.progress}% working",
+                        debugInfo = debugInfo,
+                        currentJobId = debugInfo?.jobId
+                    )
+                }
+                if (!video.transcript.isNullOrBlank()) {
+                    Text(
+                        text = video.transcript.take(76) + if (video.transcript.length > 76) "..." else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-
-                StatusBadge(video)
-
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
             }
+            CardActions(video, onRetry, onDelete, snackbarHostState, context, scope)
+        }
+        QuickActionsMenu(showQuickActions, video, { showQuickActions = false }, onDelete, context)
+    }
+}
 
-            if (video.status == ProcessingStatus.PROCESSING) {
-                Spacer(modifier = Modifier.height(6.dp))
-                PluctProcessingIndicator(
-                    currentOperation = debugInfo?.getCurrentOperationDescription() ?: "Processing...",
-                    debugInfo = debugInfo,
-                    currentJobId = debugInfo?.jobId
-                )
+@Composable
+private fun VideoThumb(video: VideoItem) {
+    val color = statusColor(video.status)
+    Box(
+        modifier = Modifier
+            .size(58.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        if (video.thumbnailUrl.isNotBlank()) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)))
+        }
+        Icon(statusIcon(video.status), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
+private fun CompactVideoMeta(video: VideoItem) {
+    val author = getVideoDetailDisplayAuthor(video)
+    val meta = buildList {
+        if (author.isNotBlank()) add(author)
+        if (video.duration > 0) add("${video.duration}s")
+        video.confidence?.let { add("${(it * 100).toInt()}%") }
+    }.joinToString("  ")
+    if (meta.isNotBlank()) {
+        Text(
+            text = meta,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun CardActions(
+    video: VideoItem,
+    onRetry: () -> Unit,
+    onDelete: () -> Unit,
+    snackbarHostState: SnackbarHostState?,
+    context: Context,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (video.status == ProcessingStatus.FAILED) {
+            IconButton(onClick = onRetry, modifier = Modifier.size(38.dp)) {
+                Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
             }
-
-            if (!video.transcript.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.padding(bottom = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Completed",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Transcript ready",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium
-                        )
+        } else if (!video.transcript.isNullOrBlank()) {
+            IconButton(
+                onClick = { copyTranscript(video, context, snackbarHostState, scope) },
+                modifier = Modifier
+                    .size(38.dp)
+                    .semantics {
+                        contentDescription = "Copy transcript"
+                        testTag = "copy_transcript_button"
                     }
-                    // UX FIX #3: Show confidence score if available
-                    video.confidence?.let { confidence ->
-                        Text(
-                            text = "${(confidence * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                Text(
-                    text = video.transcript.take(92) + if (video.transcript.length > 92) "..." else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            video.transcript?.let { transcript ->
-                                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clipData = ClipData.newPlainText("Pluct Transcript", transcript)
-                                clipboardManager.setPrimaryClip(clipData)
-                                // Show confirmation via snackbar
-                                snackbarHostState?.let { snackbar ->
-                                    scope.launch {
-                                        snackbar.showSnackbar(
-                                            message = "Transcript copied to clipboard",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.semantics {
-                            contentDescription = "Copy transcript to clipboard"
-                            testTag = "copy_transcript_button"
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-
-            if (video.status == ProcessingStatus.FAILED) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onRetry,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Retry")
-                }
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
         }
-
-        QuickActionsMenu(
-            visible = showQuickActions,
-            video = video,
-            onDismiss = { showQuickActions = false },
-            onDelete = {
-                onDelete()
-                showQuickActions = false
-            },
-            context = context
-        )
+        IconButton(onClick = onDelete, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
 @Composable
 private fun StatusBadge(video: VideoItem) {
-    Surface(
-        color = when (video.status) {
-            ProcessingStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
-            ProcessingStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
-            else -> MaterialTheme.colorScheme.surfaceVariant
-        },
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier.padding(bottom = 8.dp)
-    ) {
-        Text(
-            text = when (video.status) {
-                ProcessingStatus.COMPLETED -> "DONE"
-                ProcessingStatus.PROCESSING -> "WORKING"
-                ProcessingStatus.FAILED -> "FIX"
-                ProcessingStatus.QUEUED -> "WAIT"
-                ProcessingStatus.UNKNOWN -> "CHECK"
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = when (video.status) {
-                ProcessingStatus.COMPLETED -> MaterialTheme.colorScheme.onPrimaryContainer
-                ProcessingStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
+    Surface(color = statusColor(video.status).copy(alpha = 0.14f), shape = RoundedCornerShape(14.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(statusIcon(video.status), contentDescription = null, tint = statusColor(video.status), modifier = Modifier.size(13.dp))
+            Text(statusLabel(video), style = MaterialTheme.typography.labelSmall, color = statusColor(video.status), fontWeight = FontWeight.Bold)
+        }
     }
 }
 
-private fun getVideoDisplayTitle(video: VideoItem): String {
-    return getVideoDetailDisplayTitle(video).ifBlank { "TikTok transcript" }
+private fun copyTranscript(video: VideoItem, context: Context, snackbarHostState: SnackbarHostState?, scope: kotlinx.coroutines.CoroutineScope) {
+    val transcript = video.transcript ?: return
+    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboardManager.setPrimaryClip(ClipData.newPlainText("Pluct Transcript", transcript))
+    snackbarHostState?.let { scope.launch { it.showSnackbar("Copied", duration = SnackbarDuration.Short) } }
 }
+
+private fun statusLabel(video: VideoItem): String = when (video.status) {
+    ProcessingStatus.COMPLETED -> "OK"
+    ProcessingStatus.PROCESSING -> "${video.progress.coerceIn(0, 99)}%"
+    ProcessingStatus.FAILED -> "!"
+    ProcessingStatus.QUEUED -> "..."
+    ProcessingStatus.UNKNOWN -> "?"
+}
+
+private fun statusIcon(status: ProcessingStatus): ImageVector = when (status) {
+    ProcessingStatus.COMPLETED -> Icons.Default.CheckCircle
+    ProcessingStatus.PROCESSING -> Icons.Default.Refresh
+    ProcessingStatus.FAILED -> Icons.Default.ErrorOutline
+    ProcessingStatus.QUEUED -> Icons.Default.Schedule
+    ProcessingStatus.UNKNOWN -> Icons.Default.Help
+}
+
+private fun statusColor(status: ProcessingStatus): Color = when (status) {
+    ProcessingStatus.COMPLETED -> Color(0xFF0B8F6A)
+    ProcessingStatus.PROCESSING -> Color(0xFF5E35D6)
+    ProcessingStatus.FAILED -> Color(0xFFC62828)
+    ProcessingStatus.QUEUED -> Color(0xFFE46A1A)
+    ProcessingStatus.UNKNOWN -> Color(0xFF68707A)
+}
+
+private fun getVideoDisplayTitle(video: VideoItem): String =
+    getVideoDetailDisplayTitle(video).ifBlank { "TikTok" }
 
 @Composable
-private fun QuickActionsMenu(
-    visible: Boolean,
-    video: VideoItem,
-    onDismiss: () -> Unit,
-    onDelete: () -> Unit,
-    context: Context
-) {
-    DropdownMenu(
-        expanded = visible,
-        onDismissRequest = onDismiss
-    ) {
+private fun QuickActionsMenu(visible: Boolean, video: VideoItem, onDismiss: () -> Unit, onDelete: () -> Unit, context: Context) {
+    DropdownMenu(expanded = visible, onDismissRequest = onDismiss) {
         DropdownMenuItem(
-            text = { Text("Copy Transcript") },
-            leadingIcon = { Icon(Icons.Default.ContentCopy, "Copy") },
+            text = { Text("Copy") },
+            leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
             onClick = {
-                video.transcript?.let { transcript ->
+                video.transcript?.let {
                     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clipData = ClipData.newPlainText("Pluct Transcript", transcript)
-                    clipboardManager.setPrimaryClip(clipData)
+                    clipboardManager.setPrimaryClip(ClipData.newPlainText("Pluct Transcript", it))
                 }
                 onDismiss()
             }
         )
-
         DropdownMenuItem(
             text = { Text("Share") },
-            leadingIcon = { Icon(Icons.Default.Share, "Share") },
-            onClick = {
-                val shareText = buildString {
-                    appendLine("Transcript for ${getVideoDisplayTitle(video)}")
-                    if (video.author.isNotBlank()) appendLine("By ${video.author}")
-                    appendLine("URL: ${video.url}")
-                    appendLine()
-                    appendLine("Transcript:")
-                    appendLine(video.transcript ?: "No transcript available")
-                    appendLine()
-                    appendLine("Generated by Pluct")
-                }
-                val shareIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(Intent.EXTRA_TEXT, shareText)
-                    type = "text/plain"
-                }
-                context.startActivity(Intent.createChooser(shareIntent, "Share transcript"))
-                onDismiss()
-            }
+            leadingIcon = { Icon(Icons.Default.Share, null) },
+            onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                putExtra(Intent.EXTRA_TEXT, shareText(video)); type = "text/plain"
+            }, "Share")); onDismiss() }
         )
-
-        DropdownMenuItem(
-            text = { Text("Delete") },
-            leadingIcon = { Icon(Icons.Default.Delete, "Delete") },
-            onClick = {
-                onDelete()
-                onDismiss()
-            }
-        )
+        DropdownMenuItem(text = { Text("Delete") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { onDelete(); onDismiss() })
     }
 }
 
-/**
- * UX IMPROVEMENT: Minimal empty state - avoids duplicate text with capture card
- * Shows only what capture card doesn't: demo button + visual hint
- */
+private fun shareText(video: VideoItem): String = buildString {
+    appendLine("Transcript for ${getVideoDisplayTitle(video)}")
+    if (video.author.isNotBlank()) appendLine("By ${video.author}")
+    appendLine("URL: ${video.url}")
+    appendLine()
+    appendLine(video.transcript ?: "No transcript available")
+}
+
 @Composable
 fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
     Card(
@@ -349,47 +267,21 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
                 testTag = "empty_state_message"
             },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Simple visual indicator
-            Icon(
-                imageVector = Icons.Default.ContentCopy,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Single line - no duplicate with capture card
-            Text(
-                text = "Your transcripts appear here",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onDemoLinkClick,
-                modifier = Modifier.semantics {
-                    contentDescription = "Try demo"
-                    testTag = "empty_state_demo_button"
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text("Try Demo")
+            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
+            Text("Paste -> Text", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Button(onClick = onDemoLinkClick, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Demo")
             }
         }
     }
