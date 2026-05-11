@@ -14,6 +14,10 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            'Journey-UX-25DirectToValue-Readiness-01Validation',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+            'Journey-Intent-03TikTok-04BalanceRace-01Validation',
+            'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
             'Journey-Fix-03HealthMonitoring-Validation',
             'Journey-Fix-03HealthMonitoring-Validation.js',
             'Journey-User-Identification-01Validation',
@@ -121,7 +125,7 @@ class PluctSmartTestRunner {
             !priority.includes(test)
         );
         const ordered = [...latest, ...failedTests, ...priority, ...remaining];
-        this.core.logger.info(`ðŸŽ¯ Customer-risk order: ${ordered.join(' -> ')}`);
+        this.core.logger.info(`🎯 Customer-risk order: ${ordered.join(' -> ')}`);
         return ordered;
     }
 

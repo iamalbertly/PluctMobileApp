@@ -10,6 +10,69 @@ class PluctCoreFoundationCommands {
         this._adbConnectionChecked = false;
         this._adbConnected = false;
         this._lastAdbReset = 0;
+        /** Cached authorized device serial (Speed & Trust: stable -s for all adb invocations). */
+        this._adbSerialCache = { serial: null, atMs: 0 };
+    }
+
+    _invalidateAdbSerialCache() {
+        this._adbSerialCache = { serial: null, atMs: 0 };
+    }
+
+    /**
+     * Parse `adb devices` output — excludes header lines so "List of devices" never counts as a device.
+     */
+    _parseAuthorizedDeviceIds(output) {
+        if (!output) return [];
+        const ids = [];
+        for (const line of output.split('\n')) {
+            const t = line.trim();
+            if (!t || t.startsWith('List of')) continue;
+            const parts = t.split(/\s+/).filter(Boolean);
+            if (parts.length < 2) continue;
+            const state = parts[parts.length - 1];
+            const id = parts[0];
+            if (state === 'device') ids.push(id);
+        }
+        return ids;
+    }
+
+    _pickPreferredDeviceId(ids) {
+        if (!ids.length) return null;
+        const env = (process.env.ANDROID_SERIAL || process.env.ADB_SERIAL || '').trim();
+        if (env && ids.includes(env)) return env;
+        const emu = ids.find((id) => id.startsWith('emulator-'));
+        if (emu) return emu;
+        return ids[0];
+    }
+
+    /**
+     * Commands that target the ADB daemon, not a specific device — must stay unprefixed.
+     */
+    _isGlobalAdbCommand(command) {
+        const m = (command || '').trim().match(/^adb\s+(.+)$/i);
+        if (!m) return false;
+        const sub = m[1].trim();
+        return /^(start-server|kill-server|version|reconnect|pair|mdns|help)\b/i.test(sub);
+    }
+
+    async _resolveAdbDeviceSerial(timeout) {
+        const env = (process.env.ANDROID_SERIAL || process.env.ADB_SERIAL || '').trim();
+        if (env) return env;
+        const ttlMs = 30000;
+        const now = Date.now();
+        if (this._adbSerialCache.serial && now - this._adbSerialCache.atMs < ttlMs) {
+            return this._adbSerialCache.serial;
+        }
+        const list = await this._executeCommandDirect('adb devices', timeout);
+        if (!list.success) return null;
+        const ids = this._parseAuthorizedDeviceIds(list.output);
+        if (!ids.length) return null;
+        const serial = this._pickPreferredDeviceId(ids);
+        this._adbSerialCache = { serial, atMs: now };
+        if (ids.length > 1) {
+            this.logger.info(`Multiple ADB devices: pinned serial ${serial} (set ANDROID_SERIAL to override)`);
+        }
+        return serial;
     }
 
     /**
@@ -181,7 +244,7 @@ class PluctCoreFoundationCommands {
         
         try {
             // For ADB commands, verify connection first
-            if (command.startsWith('adb ') && !command.includes(' -s ')) {
+            if (command.startsWith('adb ') && !/^adb\s+-s\s+\S+/.test(command.trim()) && !this._isGlobalAdbCommand(command)) {
                 const isConnected = await this._verifyAdbConnection(Math.min(timeout, 5000));
                 if (!isConnected) {
                     const errorMsg = 'ADB device not connected or not responding. Check: 1) Device is connected via USB/WiFi, 2) USB debugging is enabled, 3) ADB server is running (try: adb kill-server && adb start-server)';
@@ -194,51 +257,18 @@ class PluctCoreFoundationCommands {
                     };
                 }
 
-                // Auto-prefix adb commands with device selection if multiple devices exist
-                const devicesResult = await this._executeCommandDirect('adb devices', timeout);
-                if (!devicesResult.success) {
-                    const errorMsg = `Failed to list ADB devices: ${devicesResult.stderr || devicesResult.error || 'Unknown error'}`;
+                const serial = await this._resolveAdbDeviceSerial(Math.min(timeout, 5000));
+                if (!serial) {
+                    const errorMsg = 'Could not select an ADB device. Connect one authorized device/emulator or set ANDROID_SERIAL.';
                     this.logger.error(`❌ ${errorMsg}`);
-                    if (devicesResult.output) {
-                        this.logger.error(`   Output: ${devicesResult.output}`);
-                    }
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: errorMsg,
                         command: command,
-                        stderr: devicesResult.stderr,
-                        output: devicesResult.output
+                        adbConnectionIssue: true
                     };
                 }
-
-                const deviceLines = (devicesResult.output || '').split('\n').filter(line => {
-                    const trimmed = line.trim();
-                    return trimmed && 
-                           trimmed.includes('device') && 
-                           !trimmed.includes('List of devices') &&
-                           !trimmed.includes('daemon');
-                });
-                
-                if (deviceLines.length > 1) {
-                    // Prefer emulator over physical device
-                    let selectedDevice = null;
-                    for (const line of deviceLines) {
-                        const deviceId = line.split(/\s+/)[0];
-                        if (deviceId.startsWith('emulator-')) {
-                            selectedDevice = deviceId;
-                            break;
-                        }
-                    }
-                    // If no emulator, use first device
-                    if (!selectedDevice) {
-                        selectedDevice = deviceLines[0].split(/\s+/)[0];
-                    }
-                    command = command.replace('adb ', `adb -s ${selectedDevice} `);
-                    this.logger.info(`Multiple devices detected, using: ${selectedDevice}`);
-                } else if (deviceLines.length === 1) {
-                    const deviceId = deviceLines[0].split(/\s+/)[0];
-                    // Using single ADB device
-                }
+                command = command.replace(/^adb\s+/, `adb -s ${serial} `);
             }
             
             // Execute with retry logic
@@ -263,19 +293,30 @@ class PluctCoreFoundationCommands {
                                           errorText.includes('killprocess') ||
                                           errorText.includes('call killprocess');
                 const isSigterm = result.errorSignal === 'SIGTERM' || result.errorCode === 'SIGTERM';
-                const isRetryable = isKillProcessError || isSigterm ||
+                const isMultiDevice = errorText.includes('more than one device');
+                if (isMultiDevice) {
+                    this._invalidateAdbSerialCache();
+                    this._adbConnectionChecked = false;
+                    this._adbConnected = false;
+                }
+                let isRetryable = isKillProcessError || isSigterm ||
                                    errorText.includes('timeout') || 
                                    errorText.includes('connection') ||
                                    errorText.includes('device offline') ||
                                    errorText.includes('no devices') ||
-                                   errorText.includes('unauthorized');
+                                   errorText.includes('unauthorized') ||
+                                   isMultiDevice;
                 
                 // For killProcess errors, add extra delay and cleanup
                 if (isKillProcessError && attempt < maxRetries) {
                     this.logger.warn(`⚠️ Process was killed (Error 137), cleaning up and retrying...`);
                     // Try to kill any remaining uiautomator processes
                     try {
-                        await this._executeCommandDirect('adb shell pkill -f uiautomator', 5000);
+                        const serialMatch = command.match(/^adb\s+-s\s+(\S+)/);
+                        const pkillCmd = serialMatch
+                            ? `adb -s ${serialMatch[1]} shell pkill -f uiautomator`
+                            : 'adb shell pkill -f uiautomator';
+                        await this._executeCommandDirect(pkillCmd, 5000);
                         await this.sleep(1000);
                     } catch (e) {
                         // Ignore cleanup errors
@@ -305,8 +346,13 @@ class PluctCoreFoundationCommands {
             // Hard fail on ADB errors to stop the suite immediately with context.
             if (command.startsWith('adb ') && !finalError.success && !options.allowFailure) {
                 try {
-                    // Capture a small logcat snippet for debugging
-                    const diag = await this._executeCommandDirect('adb logcat -d -t 50', 5000);
+                    const serialMatch = command.match(/^adb\s+-s\s+(\S+)/);
+                    const diagCmd = serialMatch
+                        ? `adb -s ${serialMatch[1]} logcat -d -t 50`
+                        : (this._adbSerialCache.serial
+                            ? `adb -s ${this._adbSerialCache.serial} logcat -d -t 50`
+                            : 'adb logcat -d -t 50');
+                    const diag = await this._executeCommandDirect(diagCmd, 5000);
                     if (diag.success && diag.output) {
                         this.logger.error('Recent logcat (tail 50):');
                         this.logger.error(diag.output.split('\n').slice(-50).join('\n'));

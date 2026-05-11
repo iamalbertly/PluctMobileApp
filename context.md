@@ -72,10 +72,32 @@ Business Engine validation remains disabled by default until the app emits a cle
 - Prefer `[Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]` naming.
 - Avoid giant Kotlin files (>300 lines).
 
+## Direct-to-value modules (2026-05-11)
+- `app/pluct/ui/readiness/Pluct-UI-Readiness-01Kind.kt` — readiness resolver (Customer / Speed & Trust).
+- `app/pluct/ui/components/Pluct-UI-Component-09Readiness-01Strip.kt` — single primary CTA strip.
+- `app/pluct/core/error/Pluct-Core-Error-08OutcomeFamily.kt` — SSOT outcome taxonomy for failed feed rows.
+- `app/pluct/core/user/Pluct-Core-User-01Display-01Formatter.kt` — non-raw identity string.
+- `app/pluct/core/debug/Pluct-Core-Debug-02DiagnosticShare-01Builder.kt` — support bundle text.
+- Tests: `scripts/nodejs/journeys/Journey-UX-25DirectToValue-Readiness-01Validation.js`, runner `scripts/nodejs/Pluct-Test-Focused-07DirectToValue-01Runner.js`.
+
 ## Test Execution (Node-only)
 ```
 node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All
 ```
+
+Direct-to-value subset:
+
+```
+node scripts/nodejs/Pluct-Test-Focused-07DirectToValue-01Runner.js
+```
+
+NPM focused path (same journeys as `TEST_FILTER`):
+
+```
+npm run test:paths
+```
+
+ADB multi-device: set `ANDROID_SERIAL` or `ADB_SERIAL` to the target id from `adb devices`; otherwise the harness prefers `emulator-*` then the first authorized `device`.
 
 Artifacts:
 - UI dumps/screenshots: `artifacts/ui/`

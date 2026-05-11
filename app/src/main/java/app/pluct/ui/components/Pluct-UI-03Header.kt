@@ -151,7 +151,10 @@ private fun CreditBalanceChip(
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier
             .then(if (refreshable) Modifier.clickable { onRefresh() } else Modifier)
-            .semantics { contentDescription = description }
+            .semantics {
+                testTag = "header_credit_balance_chip"
+                contentDescription = description
+            }
     ) {
         Row(
             modifier = Modifier
