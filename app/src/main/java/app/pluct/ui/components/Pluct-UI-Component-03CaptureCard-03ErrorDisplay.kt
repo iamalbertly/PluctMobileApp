@@ -56,6 +56,13 @@ data class ErrorRecoveryAction(
     val priority: Int // 1 = primary, 2 = secondary
 )
 
+private fun extractCreditsRefunded(error: Throwable?): Int? {
+    val detailed = error as? PluctCoreAPIDetailedError ?: return null
+    val body = detailed.technicalDetails.responseBody ?: return null
+    val match = Regex("\"creditsRefunded\"\\s*:\\s*(\\d+)").find(body) ?: return null
+    return match.groupValues.getOrNull(1)?.toIntOrNull()
+}
+
 /**
  * Get recovery actions based on error type
  */
@@ -175,15 +182,42 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
     val categorizedError = remember(error, message) {
         PluctCoreCategorization01ErrorClassifier.categorizeError(error, message)
     }
-    val errorTitle = remember(message, categorizedError) {
-        friendlyErrorTitle(message, categorizedError.category)
+
+    val creditsRefunded = remember(error) { extractCreditsRefunded(error) }
+    val isNoCharge = creditsRefunded != null && creditsRefunded > 0
+
+    val headerIcon = remember(categorizedError, isNoCharge) {
+        if (isNoCharge) {
+            Icons.Default.AccountBalanceWallet
+        } else {
+            when (categorizedError.category) {
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.AUTHENTICATION ->
+                    Icons.Default.Refresh
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.NETWORK ->
+                    Icons.Default.Wifi
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.VALIDATION ->
+                    Icons.Default.Clear
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.INSUFFICIENT_CREDITS ->
+                    Icons.Default.AccountBalanceWallet
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.RATE_LIMIT ->
+                    Icons.Default.Schedule
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.SERVER_ERROR ->
+                    Icons.Default.ErrorOutline
+                PluctCoreCategorization01ErrorClassifier.ErrorCategory.UNKNOWN ->
+                    Icons.Default.ErrorOutline
+            }
+        }
     }
-    val shortMessage = remember(message, categorizedError) {
-        friendlyErrorMessage(message, categorizedError)
+
+    val errorTitle = remember(message, categorizedError, isNoCharge) {
+        if (isNoCharge) "No charge" else friendlyErrorTitle(message, categorizedError.category)
+    }
+    val shortMessage = remember(message, categorizedError, isNoCharge) {
+        if (isNoCharge) "No credits used for this attempt." else friendlyErrorMessage(message, categorizedError)
     }
     val hasDetailedInfo = message.length > 200 || debugInfo != null ||
         message.contains("WHAT WAS SENT:") || message.contains("WHAT WAS RECEIVED:")
-    val recoveryActions = remember(error, message, onAddCredits, onRetry, onCheckConnection) {
+    val recoveryActions = remember(error, message, onAddCredits, onRetry, onCheckConnection, isNoCharge) {
         getRecoveryActions(
             error = error,
             message = message,
@@ -211,7 +245,7 @@ fun PluctUIComponent03CaptureCardErrorDisplay(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ErrorOutline,
+                    imageVector = headerIcon,
                     contentDescription = "Error",
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )

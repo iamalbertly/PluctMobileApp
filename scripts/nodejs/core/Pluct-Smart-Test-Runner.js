@@ -14,10 +14,14 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-UX-25DirectToValue-Readiness-01Validation',
             'Journey-UX-25DirectToValue-Readiness-01Validation.js',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
             'Journey-Fix-03HealthMonitoring-Validation',
             'Journey-Fix-03HealthMonitoring-Validation.js',
             'Journey-User-Identification-01Validation',
@@ -30,8 +34,6 @@ class PluctSmartTestRunner {
             'Journey-UX-20NotificationConsolidation-Validation.js',
             'Journey-Permission-04SettingsIntegration-01Validation',
             'Journey-Permission-04SettingsIntegration-01Validation.js',
-            'Journey-UX-24BatteryOptimizationRefresh-Validation',
-            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
             'Journey-UX-17BackgroundProcessing-01Validation',
             'Journey-UX-17BackgroundProcessing-01Validation.js',
             'Journey-UX-13NotificationNavigation-Validation',
@@ -54,6 +56,8 @@ class PluctSmartTestRunner {
             'Journey-QuickScan.js'
         ];
         this.highPriorityTests = [
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-TTTranscribeIntegration',
             'Journey-TTTranscribeIntegration.js',
             'Journey-APIConnectivity',
@@ -199,6 +203,8 @@ class PluctSmartTestRunner {
                         results.push({ testName, success: false, error: result.error, duration });
                         await this.captureStageTelemetry(`${testName}-post-fail`);
                         hasFailures = true;
+
+                        await this.emitFocusedFailureTelemetry(testName, result);
                         
                         // Generate detailed failure report
                         if (this.core.logger.isVerbose && this.core.logger.isVerbose()) {
@@ -220,6 +226,8 @@ class PluctSmartTestRunner {
                     results.push({ testName, success: false, error: error.message, duration });
                     await this.captureStageTelemetry(`${testName}-post-exception`);
                     hasFailures = true;
+
+                    await this.emitFocusedFailureTelemetry(testName, { success: false, error: error.message });
                     
                     // Generate detailed failure report
                     if (this.core.logger.isVerbose && this.core.logger.isVerbose()) {
@@ -256,6 +264,38 @@ class PluctSmartTestRunner {
                 statistics: this.tracker.getStatistics(),
                 error: error.message
             };
+        }
+    }
+
+    /**
+     * Always-on narrow logcat + UI head for first-failure triage (Node/ADB; not verbose-gated).
+     */
+    async emitFocusedFailureTelemetry(testName, result) {
+        try {
+            this.core.logger.error(`--- Focused failure: ${testName} ---`);
+            if (result && result.error) {
+                this.core.logger.error(`Journey error: ${result.error}`);
+            }
+            if (this.core.captureFilteredLogcatTail) {
+                const log = await this.core.captureFilteredLogcatTail(
+                    'MainActivity:I CaptureCard:I PluctForeground:I PluctUserPain:I PermissionManager:I HealthMonitor:W *:S',
+                    900,
+                    20000
+                );
+                const tail = (log.output || '').split('\n').filter(Boolean).slice(-40).join('\n');
+                if (tail) {
+                    this.core.logger.error(`Logcat (last 40 filtered lines):\n${tail}`);
+                } else {
+                    this.core.logger.error('Filtered logcat empty (device offline or buffer cleared).');
+                }
+            }
+            const ui = await this.core.dumpUIHierarchy();
+            if (ui && ui.success) {
+                const dump = this.core.readLastUIDump() || '';
+                this.core.logger.error(`UI dump head (900 chars):\n${dump.substring(0, 900)}`);
+            }
+        } catch (e) {
+            this.core.logger.warn(`emitFocusedFailureTelemetry: ${e.message}`);
         }
     }
 

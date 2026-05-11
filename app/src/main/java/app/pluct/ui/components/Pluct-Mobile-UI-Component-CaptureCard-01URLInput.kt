@@ -206,13 +206,16 @@ fun PluctURLInputField(
                                     } else {
                                         pasted
                                     }
-                                    onUrlTextChange(normalized)
+                                    val candidate = normalized.trim()
+                                    if (candidate.isNotBlank() && sanitizer.isTikTokUrl(candidate)) {
+                                        onUrlTextChange(candidate)
+                                    }
                                 }
                             },
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(48.dp)
                                 .semantics { 
-                                    contentDescription = "Paste from clipboard"
+                                    contentDescription = "Paste TikTok link"
                                     testTag = "paste_button"
                                 }
                         ) {
@@ -220,7 +223,7 @@ fun PluctURLInputField(
                                 imageVector = Icons.Default.ContentPaste,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }

@@ -82,6 +82,8 @@ class PluctJourneyOrchestrator {
             'Journey-UX-22VideoTitleFallback-Validation.js',
             'Journey-UX-23ErrorLogConsolidation-Validation.js',
             'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             // Edge Case Validation Journeys
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
             'Journey-EdgeCase-02CreditDepletion-Validation.js',
@@ -177,6 +179,8 @@ class PluctJourneyOrchestrator {
             'Journey-UX-22VideoTitleFallback-Validation.js': 'UX-22VideoTitleFallback-Validation',
             'Journey-UX-23ErrorLogConsolidation-Validation.js': 'UX-23ErrorLogConsolidation-Validation',
             'Journey-UX-24BatteryOptimizationRefresh-Validation.js': 'UX-24BatteryOptimizationRefresh-Validation',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js': 'UX-25DirectToValue-Readiness-01Validation',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js': 'UX-26TikTok-Url-Refund-NoCharge-01Validation',
             // Edge Case Validation Journey Mappings
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
             'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',

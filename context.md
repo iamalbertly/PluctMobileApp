@@ -79,6 +79,7 @@ Business Engine validation remains disabled by default until the app emits a cle
 - `app/pluct/core/user/Pluct-Core-User-01Display-01Formatter.kt` — non-raw identity string.
 - `app/pluct/core/debug/Pluct-Core-Debug-02DiagnosticShare-01Builder.kt` — support bundle text.
 - Tests: `scripts/nodejs/journeys/Journey-UX-25DirectToValue-Readiness-01Validation.js`, runner `scripts/nodejs/Pluct-Test-Focused-07DirectToValue-01Runner.js`.
+- Credit fairness + invalid TikTok URL: `scripts/nodejs/journeys/Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js`, runner `scripts/nodejs/Pluct-Test-Focused-08TikTok-Url-Refund-01Runner.js`, npm `npm run test:tiktok-refund`, doc `docs/CREDIT_FAIRNESS_ADB_LOOP.md`.
 
 ## Test Execution (Node-only)
 ```
@@ -91,13 +92,33 @@ Direct-to-value subset:
 node scripts/nodejs/Pluct-Test-Focused-07DirectToValue-01Runner.js
 ```
 
+TikTok invalid URL + refund UI (ADB):
+
+```
+npm run test:tiktok-refund
+```
+
 NPM focused path (same journeys as `TEST_FILTER`):
 
 ```
 npm run test:paths
 ```
 
+After touching readiness, balance, capture, battery, or journey harness files, prefer:
+
+```
+npm run test:updated
+```
+
+(`UX-25` + `Intent-03 balance race` only; `UX-24` needs a clean tutorial state—run via full orchestrator or after `pm clear` when validating battery UI.)
+
 ADB multi-device: set `ANDROID_SERIAL` or `ADB_SERIAL` to the target id from `adb devices`; otherwise the harness prefers `emulator-*` then the first authorized `device`.
+
+Operator visibility (client-only, 2026-05-11): duplicate debug rows bump ` · repeats=N` and emit `PluctUserPain` logcat; health refresh logs `HealthMonitor: refresh_failed|parse_failed_inner|ttt_status_missing`; diagnostic share includes error count by category; `PluctCoreAPIUnifiedService.isPolicyBlockingTranscribe` parses JSON policy (replaces substring match).
+
+Public API (2026-05-11): `PluctCoreAPIUnifiedService.onAppForegroundedForDiagnostics()` — forced health refresh on `ON_RESUME` plus `PluctUserPain` / `PluctForeground` queue snapshot when processing or queued work exists; `execute()` attempts `healthMonitor.refreshNow(force=true)` once when the circuit breaker is open (still returns `SERVICE_COOLDOWN`).
+
+Node ADB harness: `adb start-server` uses an extended timeout; `_executeCommandDirect` treats SIGTERM/ETIMEDOUT during daemon boot as success when `adb devices` still shows an authorized device; `_adbStartServerReliable` continues if devices are online despite a failed start-server return.
 
 Artifacts:
 - UI dumps/screenshots: `artifacts/ui/`

@@ -157,17 +157,19 @@ fun PluctUIComponent03CaptureCard(
             return@submit
         }
 
-        // Atomically reserve credit before submission
-        var reservationId: String? = null
+        val costLabel =
+            if (freeUsesRemaining > 0) "Free (free uses left: $freeUsesRemaining)"
+            else "Costs 1 credit (balance: $creditBalance)"
+
+        // Reserve credits first; only then start the API flow (was racing: transcription ran before reserve finished).
         scope.launch {
             val reservationResult = atomicCreditService.reserveCredit(
                 amount = 1,
                 currentBalance = creditBalance,
                 currentFreeUses = freeUsesRemaining
             )
-            
+
             if (!reservationResult.success) {
-                // Insufficient credits - auto-queue
                 if (onQueueForLater != null) {
                     onQueueForLater(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
                 }
@@ -175,72 +177,67 @@ fun PluctUIComponent03CaptureCard(
                 isAutoSubmitting = false
                 return@launch
             }
-            
-            reservationId = reservationResult.reservationId
-            Log.d("CaptureCard", "Credit reserved: $reservationId")
-            
-            // UX FIX: Removed duplicate notification - Worker handles initial notification
-            // The background worker (Pluct-Core-Background-01TranscriptionWorker) will show
-            // the progress notification when it starts processing, preventing duplicate notifications
-        }
 
-        val onComplete: () -> Unit = {
-            Log.d("CaptureCard", "onComplete called - resetting state")
-            processingMessage = null
-            urlText = ""
-            validationError = null
-            persistentError = null
-            isSubmitting = false
-            timedOutOnce = false
-            // Commit reservation on success
-            reservationId?.let { id ->
-                scope.launch {
-                    atomicCreditService.commitReservation(id)
-                }
-            }
-        }
-
-        val costLabel = if (freeUsesRemaining > 0) "Free (free uses left: $freeUsesRemaining)" else "Costs 1 credit (balance: $creditBalance)"
-        processingMessage = "Starting transcription... $costLabel"
-        Log.d("CaptureCard", "Set processingMessage: $processingMessage")
-
-        if (apiService != null) {
-            Log.d("CaptureCard", "API service available, calling handleCompleteAPIFlow")
-            PluctUIComponent03CaptureCardAPIFlow.handleCompleteAPIFlow(
-                normalizedUrl = normalizedUrl,
-                apiService = apiService,
-                debugLogManager = debugLogManager,
-                onSuccess = {
-                    Log.d("CaptureCard", "API flow completed successfully")
-                    persistentError = null // Clear on success
-                    onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
-                    onComplete()
-                },
-                onError = { error ->
-                    Log.e("CaptureCard", "API flow failed: $error")
-                    processingMessage = null
-                    reservationId?.let { id ->
-                        scope.launch {
-                            atomicCreditService.releaseReservation(id)
-                        }
-                    }
-                    // Create persistent error that won't auto-dismiss
-                    persistentError = PersistentError(
-                        message = error,
-                        url = normalizedUrl,
-                        timestamp = System.currentTimeMillis(),
-                        category = "API_ERROR"
-                    )
+            val reservedId = reservationResult.reservationId
+                ?: run {
+                    Log.e("CaptureCard", "reserveCredit succeeded but reservationId null")
                     isSubmitting = false
                     isAutoSubmitting = false
-                },
-                context = context,
-                shouldMinimize = isAutoSubmitting // Minimize when auto-submitting
-            )
-        } else {
-            Log.w("CaptureCard", "⚠️ API service is NULL, using fallback submit")
-            onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
-            onComplete()
+                    return@launch
+                }
+            Log.d("CaptureCard", "Credit reserved: $reservedId")
+
+            val onComplete: () -> Unit = {
+                Log.d("CaptureCard", "onComplete called - resetting state")
+                processingMessage = null
+                urlText = ""
+                validationError = null
+                persistentError = null
+                isSubmitting = false
+                timedOutOnce = false
+                scope.launch {
+                    atomicCreditService.commitReservation(reservedId)
+                }
+            }
+
+            processingMessage = "Working… $costLabel"
+            Log.d("CaptureCard", "Set processingMessage: $processingMessage")
+
+            if (apiService != null) {
+                Log.d("CaptureCard", "API service available, calling handleCompleteAPIFlow")
+                PluctUIComponent03CaptureCardAPIFlow.handleCompleteAPIFlow(
+                    normalizedUrl = normalizedUrl,
+                    apiService = apiService,
+                    debugLogManager = debugLogManager,
+                    onSuccess = {
+                        Log.d("CaptureCard", "API flow completed successfully")
+                        persistentError = null
+                        onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
+                        onComplete()
+                    },
+                    onError = { error ->
+                        Log.e("CaptureCard", "API flow failed: $error")
+                        processingMessage = null
+                        scope.launch {
+                            atomicCreditService.releaseReservation(reservedId)
+                        }
+                        persistentError = PersistentError(
+                            message = error,
+                            url = normalizedUrl,
+                            timestamp = System.currentTimeMillis(),
+                            category = "API_ERROR"
+                        )
+                        isSubmitting = false
+                        isAutoSubmitting = false
+                    },
+                    context = context,
+                    shouldMinimize = isAutoSubmitting
+                )
+            } else {
+                Log.w("CaptureCard", "⚠️ API service is NULL, using fallback submit")
+                onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
+                onComplete()
+            }
         }
     }
 
@@ -304,7 +301,7 @@ fun PluctUIComponent03CaptureCard(
                 val currentFreeUses = freeUsesRemaining
                 
                 if (currentBalance >= 1 || currentFreeUses > 0) {
-                    Log.d("CaptureCard", "Auto-submitting URL: $preFilledUrl (balance=$currentBalance, freeUses=$currentFreeUses)")
+                    Log.i("CaptureCard", "Auto-submitting URL: $preFilledUrl (balance=$currentBalance, freeUses=$currentFreeUses)")
                     submitExtract()
                 } else {
                     Log.d("CaptureCard", "Credits depleted during delay, queueing instead")
@@ -326,9 +323,9 @@ fun PluctUIComponent03CaptureCard(
             } else if (isAutoSubmitting) {
                 Log.d("CaptureCard", "Auto-submit skipped: already auto-submitting")
             } else if (isLoadingCreditBalance) {
-                Log.d("CaptureCard", "Auto-submit skipped: credit balance still loading")
+                Log.i("CaptureCard", "Auto-submit skipped: credit balance still loading")
             } else if (creditBalance < 1 && freeUsesRemaining <= 0) {
-                Log.d("CaptureCard", "Auto-submit skipped: insufficient credits (balance=$creditBalance, freeUses=$freeUsesRemaining)")
+                Log.i("CaptureCard", "Auto-submit skipped: insufficient credits (balance=$creditBalance, freeUses=$freeUsesRemaining)")
                 val validationResult = sanitizer.validateUrl(preFilledUrl)
                 if (validationResult.isValid) {
                     onQueueForLater?.invoke(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
@@ -515,8 +512,13 @@ fun PluctUIComponent03CaptureCard(
                 sanitizer = sanitizer
             )
 
-            val shouldShowProgressFix = (isUrlValid || isSubmitting || isAutoSubmitting || !preFilledUrl.isNullOrBlank()) &&
-                (!progressNotificationsReady || (isSubmitting && !backgroundProcessingReady))
+            // Keep progress reliability nudges out of the active submit/processing window to reduce stacked progress UI.
+            val shouldShowProgressFix = persistentError == null &&
+                !isSubmitting &&
+                !isAutoSubmitting &&
+                !isProcessing &&
+                (urlText.isBlank() || isUrlValid || !preFilledUrl.isNullOrBlank()) &&
+                (!progressNotificationsReady || !backgroundProcessingReady)
             if (shouldShowProgressFix) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -599,13 +601,13 @@ fun PluctUIComponent03CaptureCard(
                         // Could open network settings or just retry
                         persistentError = null // Clear on retry attempt
                         isSubmitting = true
-                        processingMessage = "Retrying..."
+                        processingMessage = "Retry…"
                         submitExtract()
                     },
                     onRetry = {
                         persistentError = null // Clear on retry attempt
                         isSubmitting = true
-                        processingMessage = "Retrying..."
+                        processingMessage = "Retry…"
                         submitExtract()
                     }
                 )
