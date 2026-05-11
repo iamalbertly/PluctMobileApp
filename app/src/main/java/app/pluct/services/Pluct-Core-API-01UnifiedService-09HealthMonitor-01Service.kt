@@ -55,7 +55,11 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
             withContext(Dispatchers.IO) {
             val healthResult = httpClient.executeRequest("GET", "/health/services", null, null)
             if (healthResult.isSuccess) {
-                val (_, tttHealth) = parseHealthResponse(healthResult.getOrNull())
+                val raw = healthResult.getOrNull()
+                val (_, tttHealth) = parseHealthResponse(raw)
+                if (tttHealth == null && raw is String && raw.isNotBlank()) {
+                    Log.i(TAG, "HealthMonitor: ttt_status_missing ok=api payloadLen=${raw.length}")
+                }
                 val updated = buildMap {
                     put("api", HealthStatus.HEALTHY)
                     tttHealth?.let { put("ttt", it) }
@@ -65,6 +69,8 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
                 lastRefreshAtMs = System.currentTimeMillis()
                 updated
             } else {
+                val err = healthResult.exceptionOrNull()?.message ?: "unknown"
+                Log.e(TAG, "HealthMonitor: refresh_failed endpoint=/health/services reason=$err")
                 val updated = mapOf("api" to HealthStatus.UNHEALTHY)
                 _healthStatus.value = updated
                 lastHealthSnapshot = updated
@@ -122,7 +128,8 @@ class PluctCoreAPI01UnifiedService09HealthMonitor01Service @Inject constructor(
                 else -> null
             }
             HealthStatus.HEALTHY to tttHealth
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "HealthMonitor: parse_failed_inner reason=${e.javaClass.simpleName}")
             HealthStatus.HEALTHY to null
         }
     }

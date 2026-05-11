@@ -36,6 +36,7 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
     processingCount: Int,
     creditBalance: Int,
     freeUsesRemaining: Int,
+    balanceKnown: Boolean,
     queueManager: PluctQueueManager,
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     clipboardManager: android.content.ClipboardManager,
@@ -106,7 +107,8 @@ fun PluctUIScreen01MainActivity04EffectsHandler(
     }
     
     // Auto-retry: Process queued videos when credits become available
-    LaunchedEffect(creditBalance) {
+    LaunchedEffect(creditBalance, balanceKnown) {
+        if (!balanceKnown) return@LaunchedEffect
         if (creditBalance > 0 && queuedCount > 0) {
             scope.launch {
                 val processedCount = queueManager.processQueuedVideos(

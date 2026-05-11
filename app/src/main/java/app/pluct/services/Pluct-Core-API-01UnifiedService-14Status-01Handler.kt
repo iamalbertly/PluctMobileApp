@@ -20,20 +20,13 @@ class PluctCoreAPI01UnifiedService14Status01Handler(
     }
 
     /**
-     * Check transcription status using service token
+     * Check transcription status using the short-lived vend (service) token only.
+     * Do not run [executeWithProactiveRefresh]: it swaps in a user JWT, which is invalid for `/ttt/status`.
+     * Callers that need long polls should use [pollTranscriptionStatus] with a user JWT instead.
      */
     suspend fun checkTranscriptionStatus(jobId: String, serviceToken: String): Result<TranscriptionStatusResponse> {
-        return authRetryHandler.executeWithProactiveRefresh(
-            currentToken = serviceToken,
-            apiCall = { token ->
-                @Suppress("UNCHECKED_CAST")
-                execute("GET", "/ttt/status/$jobId", null, token, null) as Result<TranscriptionStatusResponse>
-            },
-            retryBlock = { newToken ->
-                @Suppress("UNCHECKED_CAST")
-                execute("GET", "/ttt/status/$jobId", null, newToken, null) as Result<TranscriptionStatusResponse>
-            }
-        )
+        @Suppress("UNCHECKED_CAST")
+        return execute("GET", "/ttt/status/$jobId", null, serviceToken, null) as Result<TranscriptionStatusResponse>
     }
 
     /**

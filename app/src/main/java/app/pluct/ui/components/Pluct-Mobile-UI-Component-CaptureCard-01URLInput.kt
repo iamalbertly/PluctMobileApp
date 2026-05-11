@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -14,13 +15,18 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalView
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.semantics.contentDescription
@@ -50,7 +56,9 @@ fun PluctURLInputField(
     onSubmit: (() -> Unit)? = null,
     freeUsesRemaining: Int = 0,
     creditBalance: Int = 0, // Used in credit badge display
-    isSubmitting: Boolean = false
+    isSubmitting: Boolean = false,
+    onWalletClick: (() -> Unit)? = null,
+    isLoadingCreditBalance: Boolean = false
 ) {
     val clipboardManager = LocalClipboardManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -63,10 +71,16 @@ fun PluctURLInputField(
         urlText.isNotBlank() && (validationError == null || sanitizer.validateUrl(urlText).isValid)
     }
     val showSubmitButton = urlText.isNotEmpty() && !isSubmitting && isUrlValid && onSubmit != null
-    val showCreditBadge = urlText.isNotEmpty() && isUrlValid
-    
-    // UX FIX 1: Prevent credit badge from blocking input - use max width constraint
-    val creditBadgeMaxWidth = 80.dp
+    val walletLabel = when {
+        isLoadingCreditBalance -> "…"
+        freeUsesRemaining > 0 -> "$freeUsesRemaining"
+        else -> "$creditBalance"
+    }
+    val walletDescription = when {
+        isLoadingCreditBalance -> "Balance loading"
+        freeUsesRemaining > 0 -> "Free uses left: $freeUsesRemaining. Tap to refresh balance."
+        else -> "Balance: $creditBalance. Tap to refresh."
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Premium Input Field Container with inline submit button
@@ -89,37 +103,47 @@ fun PluctURLInputField(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
-                // Credit Badge (left side, only when URL is valid)
-                // UX FIX 1: Constrain badge width to prevent blocking long URLs
-                AnimatedVisibility(
-                    visible = showCreditBadge,
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut()
+                Surface(
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .widthIn(min = 52.dp, max = 72.dp)
+                        .height(40.dp)
+                        .clickable(enabled = onWalletClick != null) { onWalletClick?.invoke() }
+                        .semantics {
+                            testTag = "capture_wallet_chip"
+                            contentDescription = walletDescription
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 1.dp
                 ) {
-                    AssistChip(
-                        onClick = { },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.AccountBalanceWallet,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = if (freeUsesRemaining > 0) "$freeUsesRemaining" else "1",
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        },
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .widthIn(max = creditBadgeMaxWidth),
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                    )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        if (isLoadingCreditBalance) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            Text(
+                                text = walletLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
 
                 // Input Field
@@ -163,7 +187,7 @@ fun PluctURLInputField(
                         Box(contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
                             if (urlText.isEmpty()) {
                                 Text(
-                                    "TikTok link -> Text",
+                                    "Paste TikTok link here",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )

@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.pluct.core.user.PluctCoreUser01Display01Formatter
 
 /**
  * Pluct-UI-Screen-01HomeScreen-04Settings-02UserInfo - User info section in settings
@@ -20,13 +21,13 @@ fun PluctUIScreen01HomeScreen04Settings02UserInfoSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "Signed in as: $userName",
+            text = PluctCoreUser01Display01Formatter.friendlyDeviceLabel(userName),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "Current Balance: $creditBalance Credits",
+            text = "Balance: $creditBalance",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
         )

@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +28,51 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PluctHomeShellTopBar(
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TopAppBar(
+        title = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PluctUIComponent02Branding01LogoMark(size = 34.dp)
+                Text(
+                    text = "Pluct",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .size(44.dp)
+                    .semantics {
+                        contentDescription = "Settings button"
+                        testTag = "settings_button"
+                    }
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = null)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            actionIconContentColor = MaterialTheme.colorScheme.onBackground
+        ),
+        modifier = modifier.semantics {
+            contentDescription = "App header"
+            testTag = "home_shell_top_bar"
+        }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,7 +182,7 @@ private fun CreditBalanceChip(
         else -> "$creditBalance credits"
     }
     val description = when {
-        isLoading -> "Loading credit balance"
+        isLoading -> "Loading credits — wallet balance"
         error != null -> "Credit balance error: $error"
         lowBalance -> "Credit balance: $creditBalance credits - low balance"
         else -> "Credit balance: $creditBalance credits"

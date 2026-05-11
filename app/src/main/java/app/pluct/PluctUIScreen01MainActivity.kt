@@ -2,6 +2,7 @@ package app.pluct
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.content.ClipboardManager
 import android.content.Context
@@ -15,9 +16,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.LaunchedEffect
+import app.pluct.ui.readiness.PluctUIReadiness01Kind
+import app.pluct.ui.readiness.PluctUIReadiness01Resolve
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import dagger.hilt.android.AndroidEntryPoint
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreAPIDetailedError
@@ -38,6 +43,8 @@ import app.pluct.ui.screens.PluctVideoDetailScreen
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import app.pluct.ui.components.PluctUIComponent09ContextualPermission01Dialog
 import app.pluct.ui.components.PluctDebugLogViewer
+import app.pluct.data.entity.LogLevel
+import app.pluct.data.entity.QueueReason
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.ProcessingStatus
@@ -53,6 +60,16 @@ import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import app.pluct.ui.components.PluctUIComponent06Permission01Onboarding01Dialog
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
 import app.pluct.ui.components.PluctUIComponent07Onboarding01Tutorial01Flow
+import app.pluct.ui.components.PluctHomeShellTopBar
+import app.pluct.ui.navigation.PluctUIMainShellBottomBar
+import app.pluct.ui.navigation.PluctUIMainShellTab
+import app.pluct.ui.screens.PluctUIScreen02LibraryTab01Screen
+import app.pluct.ui.screens.PluctUIScreen03SettingsTab01Screen
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Text
 
 /**
  * Pluct-Main-01Activity - Simplified main activity for core UI testing
@@ -192,6 +209,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
 /**
  * Main content composable - extracted for better separation of concerns
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctMainContent(
     apiService: PluctCoreAPIUnifiedService,
@@ -202,7 +220,7 @@ fun PluctMainContent(
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager,
     queueManager: app.pluct.services.PluctQueueManager,
     validator: app.pluct.services.PluctCoreValidationInputSanitizer,
-    isLoadingCreditBalance: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isLoadingCreditBalance: Boolean = false,
     onLoadingCreditBalanceChange: (Boolean) -> Unit = {},
     permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
     onThemeModeChange: ((String) -> Unit)? = null
@@ -219,11 +237,13 @@ fun PluctMainContent(
     }
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     
-    // State management
+    // State management — no optimistic fake balance (Speed & Trust)
     var creditBalance by remember { mutableStateOf(0) }
-    var freeUsesRemaining by remember { mutableStateOf(3) }
-    var isLoading by remember { mutableStateOf(true) } // Start with loading = true to show loading indicator
-    var hasLoadedBalanceOnce by remember { mutableStateOf(false) } // Track if we've loaded balance at least once
+    var freeUsesRemaining by remember { mutableStateOf(0) }
+    var balanceKnown by remember { mutableStateOf(false) }
+    var balanceLoadFailed by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasLoadedBalanceOnce by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentError by remember { mutableStateOf<Throwable?>(null) }
     var currentErrorUrl by remember { mutableStateOf<String?>(null) } // Track URL for error context
@@ -243,6 +263,23 @@ fun PluctMainContent(
         .collectAsState(initial = emptyList())
     val queuedCount = queuedVideos.value.size
     val processingCount = processingVideos.value.size
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch {
+                    try {
+                        apiService.onAppForegroundedForDiagnostics()
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "foreground_diag ${e.message}")
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     
     // Use extracted effects handler
     PluctUIScreen01MainActivity04EffectsHandler(
@@ -257,6 +294,7 @@ fun PluctMainContent(
         processingCount = processingCount,
         creditBalance = creditBalance,
         freeUsesRemaining = freeUsesRemaining,
+        balanceKnown = balanceKnown,
         queueManager = queueManager,
         snackbarHostState = snackbarHostState,
         clipboardManager = clipboardManager,
@@ -315,6 +353,13 @@ fun PluctMainContent(
     
     // Load videos from database using Flow
     val videos by videoRepository.getAllVideos().collectAsState(initial = emptyList())
+    val debugLogsMain by debugLogManager.getRecentLogs(100).collectAsState(initial = emptyList())
+    val errorLogCountMain = remember(debugLogsMain) {
+        debugLogsMain.count { it.level == LogLevel.ERROR }
+    }
+    var showDebugLogViewerMain by remember { mutableStateOf(false) }
+    var mainShellTab by remember { mutableStateOf(PluctUIMainShellTab.HOME) }
+    val transcriptionDebugInfo by apiService.transcriptionDebugFlow.collectAsState(initial = null)
     
     // Load initial data and check for prefilled URL
     LaunchedEffect(Unit) {
@@ -331,6 +376,12 @@ fun PluctMainContent(
         // Check for first-time user
         if (PluctUserPreferences.isFirstTimeUser(context)) {
             showWelcomeDialog = true
+        }
+
+        val policySnap = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+            .getString("client_policy_snapshot", "") ?: ""
+        if (PluctCoreAPIUnifiedService.isPolicyBlockingTranscribe(policySnap)) {
+            ctaHelperMessage = "Update Pluct in Play Store, then open again."
         }
     }
     
@@ -371,68 +422,63 @@ fun PluctMainContent(
         }
     }
     
-    // Optimistic balance loading: Show default immediately, fetch real balance in background
     LaunchedEffect(Unit) {
-        // Set optimistic default balance immediately (non-blocking)
-        creditBalance = 3
-        freeUsesRemaining = 3
-        hasLoadedBalanceOnce = true
-        isLoading = false
-        onLoadingCreditBalanceChange(false)
-        
-        Log.d("MainActivity", "Optimistic balance set immediately: 3 credits, 3 free uses")
-        Log.d("MainActivity", "UI is now interactive - user can start exploring immediately")
-        
-        // Small delay to ensure UI is stable before background fetch
-        delay(100)
-        
-        // Load real balance in background without blocking UI
+        isLoading = true
+        onLoadingCreditBalanceChange(true)
+        balanceKnown = false
+        balanceLoadFailed = false
+        Log.i("MainActivity", "Truth-first balance load started (no optimistic credits)")
+
         scope.launch {
             try {
-                Log.d("MainActivity", "Background balance fetch started (non-blocking)")
-                val startTime = System.currentTimeMillis()
                 fetchCreditBalance()
-                val duration = System.currentTimeMillis() - startTime
-                
-                Log.d("MainActivity", "Background balance fetch completed in ${duration}ms: $creditBalance credits, $freeUsesRemaining free uses")
-                
-                // Vend token if needed (background operation)
+                balanceKnown = true
+                balanceLoadFailed = false
+                hasLoadedBalanceOnce = true
+                Log.i(
+                    "MainActivity",
+                    "Balance fetch completed: $creditBalance credits, $freeUsesRemaining free uses; hasLoadedBalanceOnce=true"
+                )
+
                 if (creditBalance < 1 && freeUsesRemaining < 1) {
                     Log.d("MainActivity", "No credits available, attempting token vend in background")
                     vendTokenWithBalanceUpdate(reason = "app_launch")
                 } else {
                     hasVendTokenAttempted = true
                     ctaHelperMessage = if (creditBalance > 0) null else "Add credits to unlock transcription"
-                    Log.d("MainActivity", "Credits available: $creditBalance, no token vend needed")
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Background balance fetch failed: ${e.message}", e)
-                Log.d("MainActivity", "User still has optimistic 3 credits - app remains functional")
-                // Silent failure - user already has optimistic 3 credits
-                // Don't show error message for background operation
+                Log.i("MainActivity", "Balance fetch ended with error (truth-first, no optimistic credits): ${e.message}")
+                balanceKnown = true
+                balanceLoadFailed = true
+                hasLoadedBalanceOnce = true
+                creditBalance = 0
+                freeUsesRemaining = 0
+                errorMessage = "Could not verify credits"
+                ctaHelperMessage = "Add credits to unlock transcription"
+            } finally {
+                isLoading = false
+                onLoadingCreditBalanceChange(false)
             }
-        }
 
-        // Show any stored intent feedback to the user
-        // Suppress duplicate toast when auto-submitting (if prefilled URL exists and credits available)
-        val feedback = PluctUserPreferences.getAndClearIntentFeedback(context)
-        feedback?.let {
-            if (it.isError) {
-                PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                    scope, snackbarHostState, it.message
-                )
-            } else {
-                // Suppress "TikTok video link received!" toast when URL is prefilled and credits available
-                // (auto-submit will happen, so no need for duplicate notification)
-                val shouldSuppressToast = !prefilledUrl.isNullOrBlank() && 
-                                         (creditBalance >= 1 || freeUsesRemaining > 0)
-                
-                if (!shouldSuppressToast) {
-                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+            val feedback = PluctUserPreferences.getAndClearIntentFeedback(context)
+            feedback?.let {
+                if (it.isError) {
+                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
                         scope, snackbarHostState, it.message
                     )
+                } else {
+                    val shouldSuppressToast = !prefilledUrl.isNullOrBlank() &&
+                        balanceKnown &&
+                        (creditBalance >= 1 || freeUsesRemaining > 0)
+
+                    if (!shouldSuppressToast) {
+                        PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                            scope, snackbarHostState, it.message
+                        )
+                    }
                 }
-                // Otherwise silent - auto-submit will handle it
             }
         }
     }
@@ -443,11 +489,13 @@ fun PluctMainContent(
             isLoading = true
             onLoadingCreditBalanceChange(true)
             errorMessage = null
+            balanceLoadFailed = false
             try {
                 fetchCreditBalance()
-                hasLoadedBalanceOnce = true // Mark that we've loaded balance
+                hasLoadedBalanceOnce = true
+                balanceKnown = true
+                balanceLoadFailed = false
 
-                // Vend token if we have not already attempted or user balance is empty to surface welcome bonus.
                 if (!hasVendTokenAttempted || creditBalance < 1) {
                     vendTokenWithBalanceUpdate(reason = if (creditBalance < 1) "refresh_no_credits" else "manual_refresh")
                 } else {
@@ -457,7 +505,11 @@ fun PluctMainContent(
                 Log.e("MainActivity", "Failed to refresh balance: ${e.message}", e)
                 errorMessage = "Failed to refresh balance"
                 currentError = e
-                hasLoadedBalanceOnce = true // Mark as loaded even on error
+                hasLoadedBalanceOnce = true
+                balanceKnown = true
+                balanceLoadFailed = true
+                creditBalance = 0
+                freeUsesRemaining = 0
                 PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
                     scope,
                     snackbarHostState,
@@ -467,6 +519,27 @@ fun PluctMainContent(
                 isLoading = false
                 onLoadingCreditBalanceChange(false)
             }
+        }
+    }
+
+    val healthMap by apiService.healthStatus.collectAsState(initial = emptyMap())
+    val readinessKind = remember(balanceKnown, balanceLoadFailed, creditBalance, freeUsesRemaining, healthMap) {
+        PluctUIReadiness01Resolve.resolve(
+            context,
+            balanceKnown,
+            balanceLoadFailed,
+            creditBalance,
+            freeUsesRemaining,
+            healthMap["ttt"],
+            healthMap["api"]
+        )
+    }
+
+    val openWirelessSettings: () -> Unit = {
+        try {
+            context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+            Log.w("MainActivity", "Could not open wireless settings")
         }
     }
 
@@ -505,18 +578,75 @@ fun PluctMainContent(
         )
     }
 
-    val onTierSubmit = remember(creditBalance, freeUsesRemaining) {
+    val rawOnTierSubmit = remember(creditBalance, freeUsesRemaining) {
         eventHandlers.createOnTierSubmit(creditBalance, freeUsesRemaining)
     }
-    
-    val onRetryVideo = remember(creditBalance, freeUsesRemaining) {
+    val rawOnRetryVideo = remember(creditBalance, freeUsesRemaining) {
         eventHandlers.createOnRetryVideo(creditBalance, freeUsesRemaining)
+    }
+
+    val onTierSubmit = remember(readinessKind, rawOnTierSubmit, scope, snackbarHostState) {
+        { url: String, tier: app.pluct.data.entity.ProcessingTier ->
+            if (readinessKind != PluctUIReadiness01Kind.READY) {
+                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
+                    scope,
+                    snackbarHostState,
+                    "Not ready — check the bar above."
+                )
+            } else {
+                rawOnTierSubmit(url, tier)
+            }
+        }
+    }
+
+    val onRetryVideo = remember(readinessKind, rawOnRetryVideo, scope, snackbarHostState) {
+        { video: VideoItem ->
+            if (readinessKind != PluctUIReadiness01Kind.READY) {
+                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
+                    scope,
+                    snackbarHostState,
+                    "Not ready — check the bar above."
+                )
+            } else {
+                rawOnRetryVideo(video)
+            }
+        }
     }
     
     val onDeleteVideo = remember {
         eventHandlers.createOnDeleteVideo()
     }
-    
+
+    val onQueueForLaterFromError = remember(currentErrorUrl) {
+        eventHandlers.createOnQueueForLater(currentErrorUrl)
+    }
+
+    val onQueueForLaterForCapture: (String, QueueReason) -> Unit = remember(queueManager, snackbarHostState) {
+        { url: String, reason: QueueReason ->
+            scope.launch {
+                val result = queueManager.queueVideo(
+                    url = url,
+                    tier = ProcessingTier.EXTRACT_SCRIPT,
+                    reason = reason
+                )
+                if (result.isSuccess) {
+                    PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                        scope,
+                        snackbarHostState,
+                        "Saved. We'll continue when possible."
+                    )
+                } else {
+                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                        scope,
+                        snackbarHostState,
+                        "Could not save. Try again."
+                    )
+                }
+            }
+            Unit
+        }
+    }
+
     // Navigation State
     var selectedVideo by remember { mutableStateOf<VideoItem?>(null) }
 
@@ -535,42 +665,120 @@ fun PluctMainContent(
             onUpgradeClick = { openUpgradePolicyUrl() }
         )
     } else {
-    PluctHomeScreen(
-        creditBalance = creditBalance,
-        freeUsesRemaining = freeUsesRemaining,
-            videos = videos,
-            isLoading = isLoading,
-            errorMessage = errorMessage,
-            userName = userName,
-            onRequestCredits = PluctUIScreen01MainActivity07CreditRequestHandler.createOnRequestCredits(
-                userIdentification = userIdentification,
-                debugLogManager = debugLogManager,
-                snackbarHostState = snackbarHostState
-            ),
-            onTierSubmit = onTierSubmit,
-            onRetryVideo = onRetryVideo,
-            onDeleteVideo = onDeleteVideo,
-            onVideoClick = { video -> selectedVideo = video },
-            prefilledUrl = prefilledUrl,
-            apiService = apiService,
-            onRefreshCreditBalance = refreshCreditBalance,
-            snackbarHostState = snackbarHostState,
-            videoRepository = videoRepository,
-            ctaHelperMessage = ctaHelperMessage,
+        val onRequestCreditsAction = PluctUIScreen01MainActivity07CreditRequestHandler.createOnRequestCredits(
+            userIdentification = userIdentification,
             debugLogManager = debugLogManager,
-            isLoadingCreditBalance = isLoadingCreditBalance,
-            onShowTutorial = {
-                // Re-open tutorial from inline hint
-                showOnboardingTutorial = true
-                Log.d("MainActivity", "Tutorial reopened from inline hint")
-            },
-            onThemeModeChange = onThemeModeChange
+            snackbarHostState = snackbarHostState
         )
-    }
-    
-    // Handle queue for later (from error handler)
-    val onQueueForLater = remember(currentErrorUrl) {
-        eventHandlers.createOnQueueForLater(currentErrorUrl)
+        val sendDiagnostic: () -> Unit = {
+            scope.launch {
+                val breakdown = debugLogManager.formatErrorCategorySummary().orEmpty()
+                val text = app.pluct.core.debug.PluctCoreDebug02DiagnosticShare01Builder.buildText(debugLogsMain, breakdown)
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Pluct diagnostic")
+                    putExtra(android.content.Intent.EXTRA_TEXT, text)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val chooser = android.content.Intent.createChooser(send, "Send diagnostic")
+                chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                try {
+                    context.startActivity(chooser)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Could not start share intent for diagnostic", e)
+                }
+            }
+        }
+
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                when (mainShellTab) {
+                    PluctUIMainShellTab.HOME -> PluctHomeShellTopBar(
+                        onSettingsClick = { mainShellTab = PluctUIMainShellTab.SETTINGS }
+                    )
+                    PluctUIMainShellTab.LIBRARY -> CenterAlignedTopAppBar(
+                        title = { Text("Library") }
+                    )
+                    PluctUIMainShellTab.SETTINGS -> CenterAlignedTopAppBar(
+                        title = { Text("Settings") }
+                    )
+                }
+            },
+            bottomBar = {
+                PluctUIMainShellBottomBar(
+                    selected = mainShellTab,
+                    onSelect = { mainShellTab = it }
+                )
+            }
+        ) { padding ->
+            when (mainShellTab) {
+                PluctUIMainShellTab.HOME -> PluctHomeScreen(
+                    creditBalance = creditBalance,
+                    freeUsesRemaining = freeUsesRemaining,
+                    readinessKind = readinessKind,
+                    onReadinessRetryBalance = refreshCreditBalance,
+                    onReadinessOpenNetwork = openWirelessSettings,
+                    videos = videos,
+                    isLoading = isLoading,
+                    errorMessage = errorMessage,
+                    userName = userName,
+                    onRequestCredits = onRequestCreditsAction,
+                    onTierSubmit = onTierSubmit,
+                    onRetryVideo = onRetryVideo,
+                    onDeleteVideo = onDeleteVideo,
+                    onVideoClick = { video -> selectedVideo = video },
+                    prefilledUrl = prefilledUrl,
+                    apiService = apiService,
+                    onRefreshCreditBalance = refreshCreditBalance,
+                    snackbarHostState = snackbarHostState,
+                    videoRepository = videoRepository,
+                    ctaHelperMessage = ctaHelperMessage,
+                    debugLogManager = debugLogManager,
+                    onQueueForLater = onQueueForLaterForCapture,
+                    isLoadingCreditBalance = isLoading || !balanceKnown,
+                    onShowTutorial = {
+                        showOnboardingTutorial = true
+                        Log.d("MainActivity", "Tutorial reopened from inline hint")
+                    },
+                    onThemeModeChange = onThemeModeChange,
+                    useInnerScaffold = false,
+                    innerContentPadding = padding,
+                    onNavigateToLibrary = { mainShellTab = PluctUIMainShellTab.LIBRARY },
+                    permissionLauncherHelper = permissionLauncherHelper,
+                    onViewDebugLogs = { showDebugLogViewerMain = true }
+                )
+                PluctUIMainShellTab.LIBRARY -> PluctUIScreen02LibraryTab01Screen(
+                    paddingValues = padding,
+                    videos = videos,
+                    onVideoClick = { video -> selectedVideo = video },
+                    onRetryVideo = onRetryVideo,
+                    onDeleteVideo = onDeleteVideo,
+                    snackbarHostState = snackbarHostState,
+                    debugInfo = transcriptionDebugInfo
+                )
+                PluctUIMainShellTab.SETTINGS -> PluctUIScreen03SettingsTab01Screen(
+                    paddingValues = padding,
+                    userName = userName,
+                    creditBalance = creditBalance,
+                    debugLogCount = debugLogsMain.size,
+                    errorLogCount = errorLogCountMain,
+                    onRequestCredits = onRequestCreditsAction,
+                    onViewDebugLogs = { showDebugLogViewerMain = true },
+                    onSendDiagnostic = sendDiagnostic,
+                    permissionLauncherHelper = permissionLauncherHelper,
+                    onThemeModeChange = onThemeModeChange
+                )
+            }
+        }
+
+        if (showDebugLogViewerMain) {
+            PluctDebugLogViewer(
+                logs = debugLogsMain,
+                debugLogManager = debugLogManager,
+                onDismiss = { showDebugLogViewerMain = false }
+            )
+        }
     }
     
     // Unified Error Handler
@@ -595,7 +803,7 @@ fun PluctMainContent(
         },
         url = currentErrorUrl,
         queuedCount = queuedCount,
-        onQueueForLater = onQueueForLater
+        onQueueForLater = onQueueForLaterFromError
     )
     
     // Welcome and Permission Dialogs

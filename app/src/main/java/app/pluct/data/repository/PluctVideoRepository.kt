@@ -84,6 +84,22 @@ class PluctVideoRepository @Inject constructor(
             PluctVideoDataRepository02ErrorHandler.handleError("getVideoByUrl", error, null)
         }
     }
+
+    /**
+     * After URL canonicalization or link rot, find a completed row under any exact URL variant (Trust: local SSOT).
+     */
+    suspend fun findLatestCompletedWithTranscriptForUrls(urls: List<String>): VideoItem? {
+        val seen = LinkedHashSet<String>()
+        for (raw in urls) {
+            val key = raw.trim().lowercase()
+            if (key.isEmpty() || !seen.add(key)) continue
+            val v = getVideoByUrl(raw.trim()) ?: continue
+            if (v.status == ProcessingStatus.COMPLETED && !v.transcript.isNullOrBlank()) {
+                return v
+            }
+        }
+        return null
+    }
     
     /**
      * Get processing video by URL (to prevent duplicates)

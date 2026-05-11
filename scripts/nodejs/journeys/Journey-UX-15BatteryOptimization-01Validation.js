@@ -23,13 +23,16 @@ class JourneyUX15BatteryOptimization01Validation extends BaseJourney {
             await this.ensureAppForeground();
             await this.core.dumpUIHierarchy();
             
-            // Tap settings icon/button
-            const settingsTap = await this.core.tapByContentDesc('Settings');
+            // Tap settings (top bar or bottom nav)
+            let settingsTap = await this.core.tapByTestTag('settings_button');
             if (!settingsTap || !settingsTap.success) {
-                const headerSettings = await this.core.tapByTestTag('header_settings_button');
-                if (!headerSettings || !headerSettings.success) {
-                    return { success: false, error: 'Settings button not found' };
-                }
+                settingsTap = await this.core.tapByTestTag('nav_settings');
+            }
+            if (!settingsTap || !settingsTap.success) {
+                settingsTap = await this.core.tapByContentDesc('Settings');
+            }
+            if (!settingsTap || !settingsTap.success) {
+                return { success: false, error: 'Settings button not found' };
             }
             await this.core.sleep(2000);
             

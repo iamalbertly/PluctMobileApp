@@ -27,7 +27,31 @@ class PluctCoreDebug01LogManager @Inject constructor(
     private val AUTO_CLEANUP_AGE_DAYS = 3 // Auto-delete logs older than 3 days
     private val DUPLICATE_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 hours
     @Volatile private var lastDuplicateCleanupMs = 0L
-    
+
+    companion object {
+        private const val PAIN_TAG = "PluctUserPain"
+        private val REPEAT_SUFFIX = Regex(" · repeats=(\\d+)$")
+
+        internal fun appendRepeatMarker(previousMessage: String): String {
+            val m = REPEAT_SUFFIX.find(previousMessage)
+            return if (m != null) {
+                val n = m.groupValues[1].toIntOrNull() ?: 1
+                previousMessage.replaceRange(m.range, " · repeats=${n + 1}")
+            } else {
+                "$previousMessage · repeats=2"
+            }
+        }
+
+        internal fun fingerprintForLog(url: String): String {
+            if (url.isBlank()) return "0"
+            return (url.hashCode() and 0x7fff_ffff).toString(16)
+        }
+    }
+
+    private fun logPainPulse(category: String, operation: String, httpCode: Int, urlFingerprint: String) {
+        Log.i(PAIN_TAG, "pulse category=$category op=$operation http=$httpCode fp=$urlFingerprint")
+    }
+
     /**
      * Log an API error with full details (with deduplication)
      */
@@ -37,11 +61,18 @@ class PluctCoreDebug01LogManager @Inject constructor(
                 val operation = error.technicalDetails.operation
                 val message = error.userMessage
                 val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
-                
+                val now = System.currentTimeMillis()
+                val fp = fingerprintForLog(error.technicalDetails.requestUrl)
+                val http = error.technicalDetails.responseStatusCode
+
                 // Check for similar recent logs
                 val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
                 if (similarLogs.isNotEmpty()) {
-                    Log.d("DebugLogManager", "Skipping duplicate API error log: $category - $operation")
+                    val row = similarLogs.first()
+                    val bumped = appendRepeatMarker(row.message)
+                    debugLogDAO.updateLogTimestampAndMessage(row.id, now, bumped)
+                    logPainPulse(category, operation, http, fp)
+                    Log.d("DebugLogManager", "Bumped duplicate API error log: $category - $operation")
                     return@launch
                 }
                 
@@ -91,7 +122,11 @@ class PluctCoreDebug01LogManager @Inject constructor(
                 // Check for similar recent logs
                 val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
                 if (similarLogs.isNotEmpty()) {
-                    Log.d("DebugLogManager", "Skipping duplicate error log: $category - $operation")
+                    val row = similarLogs.first()
+                    val bumped = appendRepeatMarker(row.message)
+                    debugLogDAO.updateLogTimestampAndMessage(row.id, System.currentTimeMillis(), bumped)
+                    logPainPulse(category, operation, 0, fingerprintForLog(requestUrl))
+                    Log.d("DebugLogManager", "Bumped duplicate error log: $category - $operation")
                     return@launch
                 }
                 
@@ -130,7 +165,11 @@ class PluctCoreDebug01LogManager @Inject constructor(
                 val sinceTimestamp = System.currentTimeMillis() - DEDUP_WINDOW_MS
                 val similarLogs = debugLogDAO.findSimilarLogs(category, operation, message, sinceTimestamp, 1)
                 if (similarLogs.isNotEmpty()) {
-                    Log.d("DebugLogManager", "Skipping duplicate warning log: $category - $operation")
+                    val row = similarLogs.first()
+                    val bumped = appendRepeatMarker(row.message)
+                    debugLogDAO.updateLogTimestampAndMessage(row.id, System.currentTimeMillis(), bumped)
+                    logPainPulse(category, operation, 0, "0")
+                    Log.d("DebugLogManager", "Bumped duplicate warning log: $category - $operation")
                     return@launch
                 }
 
@@ -192,6 +231,20 @@ class PluctCoreDebug01LogManager @Inject constructor(
      */
     fun getRecentLogs(limit: Int = 100): kotlinx.coroutines.flow.Flow<List<DebugLogEntry>> {
         return debugLogDAO.getRecentLogs(limit)
+    }
+
+    suspend fun formatErrorCategorySummary(limit: Int = 12): String {
+        return try {
+            val rows = debugLogDAO.countByCategoryForLevel(LogLevel.ERROR, limit)
+            if (rows.isEmpty()) return ""
+            buildString {
+                appendLine("--- Error count by category ---")
+                rows.forEach { appendLine("${it.category}: ${it.errorCount}") }
+            }
+        } catch (e: Exception) {
+            Log.w("DebugLogManager", "formatErrorCategorySummary failed: ${e.message}")
+            ""
+        }
     }
     
     /**

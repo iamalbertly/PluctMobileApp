@@ -42,14 +42,13 @@ class JourneyIntent03TikTok04BalanceRace01Validation extends BaseJourney {
                 return { success: false, error: 'Failed to launch app' };
             }
 
-            // Step 5: Monitor balance loading sequence
+            // Step 5: Monitor balance loading sequence (do not clear logcat here — it would erase balance-ready markers)
             this.core.logger.info('📱 Step 5: Monitoring balance loading sequence...');
-            await this.core.clearLogcat();
             await this.core.sleep(1000);
 
             // Capture logs during balance loading
-            const loadingLogs = await this.core.executeCommand('adb logcat -d | findstr /i "isLoading.*=.*true\|Credit balance\|hasLoadedBalanceOnce"');
-            this.core.logger.info(`📊 Loading logs: ${loadingLogs.output || 'No loading logs found'}`);
+            const loadingLogs = await this.core.captureFilteredLogcatTail('MainActivity:I CaptureCard:I *:S', 2000, 20000);
+            this.core.logger.info(`📊 Loading logs: ${(loadingLogs.output || '').split('\n').slice(-12).join('\n') || 'No loading logs found'}`);
 
             // Step 6: Verify auto-submit triggers AFTER balance loads
             this.core.logger.info('📱 Step 6: Verifying auto-submit triggers AFTER balance loads...');
@@ -57,25 +56,29 @@ class JourneyIntent03TikTok04BalanceRace01Validation extends BaseJourney {
             // Wait and monitor for auto-submit
             let autoSubmitFound = false;
             let balanceLoaded = false;
-            const maxWaitTime = 10000; // 10 seconds max
-            const checkInterval = 500; // Check every 500ms
+            const maxWaitTime = 22000; // cold start + BE can exceed 10s on device
+            const checkInterval = 500;
             const maxChecks = maxWaitTime / checkInterval;
 
             for (let i = 0; i < maxChecks; i++) {
                 await this.core.sleep(checkInterval);
                 
                 // Check if balance has loaded
-                const balanceCheck = await this.core.executeCommand('adb logcat -d | findstr /i "hasLoadedBalanceOnce.*=.*true\|isLoading.*=.*false"');
-                if (balanceCheck.success && balanceCheck.output.includes('true')) {
+                const balanceCheck = await this.core.captureFilteredLogcatTail('MainActivity:I *:S', 2000, 20000);
+                if (
+                    balanceCheck.output &&
+                    (balanceCheck.output.includes('hasLoadedBalanceOnce=true') ||
+                        balanceCheck.output.includes('Balance fetch completed'))
+                ) {
                     if (!balanceLoaded) {
                         balanceLoaded = true;
                         this.core.logger.info(`✅ Balance loaded at check ${i + 1}`);
                     }
                 }
 
-                // Check if auto-submit was triggered
-                const autoSubmitCheck = await this.core.executeCommand('adb logcat -d | findstr /i "Auto-submitting URL"');
-                if (autoSubmitCheck.success && autoSubmitCheck.output.includes('Auto-submitting')) {
+                // Check if auto-submit was triggered (CaptureCard tag)
+                const autoSubmitCheck = await this.core.captureFilteredLogcatTail('CaptureCard:I MainActivity:I *:S', 2000, 20000);
+                if (autoSubmitCheck.output && autoSubmitCheck.output.includes('Auto-submitting URL')) {
                     autoSubmitFound = true;
                     this.core.logger.info(`✅ Auto-submit triggered at check ${i + 1}`);
                     
@@ -85,10 +88,18 @@ class JourneyIntent03TikTok04BalanceRace01Validation extends BaseJourney {
                     }
                     break;
                 }
+
+                // Fresh install / clearData often has 0 credits: skip after balance is still valid ordering
+                if (balanceLoaded && autoSubmitCheck.output &&
+                    autoSubmitCheck.output.includes('Auto-submit skipped: insufficient credits')) {
+                    autoSubmitFound = true;
+                    this.core.logger.info(`✅ Auto-submit gated after balance (no credits) at check ${i + 1}`);
+                    break;
+                }
             }
 
             if (!autoSubmitFound) {
-                return { success: false, error: 'Auto-submit not triggered within 10 seconds' };
+                return { success: false, error: 'Auto-submit not triggered within 22s (no submit and no post-balance skip)' };
             }
 
             if (!balanceLoaded) {
@@ -97,8 +108,8 @@ class JourneyIntent03TikTok04BalanceRace01Validation extends BaseJourney {
 
             // Step 7: Verify no premature submission attempts
             this.core.logger.info('📱 Step 7: Verifying no premature submission attempts...');
-            const allLogs = await this.core.executeCommand('adb logcat -d | findstr /i "submitExtract\|vend-token"');
-            const logLines = allLogs.output.split('\n').filter(line => line.trim().length > 0);
+            const allLogs = await this.core.executeCommand('adb logcat -d -t 1200', 22000, undefined, { allowFailure: true });
+            const logLines = (allLogs.output || '').split('\n').filter(line => line.trim().length > 0);
             
             // Check that no submission happened while isLoading was true
             // This is a heuristic check - we look for submission attempts very early

@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import android.util.Log
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Pluct-UI-Component-05Notification-01SnackbarManager - Centralized snackbar notification management
@@ -15,6 +16,20 @@ import android.util.Log
 object PluctUIComponent05Notification01SnackbarManager {
     
     private const val TAG = "SnackbarManager"
+    private const val ERROR_DEBOUNCE_MS = 3500L
+    private const val INFO_DEBOUNCE_MS = 2200L
+    private val lastErrorShownAt = ConcurrentHashMap<String, Long>()
+    private val lastInfoShownAt = ConcurrentHashMap<String, Long>()
+
+    private fun shouldDebounce(map: ConcurrentHashMap<String, Long>, key: String, windowMs: Long): Boolean {
+        val now = System.currentTimeMillis()
+        val prev = map[key] ?: 0L
+        if (now - prev < windowMs) return true
+        map[key] = now
+        return false
+    }
+
+    private fun debounceKey(message: String) = message.take(96).trim()
     
     /**
      * Show success notification
@@ -106,8 +121,17 @@ object PluctUIComponent05Notification01SnackbarManager {
         message: String,
         duration: SnackbarDuration = SnackbarDuration.Long,
         actionLabel: String? = null,
-        onAction: (() -> Unit)? = null
+        onAction: (() -> Unit)? = null,
+        forceBypassDebounce: Boolean = false
     ) {
+        val key = debounceKey(message)
+        if (!forceBypassDebounce && shouldDebounce(lastErrorShownAt, key, ERROR_DEBOUNCE_MS)) {
+            Log.d(TAG, "Debounced duplicate error snackbar")
+            return
+        }
+        if (forceBypassDebounce) {
+            lastErrorShownAt[key] = System.currentTimeMillis()
+        }
         scope.launch {
             showError(snackbarHostState, message, duration, actionLabel, onAction)
         }
@@ -120,8 +144,17 @@ object PluctUIComponent05Notification01SnackbarManager {
         scope: CoroutineScope,
         snackbarHostState: SnackbarHostState,
         message: String,
-        duration: SnackbarDuration = SnackbarDuration.Short
+        duration: SnackbarDuration = SnackbarDuration.Short,
+        forceBypassDebounce: Boolean = false
     ) {
+        val key = debounceKey(message)
+        if (!forceBypassDebounce && shouldDebounce(lastInfoShownAt, key, INFO_DEBOUNCE_MS)) {
+            Log.d(TAG, "Debounced duplicate info snackbar")
+            return
+        }
+        if (forceBypassDebounce) {
+            lastInfoShownAt[key] = System.currentTimeMillis()
+        }
         scope.launch {
             showInfo(snackbarHostState, message, duration)
         }

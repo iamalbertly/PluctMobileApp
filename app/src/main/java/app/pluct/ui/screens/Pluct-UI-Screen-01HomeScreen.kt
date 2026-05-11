@@ -1,28 +1,22 @@
 package app.pluct.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,25 +32,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.size
 import android.util.Log
+import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
+import app.pluct.data.entity.LogLevel
+import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
+import app.pluct.data.entity.QueueReason
 import app.pluct.data.entity.VideoItem
+import app.pluct.data.preferences.PluctUserPreferencesInlineHint
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
+import app.pluct.services.TranscriptionDebugInfo
 import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
 import app.pluct.ui.components.PluctUIComponent08InlineHint01Card
-import app.pluct.data.preferences.PluctUserPreferencesInlineHint
-// UX FIX: Removed PluctErrorLogSection import - error logs consolidated in Settings
-import app.pluct.ui.screens.PluctQueueSection
-import app.pluct.data.entity.ProcessingStatus
-import app.pluct.data.entity.LogLevel
-import kotlinx.coroutines.delay
+import app.pluct.ui.components.PluctUIComponent09Readiness01Strip
+import app.pluct.ui.readiness.PluctUIReadiness01Kind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -67,6 +61,9 @@ import kotlinx.coroutines.launch
 fun PluctHomeScreen(
     creditBalance: Int,
     freeUsesRemaining: Int,
+    readinessKind: PluctUIReadiness01Kind,
+    onReadinessRetryBalance: () -> Unit,
+    onReadinessOpenNetwork: () -> Unit,
     videos: List<VideoItem>,
     isLoading: Boolean,
     errorMessage: String?,
@@ -83,13 +80,22 @@ fun PluctHomeScreen(
     videoRepository: PluctVideoRepository? = null,
     ctaHelperMessage: String? = null,
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
-    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
+    onQueueForLater: ((String, QueueReason) -> Unit)? = null,
     isLoadingCreditBalance: Boolean = false,
     onShowTutorial: (() -> Unit)? = null,
-    onThemeModeChange: ((String) -> Unit)? = null
+    onThemeModeChange: ((String) -> Unit)? = null,
+    /** When false, caller owns [Scaffold] + top bar; only body is drawn (shell navigation). */
+    useInnerScaffold: Boolean = true,
+    innerContentPadding: PaddingValues = PaddingValues(0.dp),
+    onNavigateToLibrary: () -> Unit = {},
+    permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
+    /** When null, an in-screen debug viewer is used; when set, caller owns the viewer (main shell). */
+    onViewDebugLogs: (() -> Unit)? = null
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var effectivePrefilledUrl by remember(prefilledUrl) { mutableStateOf(prefilledUrl) }
 
@@ -99,28 +105,19 @@ fun PluctHomeScreen(
 
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
     val debugLogs by (debugLogManager?.getRecentLogs(100) ?: MutableStateFlow(emptyList())).collectAsState(initial = emptyList())
-    val errorLogs = remember(debugLogs) {
-        debugLogs.filter { it.level == LogLevel.ERROR }.take(3)
-    }
+    val errorLogs = debugLogs.filter { it.level == LogLevel.ERROR }.take(3)
 
-    Scaffold(
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
-        topBar = {
-            PluctHeaderWithRefreshableBalance(
-                creditBalance = creditBalance,
-                isCreditBalanceLoading = isLoading,
-                creditBalanceError = errorMessage,
-                onRefreshCreditBalance = onRefreshCreditBalance,
-                onSettingsClick = { showSettingsDialog = true }
-            )
-        }
-    ) { paddingValues ->
+    val openDebugLogs: () -> Unit = onViewDebugLogs ?: { showDebugLogs = true }
+
+    val homeBody: @Composable (PaddingValues) -> Unit = { paddingValues ->
         HomeContent(
             paddingValues = paddingValues,
             freeUsesRemaining = freeUsesRemaining,
             creditBalance = creditBalance,
+            readinessKind = readinessKind,
+            onReadinessRetryBalance = onReadinessRetryBalance,
+            onReadinessOpenNetwork = onReadinessOpenNetwork,
+            onStripAddCredits = { showSettingsDialog = true },
             uniqueVideos = uniqueVideos,
             onTierSubmit = onTierSubmit,
             onRetryVideo = onRetryVideo,
@@ -128,7 +125,7 @@ fun PluctHomeScreen(
             onVideoClick = onVideoClick,
             prefilledUrl = effectivePrefilledUrl,
             onDemoLinkClick = {
-                effectivePrefilledUrl = "https://vm.tiktok.com/ZMDRUGT2P/" // Demo Link
+                effectivePrefilledUrl = "https://vm.tiktok.com/ZMDRUGT2P/"
             },
             apiService = apiService,
             snackbarHostState = snackbarHostState,
@@ -137,13 +134,40 @@ fun PluctHomeScreen(
             ctaHelperMessage = ctaHelperMessage,
             onRequestCreditsClick = { showSettingsDialog = true },
             debugLogManager = debugLogManager,
-            onViewDebugLogs = { showDebugLogs = true },
-            // UX FIX: errorLogs parameter removed from HomeContent - errors consolidated in Settings
-            // errorLogs still calculated above for Settings badge count
+            onViewDebugLogs = openDebugLogs,
             onQueueForLater = onQueueForLater,
             isLoadingCreditBalance = isLoadingCreditBalance,
-            onShowTutorial = onShowTutorial
+            onShowTutorial = onShowTutorial,
+            onNavigateToLibrary = onNavigateToLibrary,
+            onRefreshCreditBalance = onRefreshCreditBalance
         )
+    }
+
+    if (useInnerScaffold) {
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState)
+            },
+            topBar = {
+                PluctHeaderWithRefreshableBalance(
+                    creditBalance = creditBalance,
+                    isCreditBalanceLoading = isLoadingCreditBalance,
+                    creditBalanceError = errorMessage,
+                    onRefreshCreditBalance = onRefreshCreditBalance,
+                    onSettingsClick = { showSettingsDialog = true }
+                )
+            }
+        ) { paddingValues ->
+            homeBody(paddingValues)
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerContentPadding)
+        ) {
+            homeBody(PaddingValues(0.dp))
+        }
     }
 
     if (showSettingsDialog) {
@@ -151,21 +175,38 @@ fun PluctHomeScreen(
             userName = userName,
             creditBalance = creditBalance,
             debugLogCount = debugLogs.size,
-            errorLogCount = errorLogs.size, // UX FIX: Pass error count for badge display
+            errorLogCount = errorLogs.size,
             onDismiss = { showSettingsDialog = false },
             onRequestCredits = { requestText ->
                 onRequestCredits(requestText)
                 showSettingsDialog = false
             },
-            onViewDebugLogs = {
-                showDebugLogs = true
+            onViewDebugLogs = openDebugLogs,
+            onSendDiagnostic = {
+                scope.launch {
+                    val breakdown = debugLogManager?.formatErrorCategorySummary().orEmpty()
+                    val text = app.pluct.core.debug.PluctCoreDebug02DiagnosticShare01Builder.buildText(debugLogs, breakdown)
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, "Pluct diagnostic")
+                        putExtra(android.content.Intent.EXTRA_TEXT, text)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val chooser = android.content.Intent.createChooser(send, "Send diagnostic")
+                    chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(chooser)
+                    } catch (_: Exception) {
+                        Log.e("HomeScreen", "Could not start share intent for diagnostic")
+                    }
+                }
             },
-            permissionLauncherHelper = null, // Settings dialog can use fallback method
+            permissionLauncherHelper = permissionLauncherHelper,
             onThemeModeChange = onThemeModeChange
         )
     }
-    
-    if (showDebugLogs && debugLogManager != null) {
+
+    if (onViewDebugLogs == null && showDebugLogs && debugLogManager != null) {
         PluctDebugLogViewer(
             logs = debugLogs,
             debugLogManager = debugLogManager,
@@ -175,10 +216,61 @@ fun PluctHomeScreen(
 }
 
 @Composable
+private fun HomeSectionHeader(
+    title: String,
+    badge: Int?,
+    onViewAll: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .semantics { testTag = "home_section_$title" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (badge != null && badge > 0) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = "$badge",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+        TextButton(
+            onClick = onViewAll,
+            modifier = Modifier.semantics {
+                testTag = "home_view_all_${title.lowercase()}"
+                contentDescription = "View all $title"
+            }
+        ) {
+            Text("View all")
+        }
+    }
+}
+
+@Composable
 private fun HomeContent(
     paddingValues: PaddingValues,
     freeUsesRemaining: Int,
     creditBalance: Int,
+    readinessKind: PluctUIReadiness01Kind,
+    onReadinessRetryBalance: () -> Unit,
+    onReadinessOpenNetwork: () -> Unit,
+    onStripAddCredits: () -> Unit,
     uniqueVideos: List<VideoItem>,
     onTierSubmit: (String, ProcessingTier) -> Unit,
     onRetryVideo: (VideoItem) -> Unit,
@@ -188,27 +280,41 @@ private fun HomeContent(
     apiService: PluctCoreAPIUnifiedService?,
     snackbarHostState: SnackbarHostState,
     videoRepository: PluctVideoRepository?,
-    debugInfo: app.pluct.services.TranscriptionDebugInfo?,
+    debugInfo: TranscriptionDebugInfo?,
     ctaHelperMessage: String?,
     onRequestCreditsClick: () -> Unit,
     onDemoLinkClick: () -> Unit = {},
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onViewDebugLogs: () -> Unit = {},
-    // UX FIX: errorLogs parameter removed - errors consolidated in Settings, not displayed in HomeContent
-    onQueueForLater: ((String, app.pluct.data.entity.QueueReason) -> Unit)? = null,
+    onQueueForLater: ((String, QueueReason) -> Unit)? = null,
     isLoadingCreditBalance: Boolean = false,
-    onShowTutorial: (() -> Unit)? = null
+    onShowTutorial: (() -> Unit)? = null,
+    onNavigateToLibrary: () -> Unit = {},
+    onRefreshCreditBalance: () -> Unit = {}
 ) {
-    // Filter queued videos
-    val queuedVideos = uniqueVideos.filter { it.status == ProcessingStatus.QUEUED }
-    
-    // Check if inline hint should be shown
     val context = LocalContext.current
-    val showInlineHint = remember { 
-        PluctUserPreferencesInlineHint.getInlineHintEnabled(context) 
+    val showInlineHint = remember {
+        PluctUserPreferencesInlineHint.getInlineHintEnabled(context)
     }
     var inlineHintVisible by remember { mutableStateOf(showInlineHint) }
-    
+
+    val activeVideos = remember(uniqueVideos) {
+        uniqueVideos
+            .filter {
+                it.status == ProcessingStatus.QUEUED ||
+                    it.status == ProcessingStatus.PROCESSING ||
+                    it.status == ProcessingStatus.FAILED
+            }
+            .sortedByDescending { it.timestamp }
+            .take(8)
+    }
+    val recentVideos = remember(uniqueVideos) {
+        uniqueVideos
+            .filter { it.status == ProcessingStatus.COMPLETED }
+            .sortedByDescending { it.timestamp }
+            .take(5)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -216,7 +322,14 @@ private fun HomeContent(
             .padding(horizontal = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Inline hint for users who skipped tutorial
+        item {
+            PluctUIComponent09Readiness01Strip(
+                kind = readinessKind,
+                onOpenMoney = onStripAddCredits,
+                onOpenNetworkSettings = onReadinessOpenNetwork,
+                onRetryBalance = onReadinessRetryBalance
+            )
+        }
         if (inlineHintVisible) {
             item {
                 PluctUIComponent08InlineHint01Card(
@@ -232,7 +345,7 @@ private fun HomeContent(
                 )
             }
         }
-        
+
         item {
             PluctUIComponent03CaptureCard(
                 freeUsesRemaining = freeUsesRemaining,
@@ -246,40 +359,71 @@ private fun HomeContent(
                 debugLogManager = debugLogManager,
                 onViewInLogs = onViewDebugLogs,
                 onQueueForLater = onQueueForLater,
-                isLoadingCreditBalance = isLoadingCreditBalance
+                isLoadingCreditBalance = isLoadingCreditBalance,
+                onRefreshCreditBalance = onRefreshCreditBalance
             )
         }
-        
-        // UX FIX: Removed duplicate error log section from home screen
-        // Errors are now consolidated in the Debug Logs viewer accessible from Settings
-        // This follows single source of truth principle and reduces UI clutter
-        
-        // Queue Section
-        if (queuedVideos.isNotEmpty()) {
-            item {
-                PluctQueueSection(
-                    queuedVideos = queuedVideos,
-                    onRetryVideo = onRetryVideo,
-                    onDeleteVideo = onDeleteVideo
-                )
-            }
+
+        item {
+            Text(
+                text = "We'll turn the video into clean text.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { testTag = "home_value_promise_line" }
+            )
         }
 
         if (uniqueVideos.isNotEmpty()) {
             item {
                 PluctTimeSavedCard(videos = uniqueVideos)
             }
-            items(uniqueVideos) { video ->
+        }
+
+        if (activeVideos.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = "Active",
+                    badge = activeVideos.size,
+                    onViewAll = onNavigateToLibrary
+                )
+            }
+            items(activeVideos, key = { it.id }) { video ->
                 PluctVideoItemCard(
                     video = video,
                     onClick = { onVideoClick(video) },
                     onRetry = { onRetryVideo(video) },
                     onDelete = { onDeleteVideo(video) },
-                    debugInfo = if (video.status == app.pluct.data.entity.ProcessingStatus.PROCESSING && debugInfo?.url == video.url) debugInfo else null,
+                    debugInfo = if (video.status == ProcessingStatus.PROCESSING && debugInfo?.url == video.url) {
+                        debugInfo
+                    } else {
+                        null
+                    },
                     snackbarHostState = snackbarHostState
                 )
             }
-        } else {
+        }
+
+        if (recentVideos.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = "Recent",
+                    badge = null,
+                    onViewAll = onNavigateToLibrary
+                )
+            }
+            items(recentVideos, key = { it.id }) { video ->
+                PluctVideoItemCard(
+                    video = video,
+                    onClick = { onVideoClick(video) },
+                    onRetry = { onRetryVideo(video) },
+                    onDelete = { onDeleteVideo(video) },
+                    debugInfo = null,
+                    snackbarHostState = snackbarHostState
+                )
+            }
+        }
+
+        if (uniqueVideos.isEmpty()) {
             item {
                 PluctEmptyStateMessage(onDemoLinkClick = onDemoLinkClick)
             }
@@ -287,16 +431,13 @@ private fun HomeContent(
     }
 }
 
-// SettingsDialog extracted to Pluct-UI-Screen-01HomeScreen-04Settings-01Dialog.kt
-// Removed duplicate implementation - using PluctUIScreen01HomeScreen04Settings01Dialog instead
+private fun normalizeVideoUrl(url: String): String = url.trim().lowercase()
 
 private fun dedupeVideos(videos: List<VideoItem>): List<VideoItem> {
     return videos
-        .groupBy { it.url }
+        .groupBy { normalizeVideoUrl(it.url) }
         .mapNotNull { (_, group) ->
             group.maxByOrNull { it.timestamp }
         }
         .sortedByDescending { it.timestamp }
 }
-
-

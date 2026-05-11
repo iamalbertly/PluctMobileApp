@@ -1,6 +1,7 @@
 package app.pluct.core.error
 
 import android.util.Log
+import app.pluct.services.PluctCoreAPIDetailedError
 
 /**
  * Pluct-Core-Error-03UserMessageFormatter - Convert technical errors to user-friendly messages
@@ -10,6 +11,13 @@ import android.util.Log
 object PluctCoreError03UserMessageFormatter {
     
     private const val TAG = "UserMessageFormatter"
+
+    private fun extractCreditsRefunded(error: Throwable?): Int? {
+        val detailed = error as? PluctCoreAPIDetailedError ?: return null
+        val body = detailed.technicalDetails.responseBody ?: return null
+        val match = Regex("\"creditsRefunded\"\\s*:\\s*(\\d+)").find(body) ?: return null
+        return match.groupValues.getOrNull(1)?.toIntOrNull()
+    }
     
     /**
      * Format error message for user display
@@ -24,16 +32,52 @@ object PluctCoreError03UserMessageFormatter {
         val message = technicalMessage ?: error?.message ?: "An unexpected error occurred"
         val code = errorCode ?: error?.javaClass?.simpleName ?: "UNKNOWN_ERROR"
         val status = httpStatus ?: 0
+
+        // UX IMPROVEMENT: If BE already refunded credits (creditsRefunded > 0),
+        // explicitly tell the user. This prevents “unfair depletion” perception.
+        val creditsRefunded = extractCreditsRefunded(error)
+        if (creditsRefunded != null &&
+            creditsRefunded > 0 &&
+            status in 400..499 &&
+            status != 402
+        ) {
+            return UserFriendlyMessage(
+                title = "No charge",
+                message = "No credits used for this attempt. Tap Retry.",
+                action = "Retry",
+                retryable = true,
+                technicalDetails = "creditsRefunded=$creditsRefunded"
+            )
+        }
         
         return when {
+            message.equals("ACTION_UPDATE_APP", ignoreCase = true) ||
+                message.contains("update -> continue", ignoreCase = true) ||
+                message.contains("disabletranscribesubmit", ignoreCase = true) ->
+                UserFriendlyMessage(
+                    title = "Update",
+                    message = "New Pluct version. Update in Play Store, then open again.",
+                    action = "OK",
+                    retryable = false
+                )
+
+            message.contains("SERVICE_COOLDOWN", ignoreCase = true) ||
+                message.contains("circuit breaker", ignoreCase = true) ->
+                UserFriendlyMessage(
+                    title = "Wait",
+                    message = "Too many tries. Wait 1 minute, then tap again.",
+                    action = "OK",
+                    retryable = true
+                )
+
             // Network errors
             isNetworkError(error, message) -> formatNetworkError(message, context)
             
             // Authentication errors
             status == 401 || code.contains("unauthorized", ignoreCase = true) -> 
                 UserFriendlyMessage(
-                    title = "Authentication Error",
-                    message = "Your session has expired. Please try again.",
+                    title = "Session",
+                    message = "Please tap Retry.",
                     action = "Retry",
                     retryable = true
                 )
@@ -42,18 +86,18 @@ object PluctCoreError03UserMessageFormatter {
             status == 402 || message.contains("insufficient", ignoreCase = true) || 
             message.contains("credits", ignoreCase = true) -> 
                 UserFriendlyMessage(
-                    title = "Insufficient Credits",
-                    message = "You don't have enough credits to complete this operation. You can add credits in Settings, or save this video to process later when you have credits.",
-                    action = "Add Credits",
+                    title = "No credits",
+                    message = "Add credits in Settings, or save link for later.",
+                    action = "Add credits",
                     retryable = false
                 )
             
             // Rate limiting - UX IMPROVEMENT #3: Better messaging with actionable guidance
             status == 429 || message.contains("rate limit", ignoreCase = true) -> 
                 UserFriendlyMessage(
-                    title = "Too Many Requests",
-                    message = "You've reached the rate limit (10 requests per hour). You can queue this video for later processing, or wait and try again. Queued videos will process automatically when the limit resets.",
-                    action = "Queue for Later",
+                    title = "Slow down",
+                    message = "Too many requests this hour. Save to queue or wait.",
+                    action = "Queue",
                     retryable = false
                 )
             
@@ -92,9 +136,9 @@ object PluctCoreError03UserMessageFormatter {
             message.contains("connection", ignoreCase = true) || 
             message.contains("network", ignoreCase = true) -> 
                 UserFriendlyMessage(
-                    title = "Connection Error",
-                    message = "Unable to connect to the server. The video has been saved and will automatically process when your connection is restored. You can check the Queue section to see saved videos.",
-                    action = "View Queue",
+                    title = "No connection",
+                    message = "Internet off or weak. Link saved — will run when online. Open Queue to see.",
+                    action = "Queue",
                     retryable = true,
                     technicalDetails = "Network connectivity issue. Video queued for automatic processing when connection restored."
                 )

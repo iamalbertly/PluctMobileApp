@@ -13,6 +13,7 @@
     "test:ui": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Pluct-UI-Header-01CreditBalance-Validation --test Pluct-Journey-Home-04EmptyState-01DemoLink",
     "test:transcription": "node scripts/nodejs/Pluct-Test-Focused-03TranscriptionFixes-01Runner.js",
     "test:tiktok-refund": "node scripts/nodejs/Pluct-Test-Focused-08TikTok-Url-Refund-01Runner.js",
+    "test:redesign": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:failed": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ux-fixes": "node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",

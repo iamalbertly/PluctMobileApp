@@ -6,10 +6,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreBackground01TranscriptionWorkerNetworkMonitor
 import app.pluct.data.entity.ProcessingTier
+import app.pluct.core.error.PluctCoreError01AuthErrorDetector
 import app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
 import dagger.hilt.EntryPoint
@@ -30,6 +32,7 @@ interface WorkManagerEntryPoint {
     fun apiService(): PluctCoreAPIUnifiedService
     fun videoRepository(): app.pluct.data.repository.PluctVideoRepository
     fun queueManager(): app.pluct.services.PluctQueueManager
+    fun debugLogManager(): PluctCoreDebug01LogManager
 }
 
 /**
@@ -59,6 +62,25 @@ class PluctCoreBackground01TranscriptionWorker(
     
     private val queueManager: app.pluct.services.PluctQueueManager by lazy {
         entryPoint.queueManager()
+    }
+
+    private val debugLogManager: PluctCoreDebug01LogManager by lazy {
+        entryPoint.debugLogManager()
+    }
+
+    private fun logWorkerTerminalPain(reason: String, url: String) {
+        val fp = (url.hashCode() and 0x7fff_ffff).toString(16)
+        Log.i("PluctUserPain", "worker_terminal reason=$reason fp=$fp")
+        try {
+            debugLogManager.logError(
+                category = "BACKGROUND",
+                operation = "TranscriptionWorker",
+                message = reason,
+                requestUrl = url.take(200)
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "debugLogManager.logError skipped: ${e.message}")
+        }
     }
 
     companion object {
@@ -117,6 +139,7 @@ class PluctCoreBackground01TranscriptionWorker(
                     "Insufficient credits. Please add credits to continue transcribing videos."
                 else -> e.message ?: "Transcription failed. Please try again."
             }
+            logWorkerTerminalPain("doWork_exception: ${e.javaClass.simpleName}", url)
             showErrorNotification(url, errorMessage, notificationId)
             Result.failure(workDataOf("error" to errorMessage))
         }
@@ -213,6 +236,7 @@ class PluctCoreBackground01TranscriptionWorker(
                         videoRepository.insertVideo(failedVideo)
                     }
                     
+                    logWorkerTerminalPain("no_transcript_after_complete", url)
                     showErrorNotification(url, "Transcription completed but no transcript found", notificationId)
                     Result.failure(workDataOf("error" to "No transcript found"))
                 }
@@ -236,6 +260,7 @@ class PluctCoreBackground01TranscriptionWorker(
                     videoRepository.insertVideo(failedVideo)
                 }
                 
+                logWorkerTerminalPain("process_new_transcription: ${error?.javaClass?.simpleName}", url)
                 showErrorNotification(url, error.message ?: "Transcription failed", notificationId)
                 Result.failure(workDataOf("error" to (error.message ?: "Transcription failed")))
             }
@@ -272,8 +297,8 @@ class PluctCoreBackground01TranscriptionWorker(
         }
         
         val vendResponse = vendResult.getOrNull()
-        val serviceToken = vendResponse?.token 
-            ?: vendResponse?.serviceToken 
+        var serviceToken = vendResponse?.token
+            ?: vendResponse?.serviceToken
             ?: vendResponse?.pollingToken
             ?: run {
                 Log.e(TAG, "No token found in vend response: $vendResponse")
@@ -413,6 +438,7 @@ class PluctCoreBackground01TranscriptionWorker(
                         videoRepository.insertVideo(failedVideo)
                     }
                     
+                    logWorkerTerminalPain("poll_status_failed", url)
                     showErrorNotification(url, "Transcription failed", notificationId)
                     return Result.failure(workDataOf("error" to "Transcription failed"))
                 }
@@ -454,10 +480,8 @@ class PluctCoreBackground01TranscriptionWorker(
                     showProgressNotification(url, progress, "Connection issue - Retrying...", notificationId)
                 }
 
-                // If it's a 401, try refreshing the token
-                if (error?.message?.contains("401", ignoreCase = true) == true ||
-                    error?.message?.contains("authentication", ignoreCase = true) == true) {
-                    Log.w(TAG, "Authentication error detected, attempting to refresh token")
+                if (PluctCoreError01AuthErrorDetector.is401Unauthorized(error)) {
+                    Log.w(TAG, "401 during status poll, vending fresh service token")
                     val refreshResult = apiService.vendToken("background_refresh_${System.currentTimeMillis()}")
                     if (refreshResult.isSuccess) {
                         val refreshResponse = refreshResult.getOrNull()
@@ -465,7 +489,7 @@ class PluctCoreBackground01TranscriptionWorker(
                             ?: refreshResponse?.serviceToken
                             ?: refreshResponse?.pollingToken
                         if (newToken != null) {
-                            // Continue with new token on next iteration
+                            serviceToken = newToken
                             return@repeat
                         }
                     }

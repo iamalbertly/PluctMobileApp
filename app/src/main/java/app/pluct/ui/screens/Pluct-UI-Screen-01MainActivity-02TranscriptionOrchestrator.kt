@@ -277,6 +277,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                         currentFreeUses = currentFreeUses,
                         currentVideoItem = currentVideoItem,
                         videoRepository = videoRepository,
+                        clipboardManager = clipboardManager,
                         debugLogManager = debugLogManager
                     )
                 }

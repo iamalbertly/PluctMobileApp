@@ -139,7 +139,7 @@ object PluctCorePermission01Manager {
         batteryOptimizationCached = isExempt
         lastPermissionCheckTimestamp = now
         
-        Log.d(TAG, "Battery optimization exempt check: $isExempt")
+        Log.i(TAG, "Battery optimization exempt check: $isExempt")
         return isExempt
     }
     
@@ -238,7 +238,7 @@ object PluctCorePermission01Manager {
         overlayPermissionCached = null
         batteryOptimizationCached = null
         lastPermissionCheckTimestamp = 0
-        Log.d(TAG, "Permission cache invalidated")
+        Log.i(TAG, "Permission cache invalidated")
     }
     
     // Deprecated handler methods removed - use PluctCorePermission02Launcher01Helper instead

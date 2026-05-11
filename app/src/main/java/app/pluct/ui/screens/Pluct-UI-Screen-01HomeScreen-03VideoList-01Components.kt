@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.pluct.core.error.PluctCoreError08OutcomeFamily
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
@@ -200,7 +201,9 @@ private fun copyTranscript(video: VideoItem, context: Context, snackbarHostState
 private fun statusLabel(video: VideoItem): String = when (video.status) {
     ProcessingStatus.COMPLETED -> "OK"
     ProcessingStatus.PROCESSING -> "${video.progress.coerceIn(0, 99)}%"
-    ProcessingStatus.FAILED -> "!"
+    ProcessingStatus.FAILED -> PluctCoreError08OutcomeFamily.shortLabel(
+        PluctCoreError08OutcomeFamily.fromVideoItem(video)
+    )
     ProcessingStatus.QUEUED -> "..."
     ProcessingStatus.UNKNOWN -> "?"
 }

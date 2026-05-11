@@ -199,10 +199,42 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
         currentFreeUses: Int,
         currentVideoItem: VideoItem?,
         videoRepository: PluctVideoRepository,
+        clipboardManager: ClipboardManager,
         debugLogManager: PluctCoreDebug01LogManager?
     ): ProcessResult {
         Log.e("ResultProcessor", "Transcription failed: ${error.message}")
-        
+
+        val urlVariants = listOfNotNull(url, currentVideoItem?.url)
+        val localCompleted = videoRepository.findLatestCompletedWithTranscriptForUrls(urlVariants)
+        if (localCompleted != null && !localCompleted.transcript.isNullOrBlank()) {
+            debugLogManager?.logInfo(
+                category = "TRANSCRIPTION",
+                operation = "failure_local_transcript_fallback",
+                message = "Remote flow failed; reusing completed transcript already on device",
+                details = "URL=$url; LocalId=${localCompleted.id}"
+            )
+            videoRepository.updateVideo(
+                localCompleted.copy(
+                    status = ProcessingStatus.COMPLETED,
+                    failureReason = null,
+                    progress = 100
+                )
+            )
+            try {
+                val clipData = ClipData.newPlainText("Pluct Transcript", localCompleted.transcript)
+                clipboardManager.setPrimaryClip(clipData)
+            } catch (e: Exception) {
+                Log.w("ResultProcessor", "Fallback copy failed: ${e.message}")
+            }
+            return ProcessResult(
+                success = true,
+                newBalance = currentBalance,
+                newFreeUses = currentFreeUses,
+                message = "Using saved text from this phone.",
+                error = null
+            )
+        }
+
         // Log transcription failure to debug system with full details
         debugLogManager?.logError(
             category = "TRANSCRIPTION",

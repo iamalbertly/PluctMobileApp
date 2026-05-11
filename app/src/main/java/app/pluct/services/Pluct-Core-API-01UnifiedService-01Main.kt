@@ -20,6 +20,10 @@ import app.pluct.core.api.PluctCoreAPI00Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import app.pluct.data.entity.ProcessingStatus
 import java.util.Locale
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Pluct-Core-API-01UnifiedService-01Main - Unified API service orchestrator.
@@ -42,6 +46,24 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     companion object {
         private const val TAG = "PluctCoreAPIUnified"
+        private val policyJson = Json { ignoreUnknownKeys = true }
+
+        /** True when BE policy disables transcribe; false on blank or parse failure (fail-open; see log ClientPolicy). */
+        fun isPolicyBlockingTranscribe(raw: String): Boolean {
+            if (raw.isBlank()) return false
+            return try {
+                val obj = policyJson.parseToJsonElement(raw).jsonObject
+                when (val v = obj["disableTranscribeSubmit"]) {
+                    null -> false
+                    else ->
+                        v.jsonPrimitive.content.equals("true", ignoreCase = true) ||
+                            (v.jsonPrimitive.booleanOrNull == true)
+                }
+            } catch (_: Exception) {
+                Log.w(TAG, "ClientPolicy: parse_failed policy_len=${raw.length}")
+                false
+            }
+        }
     }
 
     private val httpClient = PluctCoreAPIHTTPClientImpl(logger, validator, userIdentification)
@@ -185,11 +207,33 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         return statusHandler.pollTranscriptionStatus(jobId, userJWT)
     }
 
+    /**
+     * Foreground hook: refresh health TTL and emit a single log line for stuck queues (grep `PluctUserPain` / `PluctForeground` in adb logcat).
+     */
+    suspend fun onAppForegroundedForDiagnostics() {
+        try {
+            val health = healthMonitor.refreshNow(force = true)
+            Log.i("PluctForeground", "health_refresh api=${health["api"]} ttt=${health["ttt"]}")
+        } catch (e: Exception) {
+            Log.w("PluctForeground", "health_refresh_failed ${e.message}")
+        }
+        val repo = videoRepository ?: return
+        try {
+            val proc = repo.getVideoCountByStatus(ProcessingStatus.PROCESSING)
+            val queued = repo.getVideoCountByStatus(ProcessingStatus.QUEUED)
+            if (proc > 0 || queued > 0) {
+                Log.i("PluctUserPain", "foreground_queue_snapshot processing=$proc queued=$queued")
+            }
+        } catch (e: Exception) {
+            Log.w("PluctForeground", "queue_snapshot_failed ${e.message}")
+        }
+    }
+
     suspend fun processTikTokVideo(url: String, isBackground: Boolean = false): Result<TranscriptionStatusResponse> {
         ensureServerTimeWarmup()
         val policySnapshot = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE).getString("client_policy_snapshot", "") ?: ""
-        if (policySnapshot.contains("\"disableTranscribeSubmit\":true")) {
-            return Result.failure(Exception("Update -> Continue"))
+        if (isPolicyBlockingTranscribe(policySnapshot)) {
+            return Result.failure(Exception("ACTION_UPDATE_APP"))
         }
         val currentHealth = healthStatus.value
         val effectiveHealth = if (currentHealth["ttt"] != HealthStatus.HEALTHY) {
@@ -242,9 +286,14 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         val requestId = "req_${System.currentTimeMillis()}"
         val requestUrl = "${PluctCoreAPI00Constants.BASE_URL}$endpoint"
         if (circuitBreaker.isOpen()) {
-            val msg = "Circuit breaker is open"
-            Log.e(TAG, msg)
-            return Result.failure(Exception(msg))
+            try {
+                healthMonitor.refreshNow(force = true)
+                Log.w("PluctForeground", "circuit_open_health_refresh_attempted")
+            } catch (_: Exception) {
+                // ignore — still return cooldown
+            }
+            Log.e(TAG, "Circuit breaker is open")
+            return Result.failure(Exception("SERVICE_COOLDOWN"))
         }
         val startTime = System.currentTimeMillis()
         responseHandler.logRequestStart(requestId, endpoint, method, requestUrl, payload)

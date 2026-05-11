@@ -1,6 +1,7 @@
 package app.pluct.ui.components
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,6 +39,7 @@ import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreValidationInputSanitizer
 import app.pluct.services.OperationStep
 import app.pluct.ui.models.data.PersistentError
+import app.pluct.core.categorization.PluctCoreCategorization01ErrorClassifier
 import app.pluct.core.credit.PluctCoreCredit01AtomicReservation01Service
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -55,8 +57,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import app.pluct.notification.PluctNotificationHelper
 import app.pluct.core.permission.PluctCorePermission01Manager
 
@@ -79,7 +83,8 @@ fun PluctUIComponent03CaptureCard(
     debugLogManager: app.pluct.core.debug.PluctCoreDebug01LogManager? = null,
     onViewInLogs: (() -> Unit)? = null,
     onQueueForLater: ((String, QueueReason) -> Unit)? = null,
-    isLoadingCreditBalance: Boolean = false
+    isLoadingCreditBalance: Boolean = false,
+    onRefreshCreditBalance: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -114,6 +119,21 @@ fun PluctUIComponent03CaptureCard(
 
     LaunchedEffect(isSubmitting, preFilledUrl) {
         refreshProgressReliabilityState()
+    }
+
+    LaunchedEffect(persistentError?.timestamp, persistentError?.category) {
+        val err = persistentError ?: return@LaunchedEffect
+        val clearable = err.category == PluctCoreCategorization01ErrorClassifier.ErrorCategory.NETWORK.name ||
+            err.category == "TIMEOUT"
+        if (!clearable) return@LaunchedEffect
+        while (persistentError != null) {
+            delay(1200)
+            if (PluctNetworkConnectivityChecker.isNetworkAvailable(context)) {
+                persistentError = null
+                processingMessage = null
+                break
+            }
+        }
     }
 
     // Define submitExtract before LaunchedEffects that use it
@@ -200,6 +220,11 @@ fun PluctUIComponent03CaptureCard(
                 }
             }
 
+            processingMessage = "Checking saved copy…"
+            withContext(Dispatchers.IO) {
+                videoRepository?.getVideoByUrl(normalizedUrl)
+            }
+            delay(220)
             processingMessage = "Working… $costLabel"
             Log.d("CaptureCard", "Set processingMessage: $processingMessage")
 
@@ -221,11 +246,12 @@ fun PluctUIComponent03CaptureCard(
                         scope.launch {
                             atomicCreditService.releaseReservation(reservedId)
                         }
+                        val cat = PluctCoreCategorization01ErrorClassifier.categorizeError(null, error)
                         persistentError = PersistentError(
-                            message = error,
+                            message = cat.userFriendlyMessage,
                             url = normalizedUrl,
                             timestamp = System.currentTimeMillis(),
-                            category = "API_ERROR"
+                            category = cat.category.name
                         )
                         isSubmitting = false
                         isAutoSubmitting = false
@@ -393,7 +419,8 @@ fun PluctUIComponent03CaptureCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
     ) {
         Box(
             modifier = Modifier
@@ -494,7 +521,9 @@ fun PluctUIComponent03CaptureCard(
                 onSubmit = if (isUrlValid && !isSubmitting) { { submitExtract() } } else null,
                 freeUsesRemaining = freeUsesRemaining,
                 creditBalance = creditBalance,
-                isSubmitting = isSubmitting
+                isSubmitting = isSubmitting,
+                onWalletClick = onRefreshCreditBalance,
+                isLoadingCreditBalance = isLoadingCreditBalance
             )
 
             // Queue prompt for offline/no-credit scenarios

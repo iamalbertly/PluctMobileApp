@@ -60,6 +60,7 @@ class PluctCoreFoundationUI {
      */
     async ensureAppForeground() {
         try {
+            await this.executeCommand('adb shell input keyevent 224', undefined, undefined, { allowFailure: true });
             const isRunning = await this.isAppRunning();
             if (!isRunning.success) {
                 return await this.launchApp();

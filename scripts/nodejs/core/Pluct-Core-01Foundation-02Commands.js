@@ -55,6 +55,27 @@ class PluctCoreFoundationCommands {
         return /^(start-server|kill-server|version|reconnect|pair|mdns|help)\b/i.test(sub);
     }
 
+    _getAdbStartServerTimeoutMs() {
+        const t = this.config?.timeouts?.adbStartServer;
+        return typeof t === 'number' && t >= 15000 ? t : 90000;
+    }
+
+    /**
+     * adb start-server often prints to stderr while the daemon boots; Windows exec timeout can SIGTERM the parent
+     * even though adb is fine. Use a long timeout and verify with adb devices when the result is ambiguous.
+     */
+    async _adbStartServerReliable() {
+        const ms = this._getAdbStartServerTimeoutMs();
+        const r = await this._executeCommandDirect('adb start-server', ms);
+        if (r.success) return r;
+        const probe = await this._executeCommandDirect('adb devices', Math.min(ms, 12000));
+        if (probe.success && this._parseAuthorizedDeviceIds(probe.output || '').length) {
+            this.logger.info('adb start-server reported failure but devices are online — continuing');
+            return { success: true, output: r.output || probe.output || '', error: r.stderr || r.error || '', fullOutput: `${r.output || ''}${r.stderr || ''}${r.error || ''}${probe.output || ''}` };
+        }
+        return r;
+    }
+
     async _resolveAdbDeviceSerial(timeout) {
         const env = (process.env.ANDROID_SERIAL || process.env.ADB_SERIAL || '').trim();
         if (env) return env;
@@ -179,7 +200,7 @@ class PluctCoreFoundationCommands {
         try {
             await this._executeCommandDirect('adb kill-server', timeout);
             await this.sleep(1000);
-            await this._executeCommandDirect('adb start-server', timeout);
+            await this._adbStartServerReliable();
             await this.sleep(2000);
 
             let devices = await this._executeCommandDirect('adb devices', timeout);
@@ -194,7 +215,7 @@ class PluctCoreFoundationCommands {
                 await this._executeCommandDirect(restartCommand, 70000);
                 await this._executeCommandDirect('adb kill-server', timeout);
                 await this.sleep(1000);
-                await this._executeCommandDirect('adb start-server', timeout);
+                await this._adbStartServerReliable();
                 await this.sleep(3000);
                 devices = await this._executeCommandDirect('adb devices', timeout);
                 const recovered = (devices.output || '').split('\n').some(line => line.trim().endsWith('device'));
@@ -215,15 +236,15 @@ class PluctCoreFoundationCommands {
      */
     async _resetAdbServer() {
         const now = Date.now();
-        if (now - this._lastAdbReset < 15000) {
+        if (now - this._lastAdbReset < 28000) {
             return false;
         }
         this._lastAdbReset = now;
         this.logger.warn('Resetting ADB server after repeated failures...');
         try {
-            await this._executeCommandDirect('adb kill-server', 5000);
+            await this._executeCommandDirect('adb kill-server', 8000);
             await this.sleep(1000);
-            await this._executeCommandDirect('adb start-server', 5000);
+            await this._adbStartServerReliable();
             await this.sleep(1000);
             this._adbConnectionChecked = false;
             this._adbConnected = false;
@@ -441,6 +462,28 @@ class PluctCoreFoundationCommands {
                     error: errorStderr || '',
                     fullOutput: (errorStdout || '') + (errorStderr || '')
                 };
+            }
+
+            const trimmedAdb = (command || '').trim();
+            const isAdbStartServer = /^adb\s+start-server\b/i.test(trimmedAdb);
+            if (isAdbStartServer && (isSigterm || errorCode === 'ETIMEDOUT')) {
+                const blob = (errorStderr + '\n' + errorStdout + '\n' + errorMessage).toLowerCase();
+                const looksLikeDaemonBoot =
+                    blob.includes('daemon not running') ||
+                    blob.includes('starting now at tcp') ||
+                    blob.includes('* daemon');
+                if (looksLikeDaemonBoot) {
+                    const probe = await this._executeCommandDirect('adb devices', 12000);
+                    if (probe.success && this._parseAuthorizedDeviceIds(probe.output || '').length > 0) {
+                        this.logger.warn('adb start-server: exec timeout/SIGTERM during daemon boot — devices online, treating as success');
+                        return {
+                            success: true,
+                            output: (errorStdout || errorStderr || '').trim(),
+                            error: errorStderr || '',
+                            fullOutput: (errorStdout || '') + (errorStderr || '')
+                        };
+                    }
+                }
             }
 
             if (command.startsWith('adb shell am start') && errorStdout.includes('Starting: Intent')) {

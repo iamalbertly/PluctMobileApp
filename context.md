@@ -72,6 +72,15 @@ Business Engine validation remains disabled by default until the app emits a cle
 - Prefer `[Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]` naming.
 - Avoid giant Kotlin files (>300 lines).
 
+## Main shell navigation (2026-05-11)
+
+- `app/pluct/ui/navigation/Pluct-UI-Navigation-01MainBottomBar.kt` — `PluctUIMainShellTab` + bottom bar (`nav_home`, `nav_library`, `nav_settings`).
+- `app/pluct/PluctUIScreen01MainActivity.kt` — outer `Scaffold` when not in video detail: Home (embedded `PluctHomeScreen` without inner scaffold), Library (`PluctUIScreen02LibraryTab01Screen`), Settings tab (`PluctUIScreen03SettingsTab01Screen`), shared debug log overlay.
+- `app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen-04Settings-00SharedBody.kt` — settings scroll body shared by bottom sheet and Settings tab (one SSOT for rows).
+- `app/pluct/ui/components/PluctHomeShellTopBar` in `Pluct-UI-03Header.kt` — brand row + settings (`settings_button`).
+- `app/pluct/ui/components/Pluct-UI-Component-02Branding-01LogoMark.kt` — in-app gradient “P” mark (`pluct_brand_logo_mark`).
+- Journey: `scripts/nodejs/journeys/Journey-UX-27PluctRedesign-MockupParity-01Validation.js` — `npm run test:redesign`.
+
 ## Direct-to-value modules (2026-05-11)
 - `app/pluct/ui/readiness/Pluct-UI-Readiness-01Kind.kt` — readiness resolver (Customer / Speed & Trust).
 - `app/pluct/ui/components/Pluct-UI-Component-09Readiness-01Strip.kt` — single primary CTA strip.

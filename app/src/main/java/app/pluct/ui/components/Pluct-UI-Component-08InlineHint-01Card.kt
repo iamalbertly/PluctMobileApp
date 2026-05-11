@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -78,12 +79,34 @@ fun PluctUIComponent08InlineHint01Card(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Paste TikTok. Get text.",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = "Paste",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "→",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Text",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
                     TextButton(
                         onClick = onShowTutorial,
                         modifier = Modifier.semantics {
@@ -99,9 +122,9 @@ fun PluctUIComponent08InlineHint01Card(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Show how",
+                            text = "Share from TikTok, then paste here",
                             color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import app.pluct.data.entity.DebugLogEntry
+import app.pluct.data.entity.LogLevel
+import app.pluct.data.entity.PluctDataEntityDebugLogCategoryCount
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -14,6 +16,9 @@ interface PluctDebugLogDAO {
     
     @Insert
     suspend fun insertLog(log: DebugLogEntry): Long
+
+    @Query("UPDATE debug_logs SET timestamp = :ts, message = :msg WHERE id = :id")
+    suspend fun updateLogTimestampAndMessage(id: Long, ts: Long, msg: String)
     
     @Query("SELECT * FROM debug_logs ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentLogs(limit: Int = 100): Flow<List<DebugLogEntry>>
@@ -40,6 +45,12 @@ interface PluctDebugLogDAO {
     
     @Query("SELECT COUNT(*) FROM debug_logs")
     suspend fun getLogCount(): Int
+
+    @Query(
+        "SELECT category AS category, COUNT(*) AS errorCount FROM debug_logs WHERE level = :level " +
+            "GROUP BY category ORDER BY COUNT(*) DESC LIMIT :limit"
+    )
+    suspend fun countByCategoryForLevel(level: LogLevel, limit: Int = 12): List<PluctDataEntityDebugLogCategoryCount>
     
     @Query("SELECT * FROM debug_logs WHERE category = :category AND operation = :operation AND message = :message AND timestamp > :sinceTimestamp ORDER BY timestamp DESC LIMIT :limit")
     suspend fun findSimilarLogs(category: String, operation: String, message: String, sinceTimestamp: Long, limit: Int = 5): List<DebugLogEntry>

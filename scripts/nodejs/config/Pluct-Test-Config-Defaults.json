@@ -22,6 +22,7 @@
   },
   "timeouts": {
     "adbMs": 15000,
+    "adbStartServerMs": 90000,
     "launchMs": 30000,
     "token": 12000,
     "tttRequest": 15000,

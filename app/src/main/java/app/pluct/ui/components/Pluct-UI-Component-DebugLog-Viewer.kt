@@ -3,6 +3,7 @@ package app.pluct.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,17 +16,21 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.pluct.data.entity.DebugLogEntry
 import app.pluct.data.entity.LogLevel
 import app.pluct.core.debug.PluctCoreDebug01LogManager
+import app.pluct.core.debug.PluctCoreDebug02DiagnosticShare01Builder
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -99,16 +104,39 @@ fun PluctDebugLogViewer(
                             )
                         }
                     }
-                    if (logs.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    // Clear all logs using efficient batch delete
-                                    debugLogManager.clearAllLogs()
-                                }
+                    Row {
+                        if (logs.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                    val breakdown = debugLogManager.formatErrorCategorySummary()
+                                    val text = PluctCoreDebug02DiagnosticShare01Builder.buildText(logs, breakdown)
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Pluct diagnostic")
+                                        putExtra(Intent.EXTRA_TEXT, text)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    val chooser = Intent.createChooser(send, "Send diagnostic")
+                                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    try {
+                                        context.startActivity(chooser)
+                                    } catch (_: Exception) { }
+                                    }
+                                },
+                                modifier = Modifier.semantics { testTag = "debug_log_share_button" }
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = "Share diagnostic")
                             }
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Clear all logs")
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        debugLogManager.clearAllLogs()
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Clear all logs")
+                            }
                         }
                     }
                 }

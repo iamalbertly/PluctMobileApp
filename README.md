@@ -102,15 +102,22 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
    npm run test:core
    npm run test:ui
    npm run test:transcription
+
+   # Focused path (direct-to-value + balance race; same as TEST_FILTER in package.json)
+   npm run test:paths
    ```
-   The canonical test entrypoint is `npm run test:all`, backed by the Node journey orchestrator in `scripts/nodejs`. Test URLs include `https://vt.tiktok.com/ZS9bDyvc5/` for validation. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
+   The canonical test entrypoint is `npm run test:all`, backed by the Node journey orchestrator in `scripts/nodejs`. **Android UI validation is ADB + Node**, not browser automation. **Playwright MCP** (if enabled in your environment) is for **web** surfaces only, not the Android app. Test URLs include `https://vt.tiktok.com/ZS9bDyvc5/` for validation. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
+
+### **Three-tier system (evolution contract)**
+
+The product spans **Android client**, **Business Engine** (API, credits, health), and **TTTranscribe** (transcription execution). Today, client pain is surfaced via **logcat** (`PluctUserPain`, `HealthMonitor`), **Room debug logs**, and **Settings → Send diagnostic**—not pushed to the engine until a future **versioned, secure** ingest is agreed. When the app or engine moves ahead of the other, use **app `VERSION_CODE`**, **`GET /v1/public/client-policy`**, and **`GET /health/services`** as the coordination signals; document any new fields in the integration guide before relying on them in production.
 
 ### **Integration Guide**
 For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
 
 ## 🧪 **Testing Framework**
 
-All current automatic journeys use the Node/ADB orchestration in `scripts/nodejs`. Browser dashboard validation uses Playwright MCP. The runner fails fast on the first broken UI, API, or device step and prints focused UI/logcat diagnostics.
+All current automatic journeys use the Node/ADB orchestration in `scripts/nodejs`. Playwright MCP applies only to **web** dashboards you validate separately from this repo. The runner fails fast on the first broken UI, API, or device step and prints focused UI/logcat diagnostics.
 
 ### **Quick Start**
 ```bash
@@ -118,6 +125,16 @@ npm run test:all
 ```
 
 This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, high-priority API/transcription/token paths next, then remaining journeys.
+
+### **Read Pluct adb logcat (operator / device)**
+
+Use a real device or emulator with the app installed, then:
+
+```bash
+adb logcat -s PluctForeground:I PluctUserPain:I HealthMonitor:D HealthMonitor:W HealthMonitor:E CaptureCard:D MainActivity:D TranscriptionWorker:D PluctCoreAPIUnified:W DebugLogManager:D
+```
+
+On resume the app emits `PluctForeground` and `PluctUserPain` queue snapshots when work is stuck; the Node harness uses a **long timeout** for `adb start-server` and treats daemon-boot **SIGTERM** as success when `adb devices` still lists a device.
 
 ### **Common Test Commands**
 ```bash
@@ -264,12 +281,20 @@ For complete API integration instructions, authentication setup, and best practi
 
 ## 🧪 **Testing Framework**
 
-Focused validation uses Node journeys with ADB/device automation and Puppeteer-style service checks. This README is the SSOT for current validation.
+Focused validation uses **Node.js + ADB** (UIAutomator dump, logcat, shell intents). **Browser MCP** (Playwright-style) is for **web** targets only, not the Android app. **`maestro/` YAML is legacy** and is not invoked by `npm run` scripts—ignore it unless you explicitly run a Maestro runner.
 
 ### **Quick Start**
 ```bash
 npm run test:all
 ```
+
+Runs the full journey list in **customer-risk order** (recently touched paths first, then last failed, then high-priority API/transcription). For a **short** run after editing readiness, balance, capture, or the ADB harness:
+
+```bash
+npm run test:updated
+```
+
+(`Journey-UX-24BatteryOptimizationRefresh-Validation` is not in this filter: it needs the onboarding tutorial dismissed or cleared app data so the Settings sheet is reachable via UIAutomator; run it inside a full `npm run test:all` or after `adb shell pm clear app.pluct` when you explicitly need battery UI validation.)
 
 ### **Node Journey Coverage**
 The current focused journeys validate the core user paths:

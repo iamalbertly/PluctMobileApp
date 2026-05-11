@@ -24,7 +24,7 @@ class PluctCoreFoundation {
             url: shortUrl,
             testUrls: [shortUrl, longUrl],
             businessEngineUrl,
-            timeouts: { default: 10000, short: 2000, long: 15000 },
+            timeouts: { default: 10000, short: 2000, long: 15000, adbStartServer: 90000 },
             retry: { maxAttempts: 3, delay: 1000 },
             skipAppDataClear
         };
@@ -151,8 +151,31 @@ class PluctCoreFoundation {
         return this.executeCommand('adb logcat -c');
     }
 
+    /**
+     * Pull recent logcat lines filtered by Android log level (avoids Windows adb|findstr pipe issues).
+     * @param {string} tagSpec e.g. "MainActivity:I CaptureCard:I *:S"
+     */
+    async captureFilteredLogcatTail(tagSpec, lines = 1500, timeout = 20000) {
+        const spec = (tagSpec || 'MainActivity:I *:S').trim();
+        const n = Number.isFinite(lines) ? lines : 1500;
+        const safe = `"${spec.replace(/"/g, '')}"`;
+        const filtered = await this.executeCommand(`adb logcat -d -t ${n} ${safe}`, timeout, undefined, { allowFailure: true });
+        if (filtered && filtered.output && String(filtered.output).trim().length > 2) {
+            return filtered;
+        }
+        return this.executeCommand(`adb logcat -d -t ${Math.min(n, 500)}`, timeout, undefined, { allowFailure: true });
+    }
+
     async clearAppCache() {
         return this.commands.clearAppCache();
+    }
+
+    /** Full app data reset (used by intent/balance race journeys). */
+    async clearAppData() {
+        if (this.config.skipAppDataClear) {
+            return { success: true, skipped: true };
+        }
+        return this.executeCommand('adb shell pm clear app.pluct', undefined, undefined, { allowFailure: true });
     }
 
     async clearWorkManagerTasks() {
@@ -349,15 +372,15 @@ class PluctCoreFoundation {
 
     // Additional navigation methods
     async pressBackButton() {
-        return await this.commands.executeCommand('adb shell input keyevent KEYCODE_BACK');
+        return await this.executeCommand('adb shell input keyevent KEYCODE_BACK');
     }
 
     async pressHomeButton() {
-        return await this.commands.executeCommand('adb shell input keyevent KEYCODE_HOME');
+        return await this.executeCommand('adb shell input keyevent KEYCODE_HOME');
     }
 
     async pressMenuButton() {
-        return await this.commands.executeCommand('adb shell input keyevent KEYCODE_MENU');
+        return await this.executeCommand('adb shell input keyevent KEYCODE_MENU');
     }
 
     async pressKey(keyName) {
@@ -368,7 +391,7 @@ class PluctCoreFoundation {
             Menu: 'KEYCODE_MENU'
         };
         const keyCode = keyMap[keyName] || keyName;
-        return await this.commands.executeCommand(`adb shell input keyevent ${keyCode}`);
+        return await this.executeCommand(`adb shell input keyevent ${keyCode}`);
     }
 
     parseBounds(bounds) {
@@ -895,7 +918,7 @@ class PluctCoreFoundation {
             await this.clearWorkManagerTasks();
 
             // Optimize memory
-            await this.commands.executeCommand('adb shell am force-stop app.pluct');
+            await this.executeCommand('adb shell am force-stop app.pluct');
             await this.sleep(1000);
 
             this.logger.info('✅ Comprehensive optimization completed');

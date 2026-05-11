@@ -10,15 +10,34 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = PluctBrandPurple,
+    onPrimary = Color.White,
+    primaryContainer = PluctBrandPurple.copy(alpha = 0.35f),
+    onPrimaryContainer = Color.White,
+    secondary = PluctBrandCyan,
+    onSecondary = Color(0xFF0A0A0F),
+    secondaryContainer = PluctMockSurfaceElevated,
+    onSecondaryContainer = PluctOnDarkMuted,
+    tertiary = Pink80,
+    onTertiary = Color.Black,
+    background = PluctMockSurface,
+    onBackground = Color.White,
+    surface = PluctMockSurfaceElevated,
+    onSurface = Color.White,
+    surfaceVariant = PluctMockSurfaceElevated,
+    onSurfaceVariant = PluctOnDarkMuted,
+    outline = PluctBrandPurple.copy(alpha = 0.35f),
+    error = Color(0xFFFF6B6B),
+    onError = Color.Black,
+    errorContainer = Color(0xFF3D1515),
+    onErrorContainer = Color(0xFFFFD6D6)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -46,8 +65,8 @@ fun PluctTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

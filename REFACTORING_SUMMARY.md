@@ -62,8 +62,8 @@
 5. Implement UX-4 (Network error recovery)
 6. Fix naming conventions
 7. Mark unused files
-8. Create Maestro YAML tests
-9. Run tests and fix issues
+8. Maintain and extend **Node/ADB journey tests** under `scripts/nodejs/journeys/` (Maestro YAML under `maestro/` is legacy only)
+9. Run tests and fix issues (`npm run test:paths` for recently touched journeys, then `npm run test:all`)
 10. Build and deploy APK
 11. Git commit and push
 

@@ -39,3 +39,9 @@ enum class LogLevel {
     WARNING,
     INFO
 }
+
+/** Row for GROUP BY queries (debug log diagnostics). */
+data class PluctDataEntityDebugLogCategoryCount(
+    val category: String,
+    val errorCount: Long
+)

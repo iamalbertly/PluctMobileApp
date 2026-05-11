@@ -61,7 +61,7 @@ class PluctMainOrchestrator {
             const preStrategy = this.smartTestRunner.determineExecutionStrategy(testsToRun);
             if (preStrategy.strategy === 'resume-from-failed') {
                 this.core.config.skipAppDataClear = true;
-                this.core.logger.info('dYZ_ Preserving app data to reuse cached tokens while resuming');
+                this.core.logger.info('Preserving app data to reuse cached tokens while resuming');
             }
 
             // Run performance optimizations

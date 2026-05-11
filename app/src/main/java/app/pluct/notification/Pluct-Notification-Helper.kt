@@ -427,6 +427,8 @@ object PluctNotificationHelper {
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         try {
+            // Replace stuck ongoing progress with the completion card (Trust: no duplicate shade).
+            notificationManager.cancel(notificationId)
             notificationManager.notify(notificationId, notification)
         } catch (e: SecurityException) {
             Log.w("PluctNotificationHelper", "Failed to show completion notification: ${e.message}")

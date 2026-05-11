@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import kotlinx.coroutines.launch
@@ -72,6 +73,7 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
         try {
             PluctCorePermission01Manager.invalidateCache() // Clear cache for fresh check
             isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+            Log.i("PluctSettings", "Settings permissions visible; batteryOptimized=$isBatteryOptimized")
         } catch (e: Exception) {
             android.util.Log.w("PluctSettings", "Failed to check battery optimization: ${e.message}")
             // Keep current state on error
@@ -118,7 +120,7 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = if (hasNotificationPermission) "Granted" else "Required",
+                        text = if (hasNotificationPermission) "On — alerts when text is ready" else "Needed for alerts",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (hasNotificationPermission) 
                             MaterialTheme.colorScheme.primary 
@@ -185,7 +187,7 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = if (hasOverlayPermission) "Granted" else "Optional",
+                        text = if (hasOverlayPermission) "On — progress on top of other apps" else "Optional — progress while away",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (hasOverlayPermission) 
                             MaterialTheme.colorScheme.primary 

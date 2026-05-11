@@ -13,7 +13,7 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
     }
 
     async execute() {
-        this.core.logger.info('dYZ_ Starting TikTok Intent Transcription Journey...');
+        this.core.logger.info('Starting TikTok Intent Transcription Journey...');
         const startTime = Date.now();
         const originalUrl = this.core.getActiveUrl();
         const urlsToTest = this.core.getTestUrls();
@@ -22,7 +22,7 @@ class TikTokIntentTranscriptionJourney extends BaseJourney {
         try {
             for (const url of urlsToTest) {
                 this.core.setActiveUrl(url);
-                this.core.logger.info(`dYZ_ Running transcription flow for URL: ${url}`);
+                this.core.logger.info(`Running transcription flow for URL: ${url}`);
                 const result = await this.executeForActiveUrl();
                 if (!result.success) {
                     return { success: false, error: `URL ${url} failed: ${result.error}` };

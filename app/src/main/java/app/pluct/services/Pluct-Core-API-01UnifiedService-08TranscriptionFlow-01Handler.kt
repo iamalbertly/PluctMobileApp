@@ -229,6 +229,37 @@ class PluctCoreAPI01UnifiedService08TranscriptionFlow01Handler(
         )
         sanitizedUrl = canonicalizedUrl
 
+        // Cache hit on canonical URL (vm.tiktok.com often stored as full tiktok.com URL after first run).
+        val completedCanonical = videoRepository?.getVideoByUrl(sanitizedUrl)
+        if (completedCanonical != null &&
+            completedCanonical.status == ProcessingStatus.COMPLETED &&
+            completedCanonical.transcript != null
+        ) {
+            val cacheAgeMs = completedCanonical.transcriptCachedAt?.let {
+                System.currentTimeMillis() - it
+            } ?: 0L
+            val cacheValidMs = 24 * 60 * 60 * 1000L
+            if (cacheAgeMs < cacheValidMs) {
+                Log.d(TAG, "Post-canonical cache hit for $sanitizedUrl (age=${cacheAgeMs}ms)")
+                debugLogManager.logInfo(
+                    category = "TRANSCRIPTION",
+                    operation = "cache_hit_post_canonical",
+                    message = "Returning cached transcript for canonical URL",
+                    details = "URL=$sanitizedUrl; CacheAge=${cacheAgeMs}ms"
+                )
+                val existingStatus = app.pluct.services.TranscriptionStatusResponse(
+                    jobId = completedCanonical.jobId ?: "",
+                    status = "completed",
+                    progress = 100,
+                    transcript = completedCanonical.transcript,
+                    text = completedCanonical.transcript,
+                    _cacheHit = true,
+                    url = sanitizedUrl
+                )
+                return Result.success(existingStatus)
+            }
+        }
+
         // Parallel metadata fetch and token vending
         val parallelStart = System.currentTimeMillis()
         updateDebug(OperationStep.METADATA, null, null, null, null)
