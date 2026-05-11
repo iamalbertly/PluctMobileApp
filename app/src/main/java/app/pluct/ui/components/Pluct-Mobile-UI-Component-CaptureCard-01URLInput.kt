@@ -5,8 +5,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.onFocusChanged
@@ -40,7 +43,7 @@ import app.pluct.services.PluctCoreValidationInputSanitizer
 
 /**
  * Pluct-Mobile-UI-Component-CaptureCard-01URLInput
- * Modern, sleek URL input field with integrated submit button (Twitter-style) and credit badge.
+ * URL row: wallet chip, paste field, circular go action (universal forward cue), example hint below.
  * Follows strict naming convention: [Scope]-[Responsibility]
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,9 +80,9 @@ fun PluctURLInputField(
         else -> "$creditBalance"
     }
     val walletDescription = when {
-        isLoadingCreditBalance -> "Balance loading"
-        freeUsesRemaining > 0 -> "Free uses left: $freeUsesRemaining. Tap to refresh balance."
-        else -> "Balance: $creditBalance. Tap to refresh."
+        isLoadingCreditBalance -> "Loading wallet amount"
+        freeUsesRemaining > 0 -> "Free uses: $freeUsesRemaining. Tap to refresh."
+        else -> "Wallet amount: $creditBalance. Tap to refresh."
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -267,26 +270,27 @@ fun PluctURLInputField(
                                 onSubmit?.invoke() 
                             },
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
                                 .semantics {
-                                    contentDescription = "Extract Script"
+                                    contentDescription = "Start"
                                     testTag = "extract_script_button"
                                 },
                             enabled = !isSubmitting
                         ) {
                             if (isSubmitting) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(22.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.onPrimary
                                 )
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Submit",
-                                    // UX FIX 5: Clear disabled state - button only shows when enabled, so always use primary color
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
@@ -294,6 +298,19 @@ fun PluctURLInputField(
                 }
             }
         }
+
+        Text(
+            text = "Example: https://vt.tiktok.com/…",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+            modifier = Modifier
+                .padding(start = 4.dp, top = 6.dp)
+                .fillMaxWidth()
+                .semantics {
+                    testTag = "capture_url_example_hint"
+                    contentDescription = "Example TikTok link"
+                }
+        )
 
         if (validationError != null) {
             Text(

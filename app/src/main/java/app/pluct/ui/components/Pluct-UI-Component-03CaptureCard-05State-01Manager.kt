@@ -149,7 +149,7 @@ object PluctUIComponent03CaptureCard05State01Manager {
         
         return when {
             !hasNetwork -> Pair(true, "No internet connection")
-            !hasCredits -> Pair(true, "Insufficient credits (need 1 credit or free use)")
+            !hasCredits -> Pair(true, "No uses left — open Settings")
             else -> Pair(false, null)
         }
     }

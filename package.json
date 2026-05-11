@@ -6,8 +6,8 @@
   "scripts": {
     "test": "npm run test:all",
     "test:all": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
-    "test:paths": "cross-env TEST_FILTER=Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-Intent-03TikTok-04BalanceRace-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
-    "test:updated": "cross-env TEST_FILTER=Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-Intent-03TikTok-04BalanceRace-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:paths": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-Intent-03TikTok-04BalanceRace-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:updated": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-Intent-03TikTok-04BalanceRace-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:all:full": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:core": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Journey-AppLaunch --test Journey-QuickScan",
     "test:ui": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Pluct-UI-Header-01CreditBalance-Validation --test Pluct-Journey-Home-04EmptyState-01DemoLink",

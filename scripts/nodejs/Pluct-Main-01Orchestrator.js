@@ -29,6 +29,7 @@ class PluctMainOrchestrator {
      */
     async run(options = {}) {
         this.core.logger.info('🎯 Starting Pluct Main Orchestrator...');
+        this.core.logger.info('🎯 Device UI checks use ADB + UIAutomator hierarchy (stable testTags), same assertion style as headless browser automation; not Playwright/Puppeteer.');
         this.core.logger.info(`🎯 Scope: All, URL: ${this.core.config.url}`);
         if (options && Array.isArray(options.tests) && options.tests.length > 0) {
             this.core.logger.info(`🎯 Test filter active: ${options.tests.join(', ')}`);

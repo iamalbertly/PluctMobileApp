@@ -63,7 +63,9 @@ fun PluctUIComponent03CaptureCard06Queue01Prompt(
                 Icon(
                     imageVector = when {
                         queuePromptReason?.contains("internet", ignoreCase = true) == true -> Icons.Default.WifiOff
-                        queuePromptReason?.contains("credits", ignoreCase = true) == true -> Icons.Default.AccountBalanceWallet
+                        queuePromptReason?.contains("credits", ignoreCase = true) == true ||
+                            queuePromptReason?.contains("uses", ignoreCase = true) == true ||
+                            queuePromptReason?.contains("settings", ignoreCase = true) == true -> Icons.Default.AccountBalanceWallet
                         else -> Icons.Filled.Info
                     },
                     contentDescription = null,

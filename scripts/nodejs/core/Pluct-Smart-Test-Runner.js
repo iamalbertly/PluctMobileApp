@@ -14,6 +14,8 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation',
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-UX-25DirectToValue-Readiness-01Validation',
@@ -56,6 +58,8 @@ class PluctSmartTestRunner {
             'Journey-QuickScan.js'
         ];
         this.highPriorityTests = [
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation',
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-TTTranscribeIntegration',
@@ -434,7 +438,7 @@ class PluctSmartTestRunner {
      */
     async captureStageTelemetry(label) {
         try {
-            this.core.logger.info(`dY"? Telemetry checkpoint: ${label}`);
+            this.core.logger.info(`Telemetry checkpoint: ${label}`);
             
             // Capture UI snapshot for runtime state validation
             const uiResult = await this.core.dumpUIHierarchy();
@@ -442,7 +446,7 @@ class PluctSmartTestRunner {
                 const uiDump = (this.core.readLastUIDump() || "").trim();
                 if (uiDump) {
                     const preview = uiDump.substring(0, 800);
-                    this.core.logger.info(`dY"ñ UI snapshot (${label}): ${preview}${uiDump.length > 800 ? "..." : ""}`);
+                    this.core.logger.info(`UI snapshot (${label}): ${preview}${uiDump.length > 800 ? "..." : ""}`);
                 }
             }
             
@@ -450,11 +454,11 @@ class PluctSmartTestRunner {
             const logcatResult = await this.core.executeCommand("adb logcat -d -t 200", undefined, undefined, { allowFailure: true });
             if (logcatResult.success && logcatResult.output) {
                 const tail = logcatResult.output.split('\n').slice(-120).join('\n');
-                this.core.logger.info(`dY"ñ Logcat tail (${label}):`);
+                this.core.logger.info(`Logcat tail (${label}):`);
                 this.core.logger.info(tail);
             }
         } catch (error) {
-            this.core.logger.warn(`dY"¡ Telemetry capture skipped: ${error.message}`);
+            this.core.logger.warn(`Telemetry capture skipped: ${error.message}`);
         }
     }
 

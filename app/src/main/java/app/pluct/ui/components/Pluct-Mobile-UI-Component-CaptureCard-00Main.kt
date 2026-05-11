@@ -171,15 +171,15 @@ fun PluctUIComponent03CaptureCard(
             Log.d("CaptureCard", "No credits available; queueing instead of submitting")
             onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
             showQueuePrompt = true
-            queuePromptReason = "Insufficient credits (need 1 credit or free use)"
+            queuePromptReason = "No uses left — open Settings"
             isSubmitting = false
             isAutoSubmitting = false
             return@submit
         }
 
         val costLabel =
-            if (freeUsesRemaining > 0) "Free (free uses left: $freeUsesRemaining)"
-            else "Costs 1 credit (balance: $creditBalance)"
+            if (freeUsesRemaining > 0) "Free · uses left: $freeUsesRemaining"
+            else "Uses 1 · you have: $creditBalance"
 
         // Reserve credits first; only then start the API flow (was racing: transcription ran before reserve finished).
         scope.launch {
@@ -356,7 +356,7 @@ fun PluctUIComponent03CaptureCard(
                 if (validationResult.isValid) {
                     onQueueForLater?.invoke(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
                     showQueuePrompt = true
-                    queuePromptReason = "Insufficient credits (need 1 credit or free use)"
+                    queuePromptReason = "No uses left — open Settings"
                 }
             }
         }
@@ -475,7 +475,7 @@ fun PluctUIComponent03CaptureCard(
                                             showDialog = false
                                             onRequestCredits()
                                         }) {
-                                            Text("Request Credits")
+                                            Text("Open Settings")
                                         }
                                     }
                                 }
@@ -672,7 +672,7 @@ fun PluctUIComponent03CaptureCard(
                         testTag = "get_coins_button"
                     }
                 ) {
-                    Text("Low credits - add more")
+                    Text("Low balance — add more")
                 }
             }
 
@@ -680,7 +680,7 @@ fun PluctUIComponent03CaptureCard(
             if (timedOutOnce && !isSubmitting && persistentError == null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "If it stalls again, tap Request Credits to refresh access.",
+                    text = "If it stalls again, open Settings to refresh access.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )

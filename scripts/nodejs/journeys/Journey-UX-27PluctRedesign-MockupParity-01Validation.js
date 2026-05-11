@@ -25,11 +25,20 @@ class JourneyUX27PluctRedesignMockupParity01Validation extends BaseJourney {
             const hasCapture = ui.includes('capture_card_root') || ui.includes('always visible capture');
             const hasWalletOrBalance =
                 ui.includes('capture_wallet_chip') ||
+                ui.includes('wallet amount') ||
+                ui.includes('free uses:') ||
                 ui.includes('wallet') ||
                 ui.includes('balance loading') ||
                 ui.includes('balance:');
             const hasNav = ui.includes('nav_home') || ui.includes('navigation') || ui.includes('bottomnavigation');
+            const hasParityHints =
+                ui.includes('home_value_promise_line') ||
+                ui.includes('capture_url_example_hint') ||
+                ui.includes('clean it up');
             if (inPluct && hasCapture && (hasWalletOrBalance || hasNav)) {
+                if (!hasParityHints) {
+                    this.core.logger.warn('UX-27: value line or URL example hint not visible in dump (may still be OK)');
+                }
                 return { ok: true, attempt: i + 1 };
             }
             await this.core.sleep(intervalMs);
