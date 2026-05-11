@@ -14,16 +14,16 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
-            'Journey-UX-27PluctRedesign-MockupParity-01Validation',
-            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
-            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
-            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
-            'Journey-UX-25DirectToValue-Readiness-01Validation',
-            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
             'Journey-UX-24BatteryOptimizationRefresh-Validation',
             'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+            'Journey-UX-25DirectToValue-Readiness-01Validation',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation',
+            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
+            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-Fix-03HealthMonitoring-Validation',
             'Journey-Fix-03HealthMonitoring-Validation.js',
             'Journey-User-Identification-01Validation',
@@ -58,6 +58,12 @@ class PluctSmartTestRunner {
             'Journey-QuickScan.js'
         ];
         this.highPriorityTests = [
+            'Journey-Intent-03TikTok-04BalanceRace-01Validation',
+            'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+            'Journey-UX-25DirectToValue-Readiness-01Validation',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
             'Journey-UX-27PluctRedesign-MockupParity-01Validation',
             'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation',
@@ -113,14 +119,59 @@ class PluctSmartTestRunner {
         }
         
         this.executionStrategy = this.tracker.getExecutionStrategy(orderedTests);
+        if (
+            this.executionStrategy.strategy === 'resume-from-failed' &&
+            Array.isArray(this.executionStrategy.testsToRun) &&
+            typeof this.executionStrategy.resumeFromIndex === 'number'
+        ) {
+            const idx = this.executionStrategy.resumeFromIndex;
+            const droppedLatest = orderedTests
+                .slice(0, idx)
+                .filter(t => this.latestChangedTests.includes(t));
+            if (droppedLatest.length > 0) {
+                const tail = this.executionStrategy.testsToRun;
+                const merged = [];
+                const seen = new Set();
+                for (const t of droppedLatest) {
+                    if (!seen.has(t)) {
+                        merged.push(t);
+                        seen.add(t);
+                    }
+                }
+                for (const t of tail) {
+                    if (!seen.has(t)) {
+                        merged.push(t);
+                        seen.add(t);
+                    }
+                }
+                this.executionStrategy.testsToRun = merged;
+                this.executionStrategy.reason += ' + latest-changed prepended (verify-first)';
+            }
+        }
         return this.executionStrategy;
+    }
+
+    /** Lower index in latestChangedTests = more recently touched surface; stable order for verify-first runs. */
+    latestChangedTestRank(testName) {
+        const norm = s => (s && String(s).endsWith('.js') ? String(s).slice(0, -3) : String(s || ''));
+        const n = norm(testName);
+        let best = 99999;
+        for (let i = 0; i < this.latestChangedTests.length; i++) {
+            const e = this.latestChangedTests[i];
+            const en = norm(e);
+            if (e === testName || `${en}.js` === testName || `${n}.js` === e || en === n) {
+                best = Math.min(best, i);
+            }
+        }
+        return best;
     }
 
     orderTestsForCustomerRisk(allTests) {
         const uniqueTests = Array.from(new Set(allTests));
         const failed = new Set(this.tracker.getFailedTestsFromPreviousRuns());
         const take = (predicate) => uniqueTests.filter(predicate);
-        const latest = take(test => this.latestChangedTests.includes(test));
+        let latest = take(test => this.latestChangedTests.includes(test));
+        latest.sort((a, b) => this.latestChangedTestRank(a) - this.latestChangedTestRank(b));
         const failedTests = take(test => failed.has(test) && !latest.includes(test));
         const priority = take(test =>
             this.highPriorityTests.includes(test) &&

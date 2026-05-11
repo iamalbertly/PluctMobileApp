@@ -114,7 +114,7 @@ object PluctUIScreen01MainActivityIntentHandler {
             return
         }
 
-        Log.d("IntentHandler", "TikTok URL detected: $extractedUrl")
+        Log.i("IntentHandler", "TikTok URL detected: $extractedUrl")
         PluctUserPreferences.setPrefilledUrl(context, validationResult.sanitizedValue)
         PluctUserPreferences.setIntentFeedback(
             context,

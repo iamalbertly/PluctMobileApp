@@ -130,7 +130,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_SEND || (intent.data != null && intent.data?.scheme == "pluct")) {
             val url = PluctUserPreferences.getAndClearPrefilledUrl(this)
             if (url != null) {
-                Log.d("MainActivity", "Setting prefilled URL from onCreate intent: $url")
+                Log.i("MainActivity", "Setting prefilled URL from onCreate intent: $url")
                 prefilledUrlState.value = null
                 prefilledUrlState.value = url
             }
@@ -178,7 +178,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
             // Check for prefilled URL immediately after handling intent
             val url = PluctUserPreferences.getAndClearPrefilledUrl(this)
             if (url != null) {
-                Log.d("MainActivity", "Prefilled URL from new intent: $url")
+                Log.i("MainActivity", "Prefilled URL from new intent: $url")
                 // Check if processing is active and queue if needed
                 lifecycleScope.launch {
                     val wasQueued = PluctUIScreen01MainActivityIntentHandlerQueueManager.queueIntentIfProcessing(
@@ -193,7 +193,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
                         prefilledUrlState.value = null
                         delay(100)
                         prefilledUrlState.value = url
-                        Log.d("MainActivity", "Prefilled URL state set after delay: $url")
+                        Log.i("MainActivity", "Prefilled URL state set after delay: $url")
                     } else {
                         // Queued, don't set prefilled URL (will process later)
                         Log.d("MainActivity", "Intent queued due to active processing")

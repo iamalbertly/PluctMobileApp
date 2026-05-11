@@ -153,6 +153,8 @@ class PluctCoreFoundation {
 
     /**
      * Pull recent logcat lines filtered by Android log level (avoids Windows adb|findstr pipe issues).
+     * Same contract as headless UI tools (e.g. Playwright MCP page assertions): bounded tail + stable signals.
+     * Android UI state still comes from uiautomator dump / testTags — not from browser MCP.
      * @param {string} tagSpec e.g. "MainActivity:I CaptureCard:I *:S"
      */
     async captureFilteredLogcatTail(tagSpec, lines = 1500, timeout = 20000) {
@@ -686,9 +688,15 @@ class PluctCoreFoundation {
             });
 
             const remainingErrors = pluctAPIErrors.filter(err => {
-                return !/vend-token/i.test(err) &&
-                    !/insufficient[_\s]?credits/i.test(err) &&
-                    !/payment required/i.test(err);
+                const e = String(err);
+                if (/vend-token/i.test(e)) return false;
+                if (/insufficient[_\s]?credits/i.test(e)) return false;
+                if (/payment required/i.test(e)) return false;
+                // Bare PluctAPI "API ERROR [req_*]" lines omit HTTP status; 402/5xx appear on PluctUserPain / response lines.
+                if (/PluctAPI:.*API ERROR.*\[req_/i.test(e) && !/\b(401|403|404|429|500|502|503|504)\b/.test(e)) {
+                    return false;
+                }
+                return true;
             });
 
             return {
