@@ -709,6 +709,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Sync into `app/src/main/res`**: `powershell -File scripts/sync-icons.ps1` from repo root.
 - **Play Console**: `docs/store-listing/playstore-icon.png` for the high-res launcher slot.
 - **ADB shell check**: `npm run test:shell-visual` (see `docs/UX-28-Shell-Visual-Validation.md`; requires a device line ending in `device`).
+- **Themed / install UI (API 33+)**: Adaptive icons include `drawable/ic_launcher_monochrome.xml`; status bar uses `drawable/ic_stat_pluct.xml` (never `@mipmap/ic_launcher` for `setSmallIcon`).
+- **Still seeing an old teal tile after sideload?** Uninstall `app.pluct` once, then reinstall — PackageManager caches launcher art. Re-export `mipmap-*/ic_launcher.png` from Android Studio if that file still shows legacy art (it is used on some OEM paths beside adaptive XML).
 
 ---
 

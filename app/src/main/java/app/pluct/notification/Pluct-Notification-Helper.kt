@@ -80,23 +80,15 @@ object PluctNotificationHelper {
      */
     private fun getNotificationIcon(context: Context): Int {
         return try {
-            // Primary: Use dedicated notification icon (monochrome Pluct logo)
             context.resources.getResourceName(R.drawable.ic_stat_pluct)
             R.drawable.ic_stat_pluct
         } catch (e: android.content.res.Resources.NotFoundException) {
             try {
-                // Fallback 1: Use launcher foreground (may work on some devices)
-                context.resources.getResourceName(R.drawable.ic_launcher_foreground)
-                R.drawable.ic_launcher_foreground
+                context.resources.getResourceName(R.drawable.ic_launcher_monochrome)
+                R.drawable.ic_launcher_monochrome
             } catch (e2: android.content.res.Resources.NotFoundException) {
-                try {
-                    // Fallback 2: Mipmap launcher
-                    context.resources.getResourceName(R.mipmap.ic_launcher)
-                    R.mipmap.ic_launcher
-                } catch (e3: Exception) {
-                    Log.w("PluctNotificationHelper", "No app icon found, using system fallback")
-                    android.R.drawable.ic_dialog_info
-                }
+                Log.w("PluctNotificationHelper", "No stat icon, using system fallback: ${e2.message}")
+                android.R.drawable.ic_dialog_info
             }
         } catch (e: Exception) {
             Log.w("PluctNotificationHelper", "Error loading notification icon: ${e.message}")

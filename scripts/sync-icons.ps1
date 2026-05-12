@@ -15,7 +15,7 @@ if (-not (Test-Path $src)) {
 }
 
 $dirs = Get-ChildItem -Path $src -Directory | Where-Object {
-    $_.Name -like "mipmap-*" -or $_.Name -eq "values"
+    $_.Name -like "mipmap-*" -or $_.Name -eq "values" -or $_.Name -eq "drawable"
 }
 
 foreach ($d in $dirs) {
@@ -27,4 +27,4 @@ foreach ($d in $dirs) {
     Write-Host "Mirrored $($d.Name)"
 }
 
-Write-Host "Icon sync complete. Rebuild the app to refresh launcher and notification large-icon art."
+Write-Host "Icon sync complete. Rebuild the app; for system install UI, uninstall the old app once so PackageManager drops cached art."

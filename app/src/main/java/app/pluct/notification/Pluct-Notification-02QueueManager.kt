@@ -22,17 +22,17 @@ object PluctQueueNotificationManager {
     private const val CHANNEL_ID_QUEUE = "pluct_queue"
     
     /**
-     * UX FIX: Safe icon retrieval with fallback (same as PluctNotificationHelper)
+     * Small notification icon must be a white alpha drawable — never @mipmap/ic_launcher (legacy full-color tile).
      */
     private fun getNotificationIcon(context: android.content.Context): Int {
         return try {
-            context.resources.getResourceName(R.mipmap.ic_launcher)
-            R.mipmap.ic_launcher
+            context.resources.getResourceName(R.drawable.ic_stat_pluct)
+            R.drawable.ic_stat_pluct
         } catch (e: android.content.res.Resources.NotFoundException) {
-            Log.w("PluctQueueNotificationManager", "App icon resource not found, using fallback: ${e.message}")
+            Log.w("PluctQueueNotificationManager", "ic_stat_pluct missing, using system fallback: ${e.message}")
             android.R.drawable.ic_dialog_info
         } catch (e: Exception) {
-            Log.w("PluctQueueNotificationManager", "Error loading app icon, using fallback: ${e.message}")
+            Log.w("PluctQueueNotificationManager", "Error loading notification icon, using fallback: ${e.message}")
             android.R.drawable.ic_dialog_info
         }
     }

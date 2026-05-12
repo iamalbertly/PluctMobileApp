@@ -20,7 +20,7 @@ android {
         applicationId = "app.pluct"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
+        versionCode = 3
         versionName = pluctVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
