@@ -28,7 +28,8 @@ cross-env TEST_FILTER=Journey-UX-28AppIconAndShellVisual-01Validation.js node sc
 | Home | `capture_card_root`, `pluct_brand_logo_mark`, `home_value_promise_banner` or `home_value_promise_line` |
 | Logcat | No `FATAL EXCEPTION` in recent buffer |
 | Settings | `settings_sheet_content` plus grouped markers `settings_section_account` / `settings_group_card_*` |
-| Back | Tap `settings_top_bar_back` (fallback: KEYCODE_BACK), then home assertions again |
+| Back | Tap `settings_top_bar_back` (fallback: relaunch + Home tab), then home assertions again |
+| Icons | Adaptive XML includes **monochrome** (`ic_launcher_monochrome`); `setSmallIcon` must use **`ic_stat_pluct`**, not `@mipmap/ic_launcher`. |
 
 ## Rationale for edge cases
 
