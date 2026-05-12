@@ -531,6 +531,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 7. Health checks now reuse fresh snapshots and back off longer while TTTranscribe is degraded.
 8. Background auto-minimize is suppressed when notifications are disabled, keeping progress visible in-app.
 9. Upgrade/credit recovery opens the policy-provided store/help URL instead of dead-end support copy.
+10. Transcription notification code is split into focused modules under `app/pluct/notification` (public API unchanged: `PluctNotificationHelper`).
+11. WorkManager foreground notification uses the same id as `KEY_NOTIFICATION_ID` so the shade card updates instead of spawning a duplicate entry.
+12. Foreground CaptureCard flow consults `PluctCoreTranscription01Dedupe01Facade` before starting work when a background job already exists; heartbeat pacing is shared with the worker via `PluctCoreTranscription02ProgressHeartbeat01Policy`.
 
 **Edge Cases Covered:**
 1. Globally disabled app notifications no longer let background progress disappear silently.

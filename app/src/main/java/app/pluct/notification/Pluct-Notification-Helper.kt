@@ -1,218 +1,45 @@
 package app.pluct.notification
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.media.AudioAttributes
-import android.media.RingtoneManager
-import android.net.Uri
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.util.Log
-import androidx.core.app.NotificationCompat
-import app.pluct.PluctUIScreen01MainActivity
-import app.pluct.R
-import app.pluct.core.permission.PluctCorePermission01Manager
-import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
-import app.pluct.notification.PluctNotificationCancelReceiver
-
 import kotlin.jvm.JvmField
 
+/**
+ * Public façade for Pluct notifications. Implementation is split under [PluctNotification03Transcription01Channels]
+ * and related internal modules (≤300 lines each; Speed: one stable import surface for the app).
+ *
+ * Edge cases: progress requires POST_NOTIFICATIONS where applicable; complete/error fall back to toast when denied.
+ */
 object PluctNotificationHelper {
     @JvmField
     val CHANNEL_ID_COMPLETE = PluctNotification01Primitives.CHANNEL_ID_COMPLETE
+
     @JvmField
     val CHANNEL_ID_QUEUE = PluctNotification01Primitives.CHANNEL_ID_QUEUE
 
-    fun generateNotificationId(url: String): Int {
-        return url.hashCode().and(0x7FFFFFFF)
-    }
-    
-    private const val CHANNEL_NAME_PROGRESS = "Pluct Processing"
-    private const val CHANNEL_NAME_COMPLETE = "Pluct Complete"
-    private const val CHANNEL_NAME_ERROR = "Pluct Errors"
-
-    private const val CHANNEL_DESCRIPTION_PROGRESS = "Notifications for transcription progress"
-    private const val CHANNEL_DESCRIPTION_COMPLETE = "Notifications when transcriptions complete"
-    private const val CHANNEL_DESCRIPTION_ERROR = "Notifications for transcription errors"
-
-    // UX FIX #1: Vibration pattern for completion - short-long-short (celebratory)
-    private val COMPLETION_VIBRATION_PATTERN = longArrayOf(0, 100, 100, 300, 100, 100)
-
-    // UX FIX #4: Notification channel group for better Settings organization
-    private const val CHANNEL_GROUP_ID = "pluct_transcription"
-    private const val CHANNEL_GROUP_NAME = "Transcription"
+    fun generateNotificationId(url: String): Int = url.hashCode().and(0x7FFFFFFF)
 
     fun createNotificationChannels(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            // UX FIX #4: Create channel group for better organization in Settings > Notifications
-            val channelGroup = android.app.NotificationChannelGroup(
-                CHANNEL_GROUP_ID,
-                CHANNEL_GROUP_NAME
-            )
-            notificationManager.createNotificationChannelGroup(channelGroup)
-
-            // UX FIX #1: Get default notification sound for completion alerts
-            val completionSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-
-            // Progress channel - silent but visible enough for users who wait from TikTok.
-            val progressChannel = NotificationChannel(
-                PluctNotification01Primitives.CHANNEL_ID_PROGRESS,
-                CHANNEL_NAME_PROGRESS,
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = CHANNEL_DESCRIPTION_PROGRESS
-                setShowBadge(true)
-                enableVibration(false)
-                setSound(null, null)
-                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
-            }
-
-            // UX FIX #1: Completion channel with sound and vibration
-            val completeChannel = NotificationChannel(
-                PluctNotification01Primitives.CHANNEL_ID_COMPLETE,
-                CHANNEL_NAME_COMPLETE,
-                NotificationManager.IMPORTANCE_HIGH // Elevated for visibility
-            ).apply {
-                description = CHANNEL_DESCRIPTION_COMPLETE
-                setShowBadge(true)
-                enableVibration(true)
-                vibrationPattern = COMPLETION_VIBRATION_PATTERN
-                setSound(completionSoundUri, audioAttributes)
-                enableLights(true)
-                lightColor = android.graphics.Color.GREEN
-                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
-            }
-
-            // Error channel with sound
-            val errorChannel = NotificationChannel(
-                PluctNotification01Primitives.CHANNEL_ID_ERROR,
-                CHANNEL_NAME_ERROR,
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = CHANNEL_DESCRIPTION_ERROR
-                setShowBadge(true)
-                enableVibration(true)
-                setSound(completionSoundUri, audioAttributes)
-                group = CHANNEL_GROUP_ID // UX FIX #4: Assign to group
-            }
-
-            notificationManager.createNotificationChannel(progressChannel)
-            notificationManager.createNotificationChannel(completeChannel)
-            notificationManager.createNotificationChannel(errorChannel)
-
-            // Create queue notification channel
-            PluctNotification01Primitives.ensureQueueChannel(context)
-
-            Log.d("PluctNotificationHelper", "Notification channels created with sound+vibration for completion")
-            Log.i(PluctNotification01Primitives.LOG_TAG, "notification_channels_bootstrapped")
-        }
+        PluctNotification03Transcription01Channels.createAllTranscriptionChannels(context)
     }
 
-    /**
-     * UX FIX #1: Trigger vibration manually for devices/scenarios where channel vibration doesn't work
-     */
-    private fun vibrateForCompletion(context: Context) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vibratorManager?.defaultVibrator?.vibrate(
-                    VibrationEffect.createWaveform(COMPLETION_VIBRATION_PATTERN, -1)
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(VibrationEffect.createWaveform(COMPLETION_VIBRATION_PATTERN, -1))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator?.vibrate(COMPLETION_VIBRATION_PATTERN, -1)
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("PluctNotificationHelper", "Vibration failed: ${e.message}")
-        }
-    }
-    
-    // Legacy method for backward compatibility
     fun createNotificationChannel(context: Context) {
         createNotificationChannels(context)
     }
-    
+
     fun showProcessingCompleteNotification(
         context: Context,
         videoTitle: String,
         processingTier: String
     ) {
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        PluctNotification03Transcription04TierBanners.showProcessingCompleteNotification(
+            context, videoTitle, processingTier
         )
-        
-        val notification = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("100% -> Pluct")
-            .setContentText("Tap -> Open")
-            .setSubText("${videoTitle.take(24)} ${processingTier.take(12)}".trim())
-            .setTicker("100% -> Pluct")
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
-    
-    fun showQuickScanCompleteNotification(
-        context: Context,
-        videoTitle: String
-    ) {
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        val notification = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("100% -> Text")
-            .setContentText("Tap -> Open")
-            .setSubText(videoTitle.take(24))
-            .setTicker("100% -> Text")
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+
+    fun showQuickScanCompleteNotification(context: Context, videoTitle: String) {
+        PluctNotification03Transcription04TierBanners.showQuickScanCompleteNotification(context, videoTitle)
     }
-    
-    /**
-     * Show transcription progress notification
-     */
+
     fun showTranscriptionProgressNotification(
         context: Context,
         url: String,
@@ -220,269 +47,55 @@ object PluctNotificationHelper {
         message: String,
         notificationId: Int
     ) {
-        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
-            Log.w("PluctNotificationHelper", "Progress notification blocked; permission or app notifications disabled")
-            return
-        }
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("url", url)
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        PluctNotification03Transcription02Progress.showTranscriptionProgressNotification(
+            context, url, progress, message, notificationId
         )
-        
-        // UX FIX #4: Add cancel action
-        val cancelIntent = Intent(context, PluctNotificationCancelReceiver::class.java).apply {
-            action = PluctNotificationCancelReceiver.ACTION_CANCEL_TRANSCRIPTION
-            putExtra(PluctNotificationCancelReceiver.EXTRA_URL, url)
-            putExtra(PluctNotificationCancelReceiver.EXTRA_NOTIFICATION_ID, notificationId)
-        }
-        
-        val cancelPendingIntent = PendingIntent.getBroadcast(
-            context,
-            notificationId + 1000, // Different request code to avoid conflicts
-            cancelIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        val safeProgress = progress.coerceIn(0, 99)
-        val simpleText = PluctNotification02Copy01Formatter.progressText(message)
-        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_PROGRESS)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle(PluctNotification02Copy01Formatter.progressTitle(safeProgress))
-            .setContentText(simpleText)
-            .setSubText("$safeProgress%")
-            .setTicker("$safeProgress% $simpleText")
-            .setProgress(100, safeProgress, false)
-            .setContentIntent(pendingIntent)
-            .setOnlyAlertOnce(true)
-            .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Stop",
-                cancelPendingIntent
-            )
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
-            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
-        }
-        val notification = builder.build()
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        try {
-            notificationManager.notify(notificationId, notification)
-        } catch (e: SecurityException) {
-            Log.w("PluctNotificationHelper", "Failed to show progress notification: ${e.message}")
-        }
     }
-    
-    /**
-     * Show transcription completion notification with transcript preview
-     * Checks permission first and falls back to toast if permission denied
-     */
+
     fun showTranscriptionCompleteNotification(
         context: Context,
         url: String,
         transcript: String,
         notificationId: Int
     ) {
-        // Check permission first
-        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
-            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
-            // Fall back to toast notification when app is in foreground
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, true)
-            return
-        }
-        // Create intent to open video detail screen
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("action", "view_transcript")
-            putExtra("url", url)
-            putExtra("transcript", transcript)
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        PluctNotification03Transcription03CompleteAndError.showTranscriptionCompleteNotification(
+            context, url, transcript, notificationId
         )
-        
-        // Copy transcript action
-        val copyIntent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            action = "app.pluct.COPY_TRANSCRIPT"
-            putExtra("transcript", transcript)
-        }
-        val copyPendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId + 1,
-            copyIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // UX FIX #3: Enhanced preview with word count and first sentence for context
-        val wordCount = transcript.split(Regex("\\s+")).filter { it.isNotBlank() }.size
-        val titleWithContext = "100% -> Text"
-
-        // UX FIX #1: Build notification with HIGH priority for sound+vibration
-        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context))
-            .setContentTitle(titleWithContext)
-            .setContentText("Tap -> Copy ($wordCount words)")
-            .setTicker("100% -> Text")
-            .setStyle(NotificationCompat.BigTextStyle().bigText(transcript.take(500)))
-            .setContentIntent(pendingIntent)
-            .addAction(
-                android.R.drawable.ic_menu_share,
-                "Copy",
-                copyPendingIntent
-            )
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH) // UX FIX #1: Elevated priority
-            .setDefaults(NotificationCompat.DEFAULT_ALL) // UX FIX #1: Sound+vibration+lights
-            .setCategory(NotificationCompat.CATEGORY_STATUS)
-        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
-            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
-        }
-        val notification = builder.build()
-
-        // UX FIX #1: Trigger manual vibration as backup
-        vibrateForCompletion(context)
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        try {
-            // Replace stuck ongoing progress with the completion card (Trust: no duplicate shade).
-            notificationManager.cancel(notificationId)
-            notificationManager.notify(notificationId, notification)
-        } catch (e: SecurityException) {
-            Log.w("PluctNotificationHelper", "Failed to show completion notification: ${e.message}")
-            // Fall back to toast
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, true)
-        }
     }
-    
-    /**
-     * Show transcription error notification
-     * Checks permission first and falls back to toast if permission denied
-     */
+
     fun showTranscriptionErrorNotification(
         context: Context,
         url: String,
         error: String,
         notificationId: Int
     ) {
-        // Check permission first
-        if (!PluctCorePermission01Manager.hasNotificationPermission(context)) {
-            Log.w("PluctNotificationHelper", "Notification permission denied, showing toast instead")
-            // Fall back to toast notification when app is in foreground
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, false)
-            return
-        }
-        
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("url", url)
-            putExtra("error", error)
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            notificationId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        PluctNotification03Transcription03CompleteAndError.showTranscriptionErrorNotification(
+            context, url, error, notificationId
         )
-        
-        val simpleError = PluctNotification02Copy01Formatter.errorText(error)
-        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_ERROR)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle("! Pluct")
-            .setContentText(simpleError)
-            .setTicker("! Pluct $simpleError")
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
-            builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
-        }
-        val notification = builder.build()
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        try {
-            notificationManager.notify(notificationId, notification)
-        } catch (e: SecurityException) {
-            Log.w("PluctNotificationHelper", "Failed to show error notification: ${e.message}")
-            // Fall back to toast
-            PluctUIComponent05Notification02Toast01Helper.showTranscriptionFinished(context, url, false)
-        }
     }
-    
-    /**
-     * Show notification when transcription starts from intent
-     * Checks permission first and falls back to toast if permission denied
-     * 
-     * @deprecated This method creates duplicate notifications. The background worker
-     * handles showing the initial progress notification. Use showTranscriptionProgressNotification
-     * with progress=0 instead.
-     */
+
     @Deprecated(
         message = "Creates duplicate notifications. Use showTranscriptionProgressNotification instead.",
-        replaceWith = ReplaceWith("showTranscriptionProgressNotification(context, url, 0, \"Starting transcription...\", url.hashCode().and(0x7FFFFFFF))")
-    )
-    fun showTranscriptionStartedNotification(
-        context: Context,
-        url: String
-    ) {
-        // UX FIX: Redirect to progress notification to avoid duplicates
-        // The background worker will handle showing the initial notification
-        val notificationId = url.hashCode().and(0x7FFFFFFF) // Ensure positive
-        showTranscriptionProgressNotification(
-            context = context,
-            url = url,
-            progress = 0,
-            message = "Starting transcription...",
-            notificationId = notificationId
+        replaceWith = ReplaceWith(
+            "showTranscriptionProgressNotification(context, url, 0, \"Starting transcription...\", url.hashCode().and(0x7FFFFFFF))"
         )
+    )
+    fun showTranscriptionStartedNotification(context: Context, url: String) {
+        PluctNotification03Transcription03CompleteAndError.showTranscriptionStartedRedirectToProgress(context, url)
     }
-    
+
     /**
-     * Create progress notification for foreground service
+     * Foreground service progress notification. [notificationRequestCode] must match the live progress notification id so taps route consistently.
      */
     fun createProgressNotification(
         context: Context,
         url: String,
         progress: Int,
-        message: String
+        message: String,
+        notificationRequestCode: Int = 0
     ): android.app.Notification {
-        val intent = Intent(context, PluctUIScreen01MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("url", url)
-        }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PluctNotification03Transcription02Progress.createProgressNotification(
+            context, url, progress, message, notificationRequestCode
         )
-        
-        val safeProgress = progress.coerceIn(0, 99)
-        val simpleText = PluctNotification02Copy01Formatter.progressText(message)
-        return NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_PROGRESS)
-            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle(PluctNotification02Copy01Formatter.progressTitle(safeProgress))
-            .setContentText(simpleText)
-            .setSubText("$safeProgress%")
-            .setTicker("$safeProgress% $simpleText")
-            .setProgress(100, safeProgress, false)
-            .setContentIntent(pendingIntent)
-            .setOnlyAlertOnce(true)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
     }
 }

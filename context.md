@@ -40,8 +40,9 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 6. **Error Handling** ✅ - Comprehensive retry mechanisms and error recovery
 
 ### ✅ **CODEBASE REFACTORING (2026-05-12)**
-- **Notification SSOT**: `Pluct-Notification-01Primitives.kt` + `Pluct-Notification-02Copy-01Formatter.kt`; queue shade uses same channel/icon path as helper.
-- **Dedupe facade**: `Pluct-Core-Transcription-01Dedupe-01Facade.kt` used from CaptureCard background minimize path.
+- **Notification SSOT**: `Pluct-Notification-01Primitives.kt` + `Pluct-Notification-02Copy-01Formatter.kt`; public façade remains `PluctNotificationHelper` delegating to `Pluct-Notification-03Transcription-01Channels.kt`, `Pluct-Notification-03Transcription-02Progress.kt`, `Pluct-Notification-03Transcription-03CompleteAndError.kt`, `Pluct-Notification-03Transcription-04TierBanners.kt` (≤300 lines each). Queue shade still uses primitives.
+- **Transcription worker SSOT**: `Pluct-Core-Background-01TranscriptionWorker.kt` (WorkManager shell only); `Pluct-Core-Background-01TranscriptionWorker-04PollExistingJob.kt`, `Pluct-Core-Background-01TranscriptionWorker-05ProcessNew.kt`, `Pluct-Core-Background-01TranscriptionWorker-06Heartbeat.kt`; heartbeat copy in `Pluct-Core-Transcription-02ProgressHeartbeat-01Policy.kt` (shared with CaptureCard foreground flow). Foreground service notification id matches `KEY_NOTIFICATION_ID` for tap routing.
+- **Dedupe facade**: `Pluct-Core-Transcription-01Dedupe-01Facade.kt` — duplicate background enqueue and DB `PROCESSING` short-circuit both refresh shade; CaptureCard foreground path skips when WorkManager already has active work for URL.
 - **Journey registry SSOT**: `scripts/nodejs/journeys/Pluct-Journey-00Registry-01Manifest.js` (execution order + name map + smart-test hint prefixes).
 - **SIZE-EXEMPT**: `Pluct-UI-Screen-01MainActivity-09MainContent.kt` — cohesive Compose shell until incremental split (Customer: avoid half-broken state hoists).
 - **Integration doc**: `MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md` (no secrets in repo).

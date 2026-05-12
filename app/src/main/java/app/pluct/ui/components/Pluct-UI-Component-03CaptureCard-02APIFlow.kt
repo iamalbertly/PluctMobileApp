@@ -18,12 +18,10 @@ import app.pluct.notification.PluctNotificationHelper
 import app.pluct.services.PluctCoreTranscription01Dedupe01Facade
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.KEY_URL
-import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.NOTIFICATION_ID_PROGRESS
 import app.pluct.services.PluctCoreBackground01TranscriptionWorkerJobDeduplication
+import app.pluct.services.launchPluctTranscriptionProgressHeartbeat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
@@ -126,26 +124,30 @@ object PluctUIComponent03CaptureCardAPIFlow {
             return
         }
 
+        if (context != null && PluctCoreTranscription01Dedupe01Facade.hasActiveWorkForUrl(context, normalizedUrl)) {
+            Log.d(tag, "Skipping duplicate foreground flow; active transcription work for $normalizedUrl")
+            PluctCoreTranscription01Dedupe01Facade.onDuplicateBackgroundRequest(context, normalizedUrl)
+            CoroutineScope(Dispatchers.Main).launch {
+                onError("This video is already being transcribed. Check notifications for progress.")
+            }
+            return
+        }
+
         val notificationId = PluctNotificationHelper.generateNotificationId(normalizedUrl)
         CoroutineScope(Dispatchers.IO).launch {
-            val heartbeat = context?.let {
-                launch heartbeat@{
-                    var progress = 0
-                    val labels = listOf("Video -> Text", "Link -> Ready", "Video -> Audio", "Audio -> Text", "Text -> Soon", "Almost done")
-                    var index = 0
-                    while (isActive) {
+            val heartbeat = context?.let { ctx ->
+                launchPluctTranscriptionProgressHeartbeat(
+                    startProgress = 0,
+                    onPulse = { progress, label ->
                         PluctNotificationHelper.showTranscriptionProgressNotification(
-                            context = it,
+                            context = ctx,
                             url = normalizedUrl,
                             progress = progress,
-                            message = labels[index % labels.size],
+                            message = label,
                             notificationId = notificationId
                         )
-                        delay(3500)
-                        index++
-                        progress = (progress + if (progress < 72) 12 else 3).coerceAtMost(91)
                     }
-                }
+                )
             }
             try {
                 val startTime = System.currentTimeMillis()
