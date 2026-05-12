@@ -39,13 +39,12 @@ The Choice Engine user journey is working correctly with all 6 enhancements:
 5. **Toast Messages** ✅ - User feedback for tier selection and coin status
 6. **Error Handling** ✅ - Comprehensive retry mechanisms and error recovery
 
-### ✅ **CODEBASE REFACTORING COMPLETED**
-- **File Size Compliance** ✅ - All files under 300 lines
-- **Component Separation** ✅ - Split CaptureInsightSheet into logical components
-- **Unified Testing** ✅ - Consolidated duplicate test logic into single source of truth
-- **Database Optimization** ✅ - Simplified entity definitions
-- **Naming Convention** ✅ - Consistent Pluct-[ParentScope]-[ChildScope]-[CoreResponsibility] format
-- **Automatic Deployment** ✅ - Orchestrator detects and deploys latest builds automatically
+### ✅ **CODEBASE REFACTORING (2026-05-12)**
+- **Notification SSOT**: `Pluct-Notification-01Primitives.kt` + `Pluct-Notification-02Copy-01Formatter.kt`; queue shade uses same channel/icon path as helper.
+- **Dedupe facade**: `Pluct-Core-Transcription-01Dedupe-01Facade.kt` used from CaptureCard background minimize path.
+- **Journey registry SSOT**: `scripts/nodejs/journeys/Pluct-Journey-00Registry-01Manifest.js` (execution order + name map + smart-test hint prefixes).
+- **SIZE-EXEMPT**: `Pluct-UI-Screen-01MainActivity-09MainContent.kt` — cohesive Compose shell until incremental split (Customer: avoid half-broken state hoists).
+- **Integration doc**: `MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md` (no secrets in repo).
 
 ### Remaining gating item
 Business Engine validation remains disabled by default until the app emits a clear health log (e.g., `BusinessEngine: HEALTH_OK`).
@@ -69,13 +68,14 @@ Business Engine validation remains disabled by default until the app emits a cle
 - Manifest: Storage permissions removed; kept `INTERNET`, `ACCESS_NETWORK_STATE`.
 
 ## Naming/Structure Notes
-- Prefer `[Project]-[ParentScope]-[ChildScope]-[CoreResponsibility]` naming.
-- Avoid giant Kotlin files (>300 lines).
+- Prefer meaningful `Pluct-[Domain]-[Area]-[Feature]-[Role]` segments; avoid filler segments.
+- Target ≤300 lines; use `// SIZE-EXEMPT: reason` only when splitting would harm UX state cohesion (document here).
 
 ## Main shell navigation (2026-05-11)
 
 - `app/pluct/ui/navigation/Pluct-UI-Navigation-01MainBottomBar.kt` — `PluctUIMainShellTab` + bottom bar (`nav_home`, `nav_library`, `nav_settings`).
-- `app/pluct/PluctUIScreen01MainActivity.kt` — outer `Scaffold` when not in video detail: Home (embedded `PluctHomeScreen` without inner scaffold), Library (`PluctUIScreen02LibraryTab01Screen`), Settings tab (`PluctUIScreen03SettingsTab01Screen`), shared debug log overlay.
+- `app/pluct/PluctUIScreen01MainActivity.kt` — activity + theme + `PluctMainContent` entry.
+- `app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-09MainContent.kt` — main shell (home/library/settings, errors, onboarding); SIZE-EXEMPT until sub-split.
 - `app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen-04Settings-00SharedBody.kt` — settings scroll body shared by bottom sheet and Settings tab (one SSOT for rows).
 - `app/pluct/ui/components/PluctHomeShellTopBar` in `Pluct-UI-03Header.kt` — brand row + settings (`settings_button`).
 - `app/pluct/ui/components/Pluct-UI-Component-02Branding-01LogoMark.kt` — in-app mark uses `R.mipmap.ic_launcher_foreground` (aligned with adaptive launcher foreground; `pluct_brand_logo_mark`).

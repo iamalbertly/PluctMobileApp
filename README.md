@@ -76,8 +76,8 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-org/pluct-mobile-app.git
-   cd pluct-mobile-app
+   git clone https://github.com/iamalbertly/PluctMobileApp.git
+   cd PluctMobileApp
    ```
 
 2. **Build the Application**
@@ -103,9 +103,8 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
    npm run test:ui
    npm run test:transcription
 
-   # Focused path (direct-to-value + balance race; same as TEST_FILTER in package.json)
-   npm run test:paths
-   ```
+   # Validate notification SSOT + dedupe wiring (ADB + logcat + UI)
+   npm run test:dedupe-ssot
    The canonical test entrypoint is `npm run test:all`, backed by the Node journey orchestrator in `scripts/nodejs`. **Android UI validation is ADB + Node**, not browser automation. **Playwright MCP** (if enabled in your environment) is for **web** surfaces only, not the Android app. Test URLs include `https://vt.tiktok.com/ZS9bDyvc5/` for validation. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
 
 ### **Three-tier system (evolution contract)**

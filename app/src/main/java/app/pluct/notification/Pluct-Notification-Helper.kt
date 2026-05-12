@@ -20,80 +20,16 @@ import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.ui.components.PluctUIComponent05Notification02Toast01Helper
 import app.pluct.notification.PluctNotificationCancelReceiver
 
+import kotlin.jvm.JvmField
+
 object PluctNotificationHelper {
-    private const val CHANNEL_ID_PROGRESS = "pluct_processing_live"
-    const val CHANNEL_ID_COMPLETE = "pluct_complete" // Exposed for QueueNotificationManager
-    private const val CHANNEL_ID_ERROR = "pluct_error"
-    const val CHANNEL_ID_QUEUE = "pluct_queue" // Exposed for QueueNotificationManager
+    @JvmField
+    val CHANNEL_ID_COMPLETE = PluctNotification01Primitives.CHANNEL_ID_COMPLETE
+    @JvmField
+    val CHANNEL_ID_QUEUE = PluctNotification01Primitives.CHANNEL_ID_QUEUE
 
-    /**
-     * TECH DEBT #2: Centralized notification ID generation
-     * Ensures consistent, positive IDs across all notification paths
-     * Uses URL hashCode masked to ensure positive value
-     */
     fun generateNotificationId(url: String): Int {
-        return url.hashCode().and(0x7FFFFFFF) // Mask to ensure positive
-    }
-
-    private fun buildOpenVideoPendingIntent(context: Context, url: String, requestCode: Int): PendingIntent? {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-        return PendingIntent.getActivity(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun progressTitle(progress: Int): String = "$progress% -> Text"
-
-    private fun progressText(message: String): String {
-        val lower = message.lowercase()
-        return when {
-            "network" in lower || "connection" in lower || "reconnect" in lower -> "Wi-Fi -> Resume"
-            "server" in lower || "busy" in lower -> "Wait -> Retry"
-            "download" in lower -> "Video -> Audio"
-            "extract" in lower || "audio" in lower -> "Audio -> Text"
-            "transcrib" in lower -> "Audio -> Text"
-            "final" in lower || "complete" in lower -> "Almost done"
-            "start" in lower || "prepar" in lower -> "Video -> Text"
-            else -> message.take(48)
-        }
-    }
-
-    private fun errorText(error: String): String {
-        val lower = error.lowercase()
-        return when {
-            "credit" in lower || "insufficient" in lower -> "Add credits -> Continue"
-            "network" in lower || "connection" in lower || "resolve host" in lower -> "No internet -> Saved"
-            "tttranscribe" in lower || "service" in lower || "server" in lower || "500" in lower -> "Try again soon. Video saved."
-            "timeout" in lower || "still working" in lower -> "Still working. Check soon."
-            else -> error.take(72)
-        }
-    }
-
-    /**
-     * UX FIX #2: Safe notification icon retrieval with dedicated monochrome icon
-     * Android 13+ requires monochrome icons for status bar visibility
-     * Uses dedicated ic_stat_pluct (Pluct logo silhouette) with fallbacks
-     */
-    private fun getNotificationIcon(context: Context): Int {
-        return try {
-            context.resources.getResourceName(R.drawable.ic_stat_pluct)
-            R.drawable.ic_stat_pluct
-        } catch (e: android.content.res.Resources.NotFoundException) {
-            try {
-                context.resources.getResourceName(R.drawable.ic_launcher_monochrome)
-                R.drawable.ic_launcher_monochrome
-            } catch (e2: android.content.res.Resources.NotFoundException) {
-                Log.w("PluctNotificationHelper", "No stat icon, using system fallback: ${e2.message}")
-                android.R.drawable.ic_dialog_info
-            }
-        } catch (e: Exception) {
-            Log.w("PluctNotificationHelper", "Error loading notification icon: ${e.message}")
-            android.R.drawable.ic_dialog_info
-        }
+        return url.hashCode().and(0x7FFFFFFF)
     }
     
     private const val CHANNEL_NAME_PROGRESS = "Pluct Processing"
@@ -131,7 +67,7 @@ object PluctNotificationHelper {
 
             // Progress channel - silent but visible enough for users who wait from TikTok.
             val progressChannel = NotificationChannel(
-                CHANNEL_ID_PROGRESS,
+                PluctNotification01Primitives.CHANNEL_ID_PROGRESS,
                 CHANNEL_NAME_PROGRESS,
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
@@ -144,7 +80,7 @@ object PluctNotificationHelper {
 
             // UX FIX #1: Completion channel with sound and vibration
             val completeChannel = NotificationChannel(
-                CHANNEL_ID_COMPLETE,
+                PluctNotification01Primitives.CHANNEL_ID_COMPLETE,
                 CHANNEL_NAME_COMPLETE,
                 NotificationManager.IMPORTANCE_HIGH // Elevated for visibility
             ).apply {
@@ -160,7 +96,7 @@ object PluctNotificationHelper {
 
             // Error channel with sound
             val errorChannel = NotificationChannel(
-                CHANNEL_ID_ERROR,
+                PluctNotification01Primitives.CHANNEL_ID_ERROR,
                 CHANNEL_NAME_ERROR,
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
@@ -176,9 +112,10 @@ object PluctNotificationHelper {
             notificationManager.createNotificationChannel(errorChannel)
 
             // Create queue notification channel
-            PluctQueueNotificationManager.createQueueNotificationChannel(context)
+            PluctNotification01Primitives.ensureQueueChannel(context)
 
             Log.d("PluctNotificationHelper", "Notification channels created with sound+vibration for completion")
+            Log.i(PluctNotification01Primitives.LOG_TAG, "notification_channels_bootstrapped")
         }
     }
 
@@ -228,8 +165,8 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
+        val notification = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("100% -> Pluct")
             .setContentText("Tap -> Open")
             .setSubText("${videoTitle.take(24)} ${processingTier.take(12)}".trim())
@@ -258,8 +195,8 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
+        val notification = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("100% -> Text")
             .setContentText("Tap -> Open")
             .setSubText(videoTitle.take(24))
@@ -314,10 +251,10 @@ object PluctNotificationHelper {
         )
         
         val safeProgress = progress.coerceIn(0, 99)
-        val simpleText = progressText(message)
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
-            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle(progressTitle(safeProgress))
+        val simpleText = PluctNotification02Copy01Formatter.progressText(message)
+        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_PROGRESS)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
+            .setContentTitle(PluctNotification02Copy01Formatter.progressTitle(safeProgress))
             .setContentText(simpleText)
             .setSubText("$safeProgress%")
             .setTicker("$safeProgress% $simpleText")
@@ -331,7 +268,7 @@ object PluctNotificationHelper {
             )
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
             builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
         }
         val notification = builder.build()
@@ -393,8 +330,8 @@ object PluctNotificationHelper {
         val titleWithContext = "100% -> Text"
 
         // UX FIX #1: Build notification with HIGH priority for sound+vibration
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
-            .setSmallIcon(getNotificationIcon(context))
+        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_COMPLETE)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context))
             .setContentTitle(titleWithContext)
             .setContentText("Tap -> Copy ($wordCount words)")
             .setTicker("100% -> Text")
@@ -409,7 +346,7 @@ object PluctNotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_HIGH) // UX FIX #1: Elevated priority
             .setDefaults(NotificationCompat.DEFAULT_ALL) // UX FIX #1: Sound+vibration+lights
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
             builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
         }
         val notification = builder.build()
@@ -460,16 +397,16 @@ object PluctNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val simpleError = errorText(error)
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID_ERROR)
-            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
+        val simpleError = PluctNotification02Copy01Formatter.errorText(error)
+        val builder = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_ERROR)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
             .setContentTitle("! Pluct")
             .setContentText(simpleError)
             .setTicker("! Pluct $simpleError")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        buildOpenVideoPendingIntent(context, url, notificationId + 2000)?.let {
+        PluctNotification01Primitives.openUrlPendingIntent(context, url, notificationId + 2000)?.let {
             builder.addAction(android.R.drawable.ic_media_play, "TikTok", it)
         }
         val notification = builder.build()
@@ -534,10 +471,10 @@ object PluctNotificationHelper {
         )
         
         val safeProgress = progress.coerceIn(0, 99)
-        val simpleText = progressText(message)
-        return NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
-            .setSmallIcon(getNotificationIcon(context)) // UX FIX: Use app icon with safe fallback
-            .setContentTitle(progressTitle(safeProgress))
+        val simpleText = PluctNotification02Copy01Formatter.progressText(message)
+        return NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_PROGRESS)
+            .setSmallIcon(PluctNotification01Primitives.smallIconResId(context)) // UX FIX: Use app icon with safe fallback
+            .setContentTitle(PluctNotification02Copy01Formatter.progressTitle(safeProgress))
             .setContentText(simpleText)
             .setSubText("$safeProgress%")
             .setTicker("$safeProgress% $simpleText")

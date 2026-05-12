@@ -15,6 +15,7 @@
     "test:tiktok-refund": "node scripts/nodejs/Pluct-Test-Focused-08TikTok-Url-Refund-01Runner.js",
     "test:redesign": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:shell-visual": "cross-env TEST_FILTER=Journey-UX-28AppIconAndShellVisual-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:dedupe-ssot": "cross-env TEST_FILTER=Journey-Dedupe-Notification-SSOT-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:failed": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ux-fixes": "node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",

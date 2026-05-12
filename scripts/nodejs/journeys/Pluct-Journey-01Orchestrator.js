@@ -7,202 +7,15 @@
 const PluctCoreFoundation = require('../core/Pluct-Core-01Foundation');
 const fs = require('fs');
 const path = require('path');
+const journeyRegistry = require('./Pluct-Journey-00Registry-01Manifest');
 
 class PluctJourneyOrchestrator {
     constructor() {
         this.core = new PluctCoreFoundation();
         this.journeys = new Map();
         this.results = [];
-        this.journeyExecutionOrder = [
-            // Start with intent user journey as requested
-            'Journey-TikTok-Intent-01Transcription.js',
-            // Comprehensive Intent Flow Validation (runs early to catch regressions)
-            'Journey-Transcription-01IntentFlow-Complete-Validation.js',
-            // Intent Fix Validation Journeys
-            'Journey-Intent-01TikTok-02AutoSubmit-01Validation.js',
-            'Journey-Intent-02TikTok-03Queue-01Validation.js',
-            'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
-            'Journey-AppLaunch.js',
-            'Journey-ErrorNotificationValidation.js',
-            'Pluct-UI-Header-01CreditBalance-Validation.js',
-            'Pluct-UI-Header-02SettingsNavigation-Validation.js',
-            'Pluct-UI-Header-03EndToEndIntegration-Validation.js',
-            'Journey-QuickScan.js', // Updated to work with new Extract Script button
-            'Journey-TikTok-Intent-Route-01Transcription.js',
-            'Journey-TikTok-Manual-URL-01Transcription.js',
-            'Journey-Transcript-Storage-01Display.js',
-            'Pluct-Transcript-01BackgroundWorker-Validation.js',
-            'Pluct-Transcript-02PerformanceTiming-Validation.js',
-            'Pluct-Transcript-03EndToEndWorkflow-Validation.js',
-            'Journey-FreeTier-E2E-01Validation.js', // New Smart Free Tier test
-            'Journey-PremiumTier-E2E-01Validation.js', // New Smart Premium Tier test
-            'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
-            'Pluct-Journey-Home-04EmptyState-01DemoLink.js',
-            // UX Fixes Validation Journeys
-            'Journey-UX-01CreditsIcon-Validation.js',
-            'Journey-UX-02CreditsLoading-Validation.js',
-            'Journey-UX-03CreditRequestLogging-Validation.js',
-            'Journey-UX-04ErrorPersistence-Validation.js',
-            'Journey-UX-05RedundantVisuals-Validation.js',
-            'Journey-UX-06CorrelationIds-Validation.js',
-            'Journey-UX-07DebugLogsSearch-Validation.js',
-            'Journey-UX-08CreditRequestFeedback-Validation.js',
-            'Journey-UX-09ErrorRecoveryActions-Validation.js',
-            // New UX Critical Fixes Validation Journeys
-            'Journey-UX-10ErrorPersistence-Validation.js',
-            'Journey-UX-11OneTapCopy-Validation.js',
-            'Journey-UX-12QueueNotification-Validation.js',
-            'Journey-UX-13PreValidationQueue-Validation.js',
-            // Queue System Validation Journeys
-            'Journey-Queue-01NetworkConnectivity-Validation.js',
-            'Journey-Queue-02InsufficientCredits-Validation.js',
-            'Journey-Queue-03MultipleUrls-Validation.js',
-            'Journey-Queue-04NotificationPersistence-Validation.js',
-            'Journey-Queue-05BackgroundProcessor-Validation.js',
-            'Journey-Queue-06UISection-Validation.js',
-            'Journey-Queue-07AutoRetryCredits-Validation.js',
-            'Journey-Queue-08AutoRetryNetwork-Validation.js',
-            // Trust Fixes Validation Journeys
-            'Journey-Trust-01TimeoutLogic-Validation.js',
-            'Journey-Trust-02ErrorDeduplication-Validation.js',
-            'Journey-Trust-03ADBDetection-Validation.js',
-            'Journey-UX-11AutoSubmitIntent-Validation.js',
-            'Journey-UX-12BackgroundProcessing-Validation.js',
-            'Journey-UX-13NotificationNavigation-Validation.js',
-            'Journey-UX-14CreditQueueFlow-Validation.js',
-            // UX Reliability Fixes Validation Journeys
-            'Journey-UX-15BatteryOptimization-01Validation.js',
-            'Journey-UX-16StatusVerification-01Validation.js',
-            'Journey-UX-17BackgroundProcessing-01Validation.js',
-            'Journey-UX-18StaleStatus-01Validation.js',
-            'Journey-UX-19ReProcessingPrevention-01Validation.js',
-            // UX Critical Fixes Validation Journeys (New)
-            'Journey-UX-20NotificationConsolidation-Validation.js',
-            'Journey-UX-21RedundantBadgeRemoval-Validation.js',
-            'Journey-UX-22VideoTitleFallback-Validation.js',
-            'Journey-UX-23ErrorLogConsolidation-Validation.js',
-            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
-            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
-            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
-            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
-            'Journey-UX-28AppIconAndShellVisual-01Validation.js',
-            // Edge Case Validation Journeys
-            'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
-            'Journey-EdgeCase-02CreditDepletion-Validation.js',
-            'Journey-EdgeCase-03NetworkLoss-Validation.js',
-            'Journey-EdgeCase-04MultipleNotifications-Validation.js',
-            'Journey-EdgeCase-05JWTExpiration-Validation.js',
-            'Journey-EdgeCase-06ConcurrentVending-Validation.js',
-            'Journey-EdgeCase-07TokenExpirationPolling-Validation.js',
-            'Journey-EdgeCase-08NetworkInterruption-Validation.js',
-            // Critical Fixes Validation Journeys
-            'Journey-Fix-01JWTExpiration-Validation.js',
-            'Journey-Fix-02ResourceLeak-Validation.js',
-            'Journey-Fix-03HealthMonitoring-Validation.js',
-            'Journey-Fix-04RetryTokenRefresh-Validation.js',
-            'Journey-Fix-05ComprehensiveE2E-Validation.js',
-            // Refactoring Validation Journeys
-            'Journey-Refactor-01VideoProcessorRename-Validation.js',
-            'Journey-Refactor-02ProcessingTierCleanup-Validation.js',
-            'Journey-Refactor-03DeadCodeRemoval-Validation.js',
-            'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js',
-            'Journey-Refactor-05NamingConsistency-Validation.js',
-            'Journey-Refactor-06PreWarmingOptimization-Validation.js'
-            // Note: Onboarding tests use the Node journey validation path.
-            // Add other journeys here in the desired order
-        ];
-        
-        // Map file names to registered journey names
-        this.journeyNameMapping = {
-            'Journey-AppLaunch.js': 'AppLaunch',
-            'Journey-ErrorNotificationValidation.js': 'ErrorNotificationValidation',
-            'Journey-QuickScan.js': 'QuickScan', // Updated to work with new Start Transcription button
-            'Journey-TikTok-Intent-01Transcription.js': 'TikTokIntentTranscription',
-            'Journey-Transcription-01IntentFlow-Complete-Validation.js': 'Transcription-01IntentFlow-Complete-Validation',
-            'Journey-Duplicate-01ProcessingLock-Validation.js': 'Duplicate-01ProcessingLock-Validation',
-            'Journey-TikTok-Intent-Route-01Transcription.js': 'TikTok-Intent-Route-01Transcription',
-            'Journey-TikTok-Manual-URL-01Transcription.js': 'TikTokManualURLTranscription',
-            'Journey-TikTok-Manual-URL-02Insights.js': 'TikTokManualURLInsights',
-            'Journey-Transcript-Storage-01Display.js': 'TranscriptStorageDisplay',
-            'Journey-User-Identification-01Validation.js': 'UserIdentificationValidation',
-            'Pluct-Journey-01AppLaunch.js': 'Pluct-Journey-01AppLaunch',
-            'Pluct-Node-Tests-Journey-01-AppLaunch.js': 'Pluct-Node-Tests-Journey-01-AppLaunch',
-            'Pluct-UI-Header-01CreditBalance-Validation.js': 'Pluct-UI-Header-01CreditBalance-Validation',
-            'Pluct-UI-Header-02SettingsNavigation-Validation.js': 'Pluct-UI-Header-02SettingsNavigation-Validation',
-            'Pluct-UI-Header-03EndToEndIntegration-Validation.js': 'Pluct-UI-Header-03EndToEndIntegration-Validation',
-            'Pluct-Transcript-01BackgroundWorker-Validation.js': 'Pluct-Transcript-01BackgroundWorker-Validation',
-            'Pluct-Transcript-02PerformanceTiming-Validation.js': 'Pluct-Transcript-02PerformanceTiming-Validation',
-            'Pluct-Transcript-03EndToEndWorkflow-Validation.js': 'Pluct-Transcript-03EndToEndWorkflow-Validation',
-            'Journey-FreeTier-E2E-01Validation.js': 'FreeTier-E2E-01Validation',
-            'Journey-PremiumTier-E2E-01Validation.js': 'PremiumTier-E2E-01Validation',
-            'Pluct-Journey-BusinessEngine-Credits-01Validation.js': 'Pluct-Journey-BusinessEngine-Credits-01Validation',
-            'Pluct-Journey-Home-04EmptyState-01DemoLink.js': 'Pluct-Journey-Home-04EmptyState-01DemoLink',
-            // UX Fixes Validation Journey Mappings
-            'Journey-UX-01CreditsIcon-Validation.js': 'Journey-UX-01CreditsIcon-Validation',
-            'Journey-UX-02CreditsLoading-Validation.js': 'Journey-UX-02CreditsLoading-Validation',
-            'Journey-UX-03CreditRequestLogging-Validation.js': 'Journey-UX-03CreditRequestLogging-Validation',
-            'Journey-UX-04ErrorPersistence-Validation.js': 'Journey-UX-04ErrorPersistence-Validation',
-            'Journey-UX-05RedundantVisuals-Validation.js': 'Journey-UX-05RedundantVisuals-Validation',
-            'Journey-UX-06CorrelationIds-Validation.js': 'Journey-UX-06CorrelationIds-Validation',
-            'Journey-UX-07DebugLogsSearch-Validation.js': 'Journey-UX-07DebugLogsSearch-Validation',
-            'Journey-UX-08CreditRequestFeedback-Validation.js': 'Journey-UX-08CreditRequestFeedback-Validation',
-            'Journey-UX-09ErrorRecoveryActions-Validation.js': 'Journey-UX-09ErrorRecoveryActions-Validation',
-            // New UX Critical Fixes Validation Journey Mappings
-            'Journey-UX-10ErrorPersistence-Validation.js': 'UX-10ErrorPersistence-Validation',
-            'Journey-UX-11OneTapCopy-Validation.js': 'UX-11OneTapCopy-Validation',
-            'Journey-UX-12QueueNotification-Validation.js': 'UX-12QueueNotification-Validation',
-            'Journey-UX-13PreValidationQueue-Validation.js': 'UX-13PreValidationQueue-Validation',
-            // Queue System Validation Journey Mappings
-            'Journey-Queue-01NetworkConnectivity-Validation.js': 'Queue-01NetworkConnectivity',
-            'Journey-Queue-02InsufficientCredits-Validation.js': 'Queue-02InsufficientCredits',
-            'Journey-Queue-03MultipleUrls-Validation.js': 'Queue-03MultipleUrls',
-            'Journey-Queue-04NotificationPersistence-Validation.js': 'Queue-04NotificationPersistence',
-            'Journey-Queue-05BackgroundProcessor-Validation.js': 'Queue-05BackgroundProcessor',
-            'Journey-Queue-06UISection-Validation.js': 'Queue-06UISection',
-            'Journey-Queue-07AutoRetryCredits-Validation.js': 'Queue-07AutoRetryCredits',
-            'Journey-Queue-08AutoRetryNetwork-Validation.js': 'Queue-08AutoRetryNetwork',
-            // Trust Fixes Validation Journey Mappings
-            'Journey-Trust-01TimeoutLogic-Validation.js': 'Trust-01TimeoutLogic-Validation',
-            'Journey-Trust-02ErrorDeduplication-Validation.js': 'Trust-02ErrorDeduplication-Validation',
-            'Journey-Trust-03ADBDetection-Validation.js': 'Trust-03ADBDetection-Validation',
-            'Journey-UX-11AutoSubmitIntent-Validation.js': 'UX-11AutoSubmitIntent-Validation',
-            'Journey-UX-12BackgroundProcessing-Validation.js': 'UX-12BackgroundProcessing-Validation',
-            'Journey-UX-13NotificationNavigation-Validation.js': 'UX-13NotificationNavigation-Validation',
-            'Journey-UX-14CreditQueueFlow-Validation.js': 'UX-14CreditQueueFlow-Validation',
-            // UX Reliability Fixes Validation Journey Mappings
-            'Journey-UX-15BatteryOptimization-01Validation.js': 'UX-15BatteryOptimization-01Validation',
-            'Journey-UX-16StatusVerification-01Validation.js': 'UX-16StatusVerification-01Validation',
-            'Journey-UX-17BackgroundProcessing-01Validation.js': 'UX-17BackgroundProcessing-01Validation',
-            'Journey-UX-18StaleStatus-01Validation.js': 'UX-18StaleStatus-01Validation',
-            'Journey-UX-19ReProcessingPrevention-01Validation.js': 'UX-19ReProcessingPrevention-01Validation',
-            // UX Critical Fixes Validation Journey Mappings (New)
-            'Journey-UX-20NotificationConsolidation-Validation.js': 'UX-20NotificationConsolidation-Validation',
-            'Journey-UX-21RedundantBadgeRemoval-Validation.js': 'UX-21RedundantBadgeRemoval-Validation',
-            'Journey-UX-22VideoTitleFallback-Validation.js': 'UX-22VideoTitleFallback-Validation',
-            'Journey-UX-23ErrorLogConsolidation-Validation.js': 'UX-23ErrorLogConsolidation-Validation',
-            'Journey-UX-24BatteryOptimizationRefresh-Validation.js': 'UX-24BatteryOptimizationRefresh-Validation',
-            'Journey-UX-25DirectToValue-Readiness-01Validation.js': 'UX-25DirectToValue-Readiness-01Validation',
-            'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js': 'UX-26TikTok-Url-Refund-NoCharge-01Validation',
-            'Journey-UX-27PluctRedesign-MockupParity-01Validation.js': 'UX-27PluctRedesign-MockupParity-01Validation',
-            'Journey-UX-28AppIconAndShellVisual-01Validation.js': 'UX-28AppIconAndShellVisual-01Validation',
-            // Edge Case Validation Journey Mappings
-            'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
-            'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
-            'Journey-EdgeCase-03NetworkLoss-Validation.js': 'EdgeCase-03NetworkLoss-Validation',
-            'Journey-EdgeCase-04MultipleNotifications-Validation.js': 'EdgeCase-04MultipleNotifications-Validation',
-            'Journey-EdgeCase-05JWTExpiration-Validation.js': 'EdgeCase-05JWTExpiration-Validation',
-            'Journey-EdgeCase-06ConcurrentVending-Validation.js': 'EdgeCase-06ConcurrentVending-Validation',
-            'Journey-EdgeCase-07TokenExpirationPolling-Validation.js': 'EdgeCase-07TokenExpirationPolling-Validation',
-            'Journey-EdgeCase-08NetworkInterruption-Validation.js': 'EdgeCase-08NetworkInterruption-Validation',
-            // Refactoring Validation Journey Mappings
-            'Journey-Refactor-01VideoProcessorRename-Validation.js': 'Refactor-01VideoProcessorRename-Validation',
-            'Journey-Refactor-02ProcessingTierCleanup-Validation.js': 'Refactor-02ProcessingTierCleanup-Validation',
-            'Journey-Refactor-03DeadCodeRemoval-Validation.js': 'Refactor-03DeadCodeRemoval-Validation',
-            'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js': 'Refactor-04ComingSoonDialogRemoval-Validation',
-            'Journey-Refactor-05NamingConsistency-Validation.js': 'Refactor-05NamingConsistency-Validation',
-            'Journey-Refactor-06PreWarmingOptimization-Validation.js': 'Refactor-06PreWarmingOptimization-Validation'
-            // Note: Onboarding tests use the Node journey validation path.
-        };
+        this.journeyExecutionOrder = journeyRegistry.executionOrder.slice();
+        this.journeyNameMapping = { ...journeyRegistry.journeyNameMapping };
     }
 
     /**
@@ -300,7 +113,11 @@ class PluctJourneyOrchestrator {
         // Load all discovered journeys first
         const discoveredJourneys = {};
         const files = fs.readdirSync(journeysDir)
-            .filter(f => f.endsWith('.js') && f !== 'Pluct-Journey-01Orchestrator.js');
+            .filter(f => f.endsWith('.js') &&
+                f !== 'Pluct-Journey-01Orchestrator.js' &&
+                f !== 'Pluct-Journey-00Registry-01Manifest.js' &&
+                f !== 'gen-manifest-once.js' &&
+                f !== 'rewrite-orchestrator-once.js');
         
         for (const file of files) {
             try {

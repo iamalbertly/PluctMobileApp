@@ -5,6 +5,13 @@
  */
 
 const PluctTestResultsTracker = require('./Pluct-Test-Results-Tracker');
+const journeyManifestHints = (() => {
+    try {
+        return require('../journeys/Pluct-Journey-00Registry-01Manifest');
+    } catch (_) {
+        return {};
+    }
+})();
 
 class PluctSmartTestRunner {
     constructor(core) {
@@ -14,6 +21,7 @@ class PluctSmartTestRunner {
         this.startTime = null;
         this.forceFullRun = false;
         this.latestChangedTests = [
+            ...(journeyManifestHints.smartTestLatestChangedTests || []),
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
             'Journey-UX-24BatteryOptimizationRefresh-Validation',
@@ -60,6 +68,7 @@ class PluctSmartTestRunner {
             'Journey-QuickScan.js'
         ];
         this.highPriorityTests = [
+            ...(journeyManifestHints.smartTestHighPriorityTests || []),
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
             'Journey-UX-24BatteryOptimizationRefresh-Validation',

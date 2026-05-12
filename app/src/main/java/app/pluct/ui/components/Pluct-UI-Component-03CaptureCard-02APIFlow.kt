@@ -15,6 +15,7 @@ import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.core.error.PluctCoreError03UserMessageFormatter
 import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.notification.PluctNotificationHelper
+import app.pluct.services.PluctCoreTranscription01Dedupe01Facade
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.KEY_URL
 import app.pluct.services.PluctCoreBackground01TranscriptionWorker.Companion.NOTIFICATION_ID_PROGRESS
@@ -60,20 +61,10 @@ object PluctUIComponent03CaptureCardAPIFlow {
             Log.d(tag, "Starting background transcription for URL: $normalizedUrl")
             
             // Check for existing job before creating new one
-            val existingJobId = PluctCoreBackground01TranscriptionWorkerJobDeduplication.checkExistingJob(
-                context = context,
-                url = normalizedUrl
-            )
-            
-            if (existingJobId != null) {
-                Log.d(tag, "Existing job found for URL: $normalizedUrl, jobId: $existingJobId")
-                // Merge notifications if needed
-                PluctCoreBackground01TranscriptionWorkerJobDeduplication.mergeNotifications(
-                    context = context,
-                    jobId = existingJobId,
-                    url = normalizedUrl
-                )
-                return // Don't create duplicate job
+            if (PluctCoreTranscription01Dedupe01Facade.hasActiveWorkForUrl(context, normalizedUrl)) {
+                Log.d(tag, "Existing job for URL: $normalizedUrl (dedupe facade)")
+                PluctCoreTranscription01Dedupe01Facade.onDuplicateBackgroundRequest(context, normalizedUrl)
+                return
             }
             
             // Generate unique notification ID based on URL hash
