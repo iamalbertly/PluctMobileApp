@@ -89,6 +89,14 @@ lint/tmp/
 *.tmp
 *.temp
 
+# ADB / UI automation dumps (pulled by scripts/nodejs harness; do not version)
+ui_dump.xml
+ui_dump_*.xml
+scripts/nodejs/ui_dump.xml
+
+# Kotlin build cache (IDE/Gradle)
+.kotlin/
+
 # OS generated files
 .DS_Store
 .DS_Store?
