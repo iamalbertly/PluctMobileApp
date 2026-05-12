@@ -231,7 +231,8 @@ class PluctUserPreferences(context: Context) {
      * Get theme mode: "system", "light", or "dark"
      */
     fun getThemeMode(): String {
-        return prefs.getString(KEY_THEME_MODE, "system") ?: "system"
+        // Default dark matches product mockups (Customer: first paint matches designed UI; user can switch in Settings).
+        return prefs.getString(KEY_THEME_MODE, "dark") ?: "dark"
     }
 
     /**

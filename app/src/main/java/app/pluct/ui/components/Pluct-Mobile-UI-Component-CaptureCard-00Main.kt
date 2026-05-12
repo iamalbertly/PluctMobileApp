@@ -419,8 +419,8 @@ fun PluctUIComponent03CaptureCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.65f))
     ) {
         Box(
             modifier = Modifier
@@ -551,10 +551,14 @@ fun PluctUIComponent03CaptureCard(
             if (shouldShowProgressFix) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier
+                        modifier = Modifier
                         .fillMaxWidth()
                         .semantics {
-                            contentDescription = "Progress permission fix"
+                            contentDescription = if (!progressNotificationsReady) {
+                                "Notifications help show progress. Tap Fix to turn on."
+                            } else {
+                                "Battery unrestricted helps finish jobs. Tap Fix to open settings."
+                            }
                             testTag = "progress_permission_fix"
                         },
                     verticalAlignment = Alignment.CenterVertically,
@@ -569,7 +573,7 @@ fun PluctUIComponent03CaptureCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (!progressNotificationsReady) "Bell -> Progress" else "Battery -> Keep",
+                            text = if (!progressNotificationsReady) "Notify" else "Battery",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface

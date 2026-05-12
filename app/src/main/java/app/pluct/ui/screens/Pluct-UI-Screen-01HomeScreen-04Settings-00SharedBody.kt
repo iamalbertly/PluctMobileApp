@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -27,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.pluct.core.permission.PluctCorePermission01Manager
 import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import app.pluct.data.preferences.PluctUserPreferences
@@ -91,7 +95,7 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
                 contentDescription = "Settings content"
                 testTag = "settings_sheet_content"
             },
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         if (showSheetTitle) {
             Text(
@@ -102,72 +106,85 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
             )
         }
 
-        PluctUIScreen01HomeScreen04Settings02UserInfoSection(
-            userName = userName,
-            creditBalance = creditBalance
-        )
+        PluctSettingsGroupedSection(
+            sectionLabel = "Account",
+            testTagSuffix = "account"
+        ) {
+            PluctUIScreen01HomeScreen04Settings02UserInfoSection(
+                userName = userName,
+                creditBalance = creditBalance
+            )
+        }
 
-        Divider()
-
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Account & help", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            OutlinedButton(
-                onClick = onSendDiagnostic,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { testTag = "settings_send_diagnostic_button" }
-            ) {
-                Text("Send report to support")
-            }
-            if (debugLogCount > 0) {
-                TextButton(
-                    onClick = onViewDebugLogs,
+        PluctSettingsGroupedSection(
+            sectionLabel = "Support & diagnostics",
+            testTagSuffix = "support"
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onSendDiagnostic,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { testTag = "settings_view_debug_logs_button" }
+                        .semantics { testTag = "settings_send_diagnostic_button" }
                 ) {
-                    Text(if (errorLogCount > 0) "View logs ($errorLogCount errors)" else "View logs ($debugLogCount)")
+                    Text("Send report to support")
+                }
+                if (debugLogCount > 0) {
+                    TextButton(
+                        onClick = onViewDebugLogs,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { testTag = "settings_view_debug_logs_button" }
+                    ) {
+                        Text(if (errorLogCount > 0) "View logs ($errorLogCount errors)" else "View logs ($debugLogCount)")
+                    }
                 }
             }
         }
 
-        Divider()
+        PluctSettingsGroupedSection(
+            sectionLabel = "Permissions & appearance",
+            testTagSuffix = "permissions"
+        ) {
+            PluctUIScreen01HomeScreen04Settings03PermissionsSection(
+                hasNotificationPermission = hasNotificationPermission,
+                hasOverlayPermission = hasOverlayPermission,
+                overlayEnabled = overlayEnabled,
+                permissionLauncherHelper = permissionLauncherHelper,
+                onOverlayEnabledChange = { enabled ->
+                    overlayEnabled = enabled
+                    prefs.setOverlayNotificationsEnabled(enabled)
+                },
+                onNotificationPermissionUpdate = { hasNotificationPermission = it },
+                onOverlayPermissionUpdate = { hasOverlayPermission = it },
+                onThemeModeChange = onThemeModeChange
+            )
+        }
 
-        PluctUIScreen01HomeScreen04Settings03PermissionsSection(
-            hasNotificationPermission = hasNotificationPermission,
-            hasOverlayPermission = hasOverlayPermission,
-            overlayEnabled = overlayEnabled,
-            permissionLauncherHelper = permissionLauncherHelper,
-            onOverlayEnabledChange = { enabled ->
-                overlayEnabled = enabled
-                prefs.setOverlayNotificationsEnabled(enabled)
-            },
-            onNotificationPermissionUpdate = { hasNotificationPermission = it },
-            onOverlayPermissionUpdate = { hasOverlayPermission = it },
-            onThemeModeChange = onThemeModeChange
-        )
-
-        Divider()
-
-        PluctUIScreen01HomeScreen04Settings04CreditsSection(
-            isRequesting = isRequesting,
-            referenceText = referenceText,
-            onReferenceTextChange = { referenceText = it },
-            isCreditRequestInFlight = isCreditRequestInFlight,
-            creditRequestStatus = creditRequestStatus,
-            onRequestCredits = {
-                if (referenceText.isNotBlank()) {
-                    isCreditRequestInFlight = true
-                    onRequestCredits(referenceText)
-                    creditRequestStatus = "Request sent. We'll verify your payment and apply credits."
-                    scope.launch {
-                        delay(2000)
-                        isCreditRequestInFlight = false
+        PluctSettingsGroupedSection(
+            sectionLabel = "Credits",
+            testTagSuffix = "credits"
+        ) {
+            PluctUIScreen01HomeScreen04Settings04CreditsSection(
+                isRequesting = isRequesting,
+                referenceText = referenceText,
+                onReferenceTextChange = { referenceText = it },
+                isCreditRequestInFlight = isCreditRequestInFlight,
+                creditRequestStatus = creditRequestStatus,
+                onRequestCredits = {
+                    if (referenceText.isNotBlank()) {
+                        isCreditRequestInFlight = true
+                        onRequestCredits(referenceText)
+                        creditRequestStatus = "Request sent. We'll verify your payment and apply credits."
+                        scope.launch {
+                            delay(2000)
+                            isCreditRequestInFlight = false
+                        }
                     }
-                }
-            },
-            onToggleRequesting = { isRequesting = !isRequesting }
-        )
+                },
+                onToggleRequesting = { isRequesting = !isRequesting }
+            )
+        }
 
         if (isRequesting) {
             if (creditRequestStatus != null) {
@@ -220,5 +237,41 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
             ) { Text("Cancel") }
         }
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PluctSettingsGroupedSection(
+    sectionLabel: String,
+    testTagSuffix: String,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = sectionLabel.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            letterSpacing = 1.1.sp,
+            modifier = Modifier
+                .padding(start = 4.dp, bottom = 8.dp)
+                .semantics { testTag = "settings_section_$testTagSuffix" }
+        )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "settings_group_card_$testTagSuffix" },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                content()
+            }
+        }
     }
 }

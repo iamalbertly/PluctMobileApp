@@ -703,6 +703,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Transcription Pipeline**: Complete TTTranscribe workflow
 - **Test Automation**: Node/ADB journey orchestration through `npm run test:all`
 
+### App icons and Play listing
+
+- **SSOT export**: `AppIcons/android/` (Android Studio asset output).
+- **Sync into `app/src/main/res`**: `powershell -File scripts/sync-icons.ps1` from repo root.
+- **Play Console**: `docs/store-listing/playstore-icon.png` for the high-res launcher slot.
+- **ADB shell check**: `npm run test:shell-visual` (see `docs/UX-28-Shell-Visual-Validation.md`; requires a device line ending in `device`).
+
 ---
 
 **🚀 Pluct Mobile App - Transforming TikTok videos into actionable insights with AI-powered transcription technology.**

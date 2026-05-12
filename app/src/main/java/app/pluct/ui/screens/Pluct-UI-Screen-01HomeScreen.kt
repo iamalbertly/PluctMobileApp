@@ -262,7 +262,7 @@ private fun HomeSectionHeader(
                 contentDescription = "View all $title"
             }
         ) {
-            Text("View all")
+            Text("View all", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -370,24 +370,33 @@ private fun HomeContent(
         }
 
         item {
-            Row(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { testTag = "home_value_promise_line" },
-                verticalAlignment = Alignment.CenterVertically
+                    .semantics { testTag = "home_value_promise_banner" },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.FlashOn,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "We'll get the text and clean it up for you.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .semantics { testTag = "home_value_promise_line" },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "We'll get the text and clean it up for you.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
+                    )
+                }
             }
         }
 

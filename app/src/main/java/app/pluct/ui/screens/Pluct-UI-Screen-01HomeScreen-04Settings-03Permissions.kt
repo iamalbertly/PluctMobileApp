@@ -94,13 +94,6 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
     }
     
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "Permissions",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        
-        // Notification Permission
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

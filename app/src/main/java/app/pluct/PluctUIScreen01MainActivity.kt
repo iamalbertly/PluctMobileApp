@@ -65,11 +65,11 @@ import app.pluct.ui.navigation.PluctUIMainShellBottomBar
 import app.pluct.ui.navigation.PluctUIMainShellTab
 import app.pluct.ui.screens.PluctUIScreen02LibraryTab01Screen
 import app.pluct.ui.screens.PluctUIScreen03SettingsTab01Screen
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 
 /**
  * Pluct-Main-01Activity - Simplified main activity for core UI testing
@@ -88,7 +88,7 @@ class PluctUIScreen01MainActivity : ComponentActivity() {
     // Drives recomposition when new intents provide a prefilled URL.
     private val prefilledUrlState = mutableStateOf<String?>(null)
     private val isLoadingCreditBalanceState = mutableStateOf(true) // Start as loading
-    private val themeModeState = mutableStateOf("system") // "system", "light", "dark"
+    private val themeModeState = mutableStateOf("dark") // "system", "light", "dark" — aligned with prefs default for mockup-first UI
     
     // Permission launcher helper
     private lateinit var permissionLauncherHelper: PluctCorePermission02Launcher01Helper
@@ -701,6 +701,17 @@ fun PluctMainContent(
                         title = { Text("Library") }
                     )
                     PluctUIMainShellTab.SETTINGS -> CenterAlignedTopAppBar(
+                        navigationIcon = {
+                            IconButton(
+                                onClick = { mainShellTab = PluctUIMainShellTab.HOME },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Back to home"
+                                    testTag = "settings_top_bar_back"
+                                }
+                            ) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                            }
+                        },
                         title = { Text("Settings") }
                     )
                 }
