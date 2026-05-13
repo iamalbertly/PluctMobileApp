@@ -80,6 +80,7 @@ module.exports = {
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js',
             'Journey-UX-27PluctRedesign-MockupParity-01Validation.js',
             'Journey-UX-28AppIconAndShellVisual-01Validation.js',
+            'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
             // Edge Case Validation Journeys
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
             'Journey-EdgeCase-02CreditDepletion-Validation.js',
@@ -175,6 +176,7 @@ module.exports = {
             'Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js': 'UX-26TikTok-Url-Refund-NoCharge-01Validation',
             'Journey-UX-27PluctRedesign-MockupParity-01Validation.js': 'UX-27PluctRedesign-MockupParity-01Validation',
             'Journey-UX-28AppIconAndShellVisual-01Validation.js': 'UX-28AppIconAndShellVisual-01Validation',
+            'Journey-UX-29HomeShellCaptureContrast-01Validation.js': 'UX-29HomeShellCaptureContrast-01Validation',
             // Edge Case Validation Journey Mappings
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
             'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
@@ -194,10 +196,14 @@ module.exports = {
             'Journey-Dedupe-Notification-SSOT-01Validation.js': 'Dedupe-Notification-SSOT-01Validation'
         },
     smartTestLatestChangedTests: [
+        'Journey-UX-29HomeShellCaptureContrast-01Validation',
+        'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
         'Journey-Dedupe-Notification-SSOT-01Validation',
         'Journey-Dedupe-Notification-SSOT-01Validation.js'
     ],
     smartTestHighPriorityTests: [
+        'Journey-UX-29HomeShellCaptureContrast-01Validation',
+        'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
         'Journey-Dedupe-Notification-SSOT-01Validation',
         'Journey-Dedupe-Notification-SSOT-01Validation.js'
     ]

@@ -82,7 +82,8 @@ fun PluctUIScreen02LibraryTab01Screen(
                     } else {
                         null
                     },
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackbarHostState,
+                    showProcessingDebugPanel = true
                 )
             }
         }

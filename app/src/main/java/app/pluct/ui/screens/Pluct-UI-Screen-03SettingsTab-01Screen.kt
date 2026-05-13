@@ -40,6 +40,6 @@ fun PluctUIScreen03SettingsTab01Screen(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 24.dp)
     )
 }

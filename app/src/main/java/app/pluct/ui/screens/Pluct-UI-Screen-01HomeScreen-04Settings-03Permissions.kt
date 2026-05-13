@@ -94,6 +94,75 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
     }
     
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Battery first: visible without scroll (short sheets + automation); universal "power" cue before notification rows.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "settings_battery_background_row" },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BatterySaver,
+                    contentDescription = "Battery Optimization",
+                    modifier = Modifier.width(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Background Processing",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = if (isBatteryOptimized) "Enabled" else "May be restricted",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isBatteryOptimized)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            if (!isBatteryOptimized) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        PluctCorePermission01Manager.openBatteryOptimizationSettings(context)
+                        scope.launch {
+                            try {
+                                delay(1000)
+                                repeat(5) {
+                                    delay(2000)
+                                    try {
+                                        PluctCorePermission01Manager.invalidateCache()
+                                        isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
+                                        if (isBatteryOptimized) return@repeat
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("PluctSettings", "Error checking battery optimization: ${e.message}")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("PluctSettings", "Error in battery optimization refresh: ${e.message}")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .width(88.dp)
+                        .semantics {
+                            contentDescription = "Enable background processing"
+                            testTag = "settings_enable_battery_optimization_button"
+                        }
+                ) {
+                    Text("Enable")
+                }
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,77 +303,6 @@ fun PluctUIScreen01HomeScreen04Settings03PermissionsSection(
                         testTag = "settings_overlay_toggle"
                     }
                 )
-            }
-        }
-        
-        // UX IMPROVEMENT #3: Battery Optimization Section
-        // UX FIX: Better layout with fixed button width to prevent text wrapping
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f) // Allow text to take available space
-            ) {
-                Icon(
-                    imageVector = Icons.Default.BatterySaver,
-                    contentDescription = "Battery Optimization",
-                    modifier = Modifier.width(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = "Background Processing",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    // UX FIX: Clearer status text
-                    Text(
-                        text = if (isBatteryOptimized) "Enabled" else "May be restricted",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isBatteryOptimized)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-            if (!isBatteryOptimized) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        PluctCorePermission01Manager.openBatteryOptimizationSettings(context)
-                        // UX FIX: Refresh status after user returns from settings
-                        scope.launch {
-                            try {
-                                delay(1000) // Wait for settings to open
-                                // Refresh multiple times to catch when user returns
-                                repeat(5) {
-                                    delay(2000) // Check every 2 seconds
-                                    try {
-                                        PluctCorePermission01Manager.invalidateCache()
-                                        isBatteryOptimized = PluctCorePermission01Manager.isBatteryOptimizationExempt(context)
-                                        if (isBatteryOptimized) return@repeat // Stop if enabled
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("PluctSettings", "Error checking battery optimization: ${e.message}")
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.w("PluctSettings", "Error in battery optimization refresh: ${e.message}")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .width(88.dp) // Fixed width to prevent text wrapping
-                        .semantics {
-                            contentDescription = "Enable background processing"
-                            testTag = "settings_enable_battery_optimization_button"
-                        }
-                ) {
-                    Text("Enable")
-                }
             }
         }
 

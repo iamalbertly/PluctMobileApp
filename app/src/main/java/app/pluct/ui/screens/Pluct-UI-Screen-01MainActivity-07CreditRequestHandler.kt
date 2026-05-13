@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.pluct.shared.PluctRequestIds
 import app.pluct.services.PluctCoreUserIdentification
 import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
@@ -28,7 +29,7 @@ object PluctUIScreen01MainActivity07CreditRequestHandler {
         val scope = rememberCoroutineScope()
         
         return { confirmation ->
-            val requestId = "credit_req_${System.currentTimeMillis()}"
+            val requestId = PluctRequestIds.generateCreditRequestId()
             val userId = userIdentification.userId
             val timestamp = System.currentTimeMillis()
 

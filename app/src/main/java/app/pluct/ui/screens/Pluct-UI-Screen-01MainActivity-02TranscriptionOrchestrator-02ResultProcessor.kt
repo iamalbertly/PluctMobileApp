@@ -156,7 +156,8 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
         // TECH DEBT #3: Update credits based on tier (removed redundant else)
         val newBalance = when (tier) {
             ProcessingTier.EXTRACT_SCRIPT -> if (currentFreeUses > 0) currentBalance else currentBalance - 1
-            ProcessingTier.GENERATE_INSIGHTS -> currentBalance - 2
+            ProcessingTier.GENERATE_INSIGHTS,
+            ProcessingTier.AI_ANALYSIS -> currentBalance - 2
         }
         val newFreeUses = if (tier == ProcessingTier.EXTRACT_SCRIPT && currentFreeUses > 0) currentFreeUses - 1 else currentFreeUses
         

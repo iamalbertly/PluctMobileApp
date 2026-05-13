@@ -55,6 +55,8 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
     showSheetTitle: Boolean,
     showCloseRow: Boolean,
     onClose: () -> Unit,
+    /** When true (e.g. user hit submit with no balance), expand Credits request without an extra tap. */
+    expandCreditsRequestSection: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -87,6 +89,12 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
         hasOverlayPermission = PluctCorePermission01Manager.hasOverlayPermission(context)
     }
 
+    LaunchedEffect(expandCreditsRequestSection) {
+        if (expandCreditsRequestSection) {
+            isRequesting = true
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -107,43 +115,7 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
         }
 
         PluctSettingsGroupedSection(
-            sectionLabel = "Account",
-            testTagSuffix = "account"
-        ) {
-            PluctUIScreen01HomeScreen04Settings02UserInfoSection(
-                userName = userName,
-                creditBalance = creditBalance
-            )
-        }
-
-        PluctSettingsGroupedSection(
-            sectionLabel = "Support & diagnostics",
-            testTagSuffix = "support"
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onSendDiagnostic,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { testTag = "settings_send_diagnostic_button" }
-                ) {
-                    Text("Send report to support")
-                }
-                if (debugLogCount > 0) {
-                    TextButton(
-                        onClick = onViewDebugLogs,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { testTag = "settings_view_debug_logs_button" }
-                    ) {
-                        Text(if (errorLogCount > 0) "View logs ($errorLogCount errors)" else "View logs ($debugLogCount)")
-                    }
-                }
-            }
-        }
-
-        PluctSettingsGroupedSection(
-            sectionLabel = "Permissions & appearance",
+            sectionLabel = "Preferences",
             testTagSuffix = "permissions"
         ) {
             PluctUIScreen01HomeScreen04Settings03PermissionsSection(
@@ -158,6 +130,16 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
                 onNotificationPermissionUpdate = { hasNotificationPermission = it },
                 onOverlayPermissionUpdate = { hasOverlayPermission = it },
                 onThemeModeChange = onThemeModeChange
+            )
+        }
+
+        PluctSettingsGroupedSection(
+            sectionLabel = "Account",
+            testTagSuffix = "account"
+        ) {
+            PluctUIScreen01HomeScreen04Settings02UserInfoSection(
+                userName = userName,
+                creditBalance = creditBalance
             )
         }
 
@@ -184,6 +166,32 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
                 },
                 onToggleRequesting = { isRequesting = !isRequesting }
             )
+        }
+
+        PluctSettingsGroupedSection(
+            sectionLabel = "Support",
+            testTagSuffix = "support"
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onSendDiagnostic,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { testTag = "settings_send_diagnostic_button" }
+                ) {
+                    Text("Send report to support")
+                }
+                if (debugLogCount > 0) {
+                    TextButton(
+                        onClick = onViewDebugLogs,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { testTag = "settings_view_debug_logs_button" }
+                    ) {
+                        Text(if (errorLogCount > 0) "View logs ($errorLogCount errors)" else "View logs ($debugLogCount)")
+                    }
+                }
+            }
         }
 
         if (isRequesting) {

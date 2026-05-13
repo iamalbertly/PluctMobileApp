@@ -7,17 +7,50 @@ import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -26,13 +59,18 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.pluct.notification.PluctNotificationCancelReceiver
 import app.pluct.core.error.PluctCoreError08OutcomeFamily
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.services.TranscriptionDebugInfo
 import app.pluct.ui.components.PluctProcessingIndicator
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -42,74 +80,329 @@ fun PluctVideoItemCard(
     onRetry: () -> Unit,
     onDelete: () -> Unit,
     debugInfo: TranscriptionDebugInfo? = null,
-    snackbarHostState: SnackbarHostState? = null
+    snackbarHostState: SnackbarHostState? = null,
+    onRequestCredits: (() -> Unit)? = null,
+    showProcessingDebugPanel: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var showQuickActions by remember { mutableStateOf(false) }
-    val title = getVideoDisplayTitle(video)
+    var overflowOpen by remember { mutableStateOf(false) }
+    val title = getVideoDetailDisplayTitle(video)
+    val family = remember(video.id, video.status, video.failureReason) {
+        PluctCoreError08OutcomeFamily.fromVideoItem(video)
+    }
+    val handle = remember(video.author) {
+        val a = video.author.trim()
+        when {
+            a.isBlank() -> ""
+            a.startsWith("@") -> a
+            else -> "@$a"
+        }
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = { if (video.status == ProcessingStatus.COMPLETED) showQuickActions = true }
+                onLongClick = { if (video.status == ProcessingStatus.COMPLETED) overflowOpen = true }
             )
             .semantics { contentDescription = "Video item: $title" },
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            VideoThumb(video)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            VideoThumbWithDuration(video)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (handle.isNotBlank()) {
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatusBadge(video)
-                }
-                CompactVideoMeta(video)
-                if (video.status == ProcessingStatus.PROCESSING) {
-                    PluctProcessingIndicator(
-                        currentOperation = debugInfo?.getCurrentOperationDescription() ?: "${video.progress}% working",
-                        debugInfo = debugInfo,
-                        currentJobId = debugInfo?.jobId
-                    )
-                }
-                if (!video.transcript.isNullOrBlank()) {
-                    Text(
-                        text = video.transcript.take(76) + if (video.transcript.length > 76) "..." else "",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = handle,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                VideoStatusBlock(
+                    video = video,
+                    debugInfo = debugInfo,
+                    showProcessingDebugPanel = showProcessingDebugPanel
+                )
             }
-            CardActions(video, onRetry, onDelete, snackbarHostState, context, scope)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PrimaryVideoAction(
+                    video = video,
+                    family = family,
+                    onRetry = onRetry,
+                    onRequestCredits = onRequestCredits,
+                    snackbarHostState = snackbarHostState,
+                    context = context,
+                    scope = scope
+                )
+                Box {
+                    IconButton(
+                        onClick = { overflowOpen = true },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .semantics {
+                                contentDescription = "More actions"
+                                testTag = "video_item_overflow"
+                            }
+                    ) {
+                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    VideoOverflowMenu(
+                        expanded = overflowOpen,
+                        onDismiss = { overflowOpen = false },
+                        video = video,
+                        onRetry = onRetry,
+                        onDelete = onDelete,
+                        context = context,
+                        snackbarHostState = snackbarHostState,
+                        scope = scope
+                    )
+                }
+            }
         }
-        QuickActionsMenu(showQuickActions, video, { showQuickActions = false }, onDelete, context)
     }
 }
 
 @Composable
-private fun VideoThumb(video: VideoItem) {
-    val color = statusColor(video.status)
+private fun VideoStatusBlock(
+    video: VideoItem,
+    debugInfo: TranscriptionDebugInfo?,
+    showProcessingDebugPanel: Boolean
+) {
+    when (video.status) {
+        ProcessingStatus.QUEUED -> {
+            Text(
+                text = "Waiting",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        ProcessingStatus.PROCESSING -> {
+            PluctProcessingIndicator(
+                progress = video.progress,
+                debugInfo = debugInfo,
+                embeddedFlat = true,
+                showDebugPanel = showProcessingDebugPanel
+            )
+        }
+        ProcessingStatus.FAILED -> {
+            val family = PluctCoreError08OutcomeFamily.fromVideoItem(video)
+            val headline = when (family) {
+                PluctCoreError08OutcomeFamily.CREDITS -> "Needs credits"
+                PluctCoreError08OutcomeFamily.SERVER_NET, PluctCoreError08OutcomeFamily.WAIT ->
+                    "Temporary issue"
+                else -> "Could not finish"
+            }
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = when (family) {
+                    PluctCoreError08OutcomeFamily.CREDITS -> Color(0xFFE46A1A)
+                    else -> MaterialTheme.colorScheme.error
+                }
+            )
+            if (family == PluctCoreError08OutcomeFamily.SERVER_NET || family == PluctCoreError08OutcomeFamily.WAIT) {
+                Text(
+                    text = "Connection failed. No credit lost.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        ProcessingStatus.COMPLETED -> {
+            Text(
+                text = completedStatusLine(video),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF0B8F6A)
+            )
+        }
+        ProcessingStatus.UNKNOWN -> {
+            Text(
+                text = "Unknown",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PrimaryVideoAction(
+    video: VideoItem,
+    family: PluctCoreError08OutcomeFamily,
+    onRetry: () -> Unit,
+    onRequestCredits: (() -> Unit)?,
+    snackbarHostState: SnackbarHostState?,
+    context: Context,
+    scope: CoroutineScope
+) {
+    when (video.status) {
+        ProcessingStatus.COMPLETED -> {
+            IconButton(
+                onClick = { copyTranscript(video, context, snackbarHostState, scope) },
+                modifier = Modifier
+                    .size(44.dp)
+                    .semantics {
+                        contentDescription = "Copy transcript"
+                        testTag = "copy_transcript_button"
+                    }
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        ProcessingStatus.FAILED -> {
+            when (family) {
+                PluctCoreError08OutcomeFamily.CREDITS -> {
+                    if (onRequestCredits != null) {
+                        IconButton(
+                            onClick = onRequestCredits,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .semantics {
+                                    contentDescription = "Add credits"
+                                    testTag = "video_add_credits_button"
+                                }
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFFE46A1A))
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(44.dp))
+                    }
+                }
+                else -> {
+                    IconButton(
+                        onClick = onRetry,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .semantics {
+                                contentDescription = "Retry"
+                                testTag = "video_retry_button"
+                            }
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+        ProcessingStatus.PROCESSING, ProcessingStatus.QUEUED -> {
+            IconButton(
+                onClick = { requestCancelTranscription(context, video.url) },
+                modifier = Modifier
+                    .size(44.dp)
+                    .semantics {
+                        contentDescription = "Stop"
+                        testTag = "video_cancel_button"
+                    }
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        else -> Spacer(modifier = Modifier.width(44.dp))
+    }
+}
+
+@Composable
+private fun VideoOverflowMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    video: VideoItem,
+    onRetry: () -> Unit,
+    onDelete: () -> Unit,
+    context: Context,
+    snackbarHostState: SnackbarHostState?,
+    scope: CoroutineScope
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        if (video.status == ProcessingStatus.COMPLETED && !video.transcript.isNullOrBlank()) {
+            DropdownMenuItem(
+                text = { Text("Copy") },
+                leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                onClick = {
+                    copyTranscript(video, context, snackbarHostState, scope)
+                    onDismiss()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Share") },
+                leadingIcon = { Icon(Icons.Default.Share, null) },
+                onClick = {
+                    context.startActivity(
+                        Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).apply {
+                                putExtra(Intent.EXTRA_TEXT, shareText(video))
+                                type = "text/plain"
+                            },
+                            "Share"
+                        )
+                    )
+                    onDismiss()
+                }
+            )
+        }
+        if (video.status == ProcessingStatus.FAILED &&
+            PluctCoreError08OutcomeFamily.fromVideoItem(video) == PluctCoreError08OutcomeFamily.CREDITS
+        ) {
+            DropdownMenuItem(
+                text = { Text("Retry") },
+                leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                onClick = {
+                    onRetry()
+                    onDismiss()
+                }
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("Delete") },
+            leadingIcon = { Icon(Icons.Default.Delete, null) },
+            onClick = {
+                onDelete()
+                onDismiss()
+            }
+        )
+    }
+}
+
+@Composable
+private fun VideoThumbWithDuration(video: VideoItem) {
+    val baseTint = statusColor(video.status).copy(alpha = if (video.thumbnailUrl.isNotBlank()) 0f else 1f)
     Box(
         modifier = Modifier
-            .size(58.dp)
+            .size(56.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(color),
+            .background(if (video.thumbnailUrl.isNotBlank()) Color(0xFF22222A) else baseTint),
         contentAlignment = Alignment.Center
     ) {
         if (video.thumbnailUrl.isNotBlank()) {
@@ -119,101 +412,71 @@ private fun VideoThumb(video: VideoItem) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)))
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.12f)))
+        } else {
+            Icon(
+                imageVector = Icons.Default.VideoLibrary,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
         }
-        Icon(statusIcon(video.status), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
-private fun CompactVideoMeta(video: VideoItem) {
-    val author = getVideoDetailDisplayAuthor(video)
-    val meta = buildList {
-        if (author.isNotBlank()) add(author)
-        if (video.duration > 0) add("${video.duration}s")
-        video.confidence?.let { add("${(it * 100).toInt()}%") }
-    }.joinToString("  ")
-    if (meta.isNotBlank()) {
-        Text(
-            text = meta,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun CardActions(
-    video: VideoItem,
-    onRetry: () -> Unit,
-    onDelete: () -> Unit,
-    snackbarHostState: SnackbarHostState?,
-    context: Context,
-    scope: kotlinx.coroutines.CoroutineScope
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (video.status == ProcessingStatus.FAILED) {
-            IconButton(onClick = onRetry, modifier = Modifier.size(38.dp)) {
-                Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
-            }
-        } else if (!video.transcript.isNullOrBlank()) {
-            IconButton(
-                onClick = { copyTranscript(video, context, snackbarHostState, scope) },
+        val dur = formatDurationClock(video.duration)
+        if (dur.isNotBlank()) {
+            Text(
+                text = dur,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .size(38.dp)
-                    .semantics {
-                        contentDescription = "Copy transcript"
-                        testTag = "copy_transcript_button"
-                    }
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.size(38.dp)) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }
 
-@Composable
-private fun StatusBadge(video: VideoItem) {
-    Surface(color = statusColor(video.status).copy(alpha = 0.14f), shape = RoundedCornerShape(14.dp)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Icon(statusIcon(video.status), contentDescription = null, tint = statusColor(video.status), modifier = Modifier.size(13.dp))
-            Text(statusLabel(video), style = MaterialTheme.typography.labelSmall, color = statusColor(video.status), fontWeight = FontWeight.Bold)
-        }
-    }
+private fun formatDurationClock(seconds: Long): String {
+    if (seconds <= 0L) return ""
+    val m = seconds / 60
+    val s = seconds % 60
+    return String.format(Locale.getDefault(), "%d:%02d", m, s)
 }
 
-private fun copyTranscript(video: VideoItem, context: Context, snackbarHostState: SnackbarHostState?, scope: kotlinx.coroutines.CoroutineScope) {
+private fun completedStatusLine(video: VideoItem): String {
+    val dayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    val ts = video.timestamp
+    val now = System.currentTimeMillis()
+    val sameDay = dayKey.format(Date(ts)) == dayKey.format(Date(now))
+    val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+    val rest = if (sameDay) {
+        "Today, ${timeFmt.format(Date(ts))}"
+    } else {
+        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(ts))
+    }
+    return "Completed \u2022 $rest"
+}
+
+private fun requestCancelTranscription(context: Context, rawUrl: String) {
+    val url = rawUrl.trim()
+    if (url.isBlank()) return
+    val notificationId = url.hashCode() and 0x7FFFFFFF
+    val intent = Intent(context, PluctNotificationCancelReceiver::class.java).apply {
+        action = PluctNotificationCancelReceiver.ACTION_CANCEL_TRANSCRIPTION
+        putExtra(PluctNotificationCancelReceiver.EXTRA_URL, url)
+        putExtra(PluctNotificationCancelReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+    }
+    context.sendBroadcast(intent)
+}
+
+private fun copyTranscript(video: VideoItem, context: Context, snackbarHostState: SnackbarHostState?, scope: CoroutineScope) {
     val transcript = video.transcript ?: return
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboardManager.setPrimaryClip(ClipData.newPlainText("Pluct Transcript", transcript))
     snackbarHostState?.let { scope.launch { it.showSnackbar("Copied", duration = SnackbarDuration.Short) } }
-}
-
-private fun statusLabel(video: VideoItem): String = when (video.status) {
-    ProcessingStatus.COMPLETED -> "OK"
-    ProcessingStatus.PROCESSING -> "${video.progress.coerceIn(0, 99)}%"
-    ProcessingStatus.FAILED -> PluctCoreError08OutcomeFamily.shortLabel(
-        PluctCoreError08OutcomeFamily.fromVideoItem(video)
-    )
-    ProcessingStatus.QUEUED -> "..."
-    ProcessingStatus.UNKNOWN -> "?"
-}
-
-private fun statusIcon(status: ProcessingStatus): ImageVector = when (status) {
-    ProcessingStatus.COMPLETED -> Icons.Default.CheckCircle
-    ProcessingStatus.PROCESSING -> Icons.Default.Refresh
-    ProcessingStatus.FAILED -> Icons.Default.ErrorOutline
-    ProcessingStatus.QUEUED -> Icons.Default.Schedule
-    ProcessingStatus.UNKNOWN -> Icons.Default.Help
 }
 
 private fun statusColor(status: ProcessingStatus): Color = when (status) {
@@ -224,36 +487,8 @@ private fun statusColor(status: ProcessingStatus): Color = when (status) {
     ProcessingStatus.UNKNOWN -> Color(0xFF68707A)
 }
 
-private fun getVideoDisplayTitle(video: VideoItem): String =
-    getVideoDetailDisplayTitle(video).ifBlank { "TikTok" }
-
-@Composable
-private fun QuickActionsMenu(visible: Boolean, video: VideoItem, onDismiss: () -> Unit, onDelete: () -> Unit, context: Context) {
-    DropdownMenu(expanded = visible, onDismissRequest = onDismiss) {
-        DropdownMenuItem(
-            text = { Text("Copy") },
-            leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
-            onClick = {
-                video.transcript?.let {
-                    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboardManager.setPrimaryClip(ClipData.newPlainText("Pluct Transcript", it))
-                }
-                onDismiss()
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("Share") },
-            leadingIcon = { Icon(Icons.Default.Share, null) },
-            onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                putExtra(Intent.EXTRA_TEXT, shareText(video)); type = "text/plain"
-            }, "Share")); onDismiss() }
-        )
-        DropdownMenuItem(text = { Text("Delete") }, leadingIcon = { Icon(Icons.Default.Delete, null) }, onClick = { onDelete(); onDismiss() })
-    }
-}
-
 private fun shareText(video: VideoItem): String = buildString {
-    appendLine("Transcript for ${getVideoDisplayTitle(video)}")
+    appendLine("Transcript for ${getVideoDetailDisplayTitle(video)}")
     if (video.author.isNotBlank()) appendLine("By ${video.author}")
     appendLine("URL: ${video.url}")
     appendLine()
@@ -269,13 +504,14 @@ fun PluctEmptyStateMessage(onDemoLinkClick: () -> Unit = {}) {
                 contentDescription = "Empty state - no transcripts yet"
                 testTag = "empty_state_message"
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {

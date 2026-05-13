@@ -45,14 +45,12 @@ import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.entity.VideoItem
-import app.pluct.data.preferences.PluctUserPreferencesInlineHint
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.TranscriptionDebugInfo
 import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
-import app.pluct.ui.components.PluctUIComponent08InlineHint01Card
 import app.pluct.ui.components.PluctUIComponent09Readiness01Strip
 import app.pluct.ui.readiness.PluctUIReadiness01Kind
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,9 +95,20 @@ fun PluctHomeScreen(
     onViewDebugLogs: (() -> Unit)? = null
 ) {
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var expandCreditsWhenOpeningSettings by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    fun dismissSettingsSheet() {
+        showSettingsDialog = false
+        expandCreditsWhenOpeningSettings = false
+    }
+
+    val openSettingsSheet: (focusCreditsRequest: Boolean) -> Unit = { focusCredits ->
+        expandCreditsWhenOpeningSettings = focusCredits
+        showSettingsDialog = true
+    }
 
     var effectivePrefilledUrl by remember(prefilledUrl) { mutableStateOf(prefilledUrl) }
 
@@ -121,7 +130,7 @@ fun PluctHomeScreen(
             readinessKind = readinessKind,
             onReadinessRetryBalance = onReadinessRetryBalance,
             onReadinessOpenNetwork = onReadinessOpenNetwork,
-            onStripAddCredits = { showSettingsDialog = true },
+            onStripAddCredits = { openSettingsSheet(true) },
             uniqueVideos = uniqueVideos,
             onTierSubmit = onTierSubmit,
             onRetryVideo = onRetryVideo,
@@ -136,12 +145,11 @@ fun PluctHomeScreen(
             videoRepository = videoRepository,
             debugInfo = debugInfo,
             ctaHelperMessage = ctaHelperMessage,
-            onRequestCreditsClick = { showSettingsDialog = true },
+            onRequestCreditsClick = { openSettingsSheet(true) },
             debugLogManager = debugLogManager,
             onViewDebugLogs = openDebugLogs,
             onQueueForLater = onQueueForLater,
             isLoadingCreditBalance = isLoadingCreditBalance,
-            onShowTutorial = onShowTutorial,
             onNavigateToLibrary = onNavigateToLibrary,
             onRefreshCreditBalance = onRefreshCreditBalance
         )
@@ -158,7 +166,7 @@ fun PluctHomeScreen(
                     isCreditBalanceLoading = isLoadingCreditBalance,
                     creditBalanceError = errorMessage,
                     onRefreshCreditBalance = onRefreshCreditBalance,
-                    onSettingsClick = { showSettingsDialog = true }
+                    onSettingsClick = { openSettingsSheet(false) }
                 )
             }
         ) { paddingValues ->
@@ -180,10 +188,10 @@ fun PluctHomeScreen(
             creditBalance = creditBalance,
             debugLogCount = debugLogs.size,
             errorLogCount = errorLogs.size,
-            onDismiss = { showSettingsDialog = false },
+            onDismiss = { dismissSettingsSheet() },
             onRequestCredits = { requestText ->
                 onRequestCredits(requestText)
-                showSettingsDialog = false
+                dismissSettingsSheet()
             },
             onViewDebugLogs = openDebugLogs,
             onSendDiagnostic = {
@@ -206,7 +214,8 @@ fun PluctHomeScreen(
                 }
             },
             permissionLauncherHelper = permissionLauncherHelper,
-            onThemeModeChange = onThemeModeChange
+            onThemeModeChange = onThemeModeChange,
+            expandCreditsRequestSection = expandCreditsWhenOpeningSettings
         )
     }
 
@@ -228,7 +237,7 @@ private fun HomeSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp)
             .semantics { testTag = "home_section_$title" },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -293,17 +302,10 @@ private fun HomeContent(
     onViewDebugLogs: () -> Unit = {},
     onQueueForLater: ((String, QueueReason) -> Unit)? = null,
     isLoadingCreditBalance: Boolean = false,
-    onShowTutorial: (() -> Unit)? = null,
     onNavigateToLibrary: () -> Unit = {},
     onRefreshCreditBalance: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val showInlineHint = remember {
-        PluctUserPreferencesInlineHint.getInlineHintEnabled(context)
-    }
-    var inlineHintVisible by remember { mutableStateOf(showInlineHint) }
-
-    val activeVideos = remember(uniqueVideos) {
+    val activeVideosAll = remember(uniqueVideos) {
         uniqueVideos
             .filter {
                 it.status == ProcessingStatus.QUEUED ||
@@ -311,21 +313,21 @@ private fun HomeContent(
                     it.status == ProcessingStatus.FAILED
             }
             .sortedByDescending { it.timestamp }
-            .take(8)
     }
+    val activeVideos = remember(activeVideosAll) { activeVideosAll.take(2) }
     val recentVideos = remember(uniqueVideos) {
         uniqueVideos
             .filter { it.status == ProcessingStatus.COMPLETED }
             .sortedByDescending { it.timestamp }
-            .take(5)
+            .take(3)
     }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             PluctUIComponent09Readiness01Strip(
@@ -335,22 +337,6 @@ private fun HomeContent(
                 onRetryBalance = onReadinessRetryBalance
             )
         }
-        if (inlineHintVisible) {
-            item {
-                PluctUIComponent08InlineHint01Card(
-                    onShowTutorial = {
-                        Log.d("HomeScreen", "Inline hint: Show tutorial clicked")
-                        onShowTutorial?.invoke()
-                    },
-                    onDismiss = {
-                        PluctUserPreferencesInlineHint.setInlineHintEnabled(context, false)
-                        inlineHintVisible = false
-                        Log.d("HomeScreen", "Inline hint dismissed")
-                    }
-                )
-            }
-        }
-
         item {
             PluctUIComponent03CaptureCard(
                 freeUsesRemaining = freeUsesRemaining,
@@ -375,12 +361,12 @@ private fun HomeContent(
                     .fillMaxWidth()
                     .semantics { testTag = "home_value_promise_banner" },
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
                         .semantics { testTag = "home_value_promise_line" },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -390,7 +376,7 @@ private fun HomeContent(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "We'll get the text and clean it up for you.",
                         style = MaterialTheme.typography.bodySmall,
@@ -400,17 +386,11 @@ private fun HomeContent(
             }
         }
 
-        if (uniqueVideos.isNotEmpty()) {
-            item {
-                PluctTimeSavedCard(videos = uniqueVideos)
-            }
-        }
-
         if (activeVideos.isNotEmpty()) {
             item {
                 HomeSectionHeader(
                     title = "Active",
-                    badge = activeVideos.size,
+                    badge = activeVideosAll.size,
                     onViewAll = onNavigateToLibrary
                 )
             }
@@ -425,7 +405,9 @@ private fun HomeContent(
                     } else {
                         null
                     },
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackbarHostState,
+                    onRequestCredits = onRequestCreditsClick,
+                    showProcessingDebugPanel = false
                 )
             }
         }
@@ -445,7 +427,9 @@ private fun HomeContent(
                     onRetry = { onRetryVideo(video) },
                     onDelete = { onDeleteVideo(video) },
                     debugInfo = null,
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackbarHostState,
+                    onRequestCredits = onRequestCreditsClick,
+                    showProcessingDebugPanel = false
                 )
             }
         }

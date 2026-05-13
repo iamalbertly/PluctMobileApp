@@ -23,14 +23,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -44,10 +43,6 @@ import app.pluct.services.TranscriptionDebugInfo
 /**
  * Pluct-UI-Component-03CaptureCard-04ProcessingIndicator - Processing indicator component.
  */
-/**
- * UX IMPROVEMENT #4: Ensure progress indicators persist correctly when app is backgrounded
- * Progress state is managed by LaunchedEffect and persists across configuration changes
- */
 @Composable
 fun PluctProcessingIndicator(
     currentJobId: String? = null,
@@ -55,93 +50,61 @@ fun PluctProcessingIndicator(
     currentOperation: String? = null,
     estimatedTimeRemaining: String? = null,
     showTimeoutWarning: Boolean = false,
-    debugInfo: TranscriptionDebugInfo? = null
+    debugInfo: TranscriptionDebugInfo? = null,
+    showDebugPanel: Boolean = false,
+    embeddedFlat: Boolean = false
 ) {
-    // Remember progress to persist across recompositions
-    val rememberedProgress = remember(progress) { progress }
-    val rememberedOperation = remember(currentOperation) { currentOperation }
     var isDebugExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                contentDescription = "Processing indicator"
-                testTag = "processing_indicator"
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (showTimeoutWarning) {
-                MaterialTheme.colorScheme.errorContainer
-            } else {
-                MaterialTheme.colorScheme.secondaryContainer
-            }
-        )
-    ) {
+
+    val inferredProgress = debugInfo?.currentStep?.let { progressForStep(it, debugInfo.pollingAttempt, debugInfo.maxPollingAttempts) } ?: 0
+    val displayProgress = maxOf(progress, inferredProgress).coerceIn(0, 99)
+    val isRetryingPoll = debugInfo?.pollingAttempt != null &&
+        (debugInfo.pollingAttempt ?: 0) > 1 &&
+        debugInfo.currentStep == OperationStep.POLLING
+    val barColor = if (isRetryingPoll) {
+        Color(0xFFE46A1A)
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .then(if (embeddedFlat) Modifier else Modifier.padding(16.dp))
         ) {
-            val inferredProgress = debugInfo?.currentStep?.let { progressForStep(it, debugInfo.pollingAttempt, debugInfo.maxPollingAttempts) } ?: 0
-            val displayProgress = maxOf(rememberedProgress, progress, inferredProgress).coerceIn(0, 99)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (displayProgress > 0) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        progress = displayProgress / 100f
-                    )
-                } else {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = phaseText(debugInfo, rememberedOperation ?: currentOperation, displayProgress),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // UX IMPROVEMENT: Clean, international-friendly progress display
-                    // Uses visual percentage + minimal text for global users
+                if (!embeddedFlat) {
                     if (displayProgress > 0) {
-                        Text(
-                            text = "$displayProgress% -> Text",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Progress: $displayProgress percent"
-                                testTag = "progress_percentage"
-                            }
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            progress = displayProgress / 100f
                         )
                     } else {
-                        // Simple starting indicator
-                        Text(
-                            text = "0% -> Text",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Starting transcription"
-                                testTag = "progress_starting"
-                            }
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
                         )
                     }
-
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = humanPhaseText(debugInfo, currentOperation, displayProgress),
+                        style = if (embeddedFlat) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isRetryingPoll) Color(0xFFE46A1A) else MaterialTheme.colorScheme.primary
+                    )
                     if (estimatedTimeRemaining != null) {
                         Text(
-                            text = "Estimated time: $estimatedTimeRemaining",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = estimatedTimeRemaining,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -152,14 +115,15 @@ fun PluctProcessingIndicator(
                 progress = (maxOf(displayProgress, 4) / 100f).coerceIn(0.04f, 0.99f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp)
+                    .padding(top = if (embeddedFlat) 6.dp else 10.dp)
                     .semantics {
                         contentDescription = "Progress bar $displayProgress percent"
                         testTag = "progress_bar"
-                    }
+                    },
+                color = barColor,
+                trackColor = barColor.copy(alpha = 0.22f)
             )
 
-            // UX IMPROVEMENT: Simplified timeout warning - less text, clearer message
             if (showTimeoutWarning) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
@@ -195,7 +159,7 @@ fun PluctProcessingIndicator(
                 }
             }
 
-            if (debugInfo != null) {
+            if (debugInfo != null && showDebugPanel) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Divider()
 
@@ -242,6 +206,37 @@ fun PluctProcessingIndicator(
             }
         }
     }
+
+    if (embeddedFlat) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Processing indicator"
+                    testTag = "processing_indicator"
+                }
+        ) {
+            body()
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Processing indicator"
+                    testTag = "processing_indicator"
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = if (showTimeoutWarning) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    MaterialTheme.colorScheme.secondaryContainer
+                }
+            )
+        ) {
+            body()
+        }
+    }
 }
 
 @Composable
@@ -250,7 +245,7 @@ fun ProcessingIndicator(
     isVisible: Boolean
 ) {
     if (isVisible) {
-        PluctProcessingIndicator(currentOperation = message)
+        PluctProcessingIndicator(currentOperation = message, showDebugPanel = false, embeddedFlat = false)
     }
 }
 
@@ -269,14 +264,22 @@ private fun progressForStep(step: OperationStep, attempt: Int?, maxAttempts: Int
     OperationStep.FAILED -> 0
 }
 
-private fun phaseText(debugInfo: TranscriptionDebugInfo?, fallback: String?, progress: Int): String {
+private fun humanPhaseText(debugInfo: TranscriptionDebugInfo?, fallback: String?, progress: Int): String {
+    val pollAttempt = debugInfo?.pollingAttempt
+    val pollMax = debugInfo?.maxPollingAttempts
+    val retrying = pollAttempt != null && pollMax != null && pollAttempt > 1 &&
+        debugInfo.currentStep == OperationStep.POLLING
+    if (retrying) {
+        return "Retrying... ($pollAttempt/$pollMax)"
+    }
     return when (debugInfo?.currentStep) {
-        OperationStep.CANONICALIZE, OperationStep.METADATA -> "Link -> Ready"
-        OperationStep.CHECK_BALANCE, OperationStep.VEND_TOKEN -> "Wallet -> Go"
-        OperationStep.SUBMIT -> "Video -> Audio"
-        OperationStep.POLLING -> "Audio -> Text"
-        OperationStep.COMPLETED -> "100% -> Text"
+        OperationStep.CANONICALIZE, OperationStep.METADATA -> "Getting video info…"
+        OperationStep.CHECK_BALANCE, OperationStep.VEND_TOKEN -> "Preparing…"
+        OperationStep.SUBMIT -> "Starting…"
+        OperationStep.POLLING -> "Processing \u2022 ${progress.coerceIn(0, 99)}%"
+        OperationStep.COMPLETED -> "Processing \u2022 100%"
         OperationStep.FAILED -> "! Try again"
-        null -> fallback?.take(28) ?: if (progress > 0) "Audio -> Text" else "Video -> Text"
+        null -> fallback?.takeIf { it.isNotBlank() }?.take(40)
+            ?: if (progress > 0) "Processing \u2022 ${progress.coerceIn(0, 99)}%" else "Waiting"
     }
 }

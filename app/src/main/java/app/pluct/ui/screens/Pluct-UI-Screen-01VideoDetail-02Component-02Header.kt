@@ -53,6 +53,16 @@ internal fun getVideoDetailDisplayTitle(video: VideoItem): String {
         video.title.isNotBlank() && !isGenericVideoTitle(video.title) -> video.title
         !video.transcript.isNullOrBlank() -> transcriptPreviewTitle(video.transcript)
         getVideoDetailDisplayAuthor(video).isNotBlank() -> getVideoDetailDisplayAuthor(video).removePrefix("by ")
+        video.url.contains("vm.tiktok.com", ignoreCase = true) ||
+            video.url.contains("vt.tiktok.com", ignoreCase = true) ||
+            video.url.contains("tiktok.com/t/", ignoreCase = true) -> {
+            val m = Regex("[/]([A-Za-z0-9]{7,})").find(video.url)
+            if (m != null) {
+                "Video · ${m.groupValues[1].take(12)}"
+            } else {
+                tikTokUrlTitleFallback(video.url)
+            }
+        }
         video.url.contains("@") -> {
             val handleMatch = Regex("@([^/?]+)").find(video.url)
             if (handleMatch != null) {
@@ -63,6 +73,15 @@ internal fun getVideoDetailDisplayTitle(video: VideoItem): String {
             }
         }
         else -> "TikTok transcript"
+    }
+}
+
+private fun tikTokUrlTitleFallback(url: String): String {
+    val handleMatch = Regex("@([^/?]+)").find(url)
+    return if (handleMatch != null) {
+        "Video by @${handleMatch.groupValues[1]}"
+    } else {
+        "TikTok transcript"
     }
 }
 
@@ -78,6 +97,7 @@ private fun isGenericVideoTitle(title: String): Boolean {
     val normalized = title.trim().lowercase()
     return normalized == "tiktok video" ||
         normalized == "queued video" ||
+        normalized == "tiktok transcript" ||
         normalized == "tiktok - make your day"
 }
 

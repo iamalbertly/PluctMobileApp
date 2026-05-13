@@ -74,14 +74,26 @@ Business Engine validation remains disabled by default until the app emits a cle
 
 ## Main shell navigation (2026-05-11)
 
-- `app/pluct/ui/navigation/Pluct-UI-Navigation-01MainBottomBar.kt` — `PluctUIMainShellTab` + bottom bar (`nav_home`, `nav_library`, `nav_settings`).
+- `app/pluct/ui/navigation/Pluct-UI-Navigation-01MainBottomBar.kt` — `PluctUIMainShellTab` + bottom bar (`nav_home`, `nav_library`, `nav_settings`); each item uses one `icon` slot with **selected vs unselected tint** (`primary` vs `onSurfaceVariant`) so glyphs stay visible on the indicator (Material3 `NavigationBarItem` on this BOM has no `selectedIcon` slot).
 - `app/pluct/PluctUIScreen01MainActivity.kt` — activity + theme + `PluctMainContent` entry.
 - `app/pluct/ui/screens/Pluct-UI-Screen-01MainActivity-09MainContent.kt` — main shell (home/library/settings, errors, onboarding); SIZE-EXEMPT until sub-split.
 - `app/pluct/ui/screens/Pluct-UI-Screen-01HomeScreen-04Settings-00SharedBody.kt` — settings scroll body shared by bottom sheet and Settings tab (one SSOT for rows).
+
+### Home / capture UI automation surface (2026-05-13)
+
+- `capture_component_label` — root of smart URL row (journeys that tap capture focus).
+- `capture_cta_inline_helper` — one–two line inline helper under primary CTA (replaces duplicate Info dialog on capture card; journeys may assert absence of stray duplicate affordances).
+- `capture_wallet_chip`, `url_input_field`, `extract_script_button`, `paste_button`, `capture_url_example_hint`, `home_value_promise_line` unchanged contract; example hint copy uses ASCII `...`.
+- `Pluct-Mobile-UI-Component-CaptureCard-01URLInput.kt` — wallet tile, URL field, paste/extract, example hint; **SIZE-EXEMPT** (single layout surface; splitting would risk automation tag drift vs ADB journeys).
+- Job cards: `copy_transcript_button`, `video_item_overflow`, `video_retry_button`, `video_add_credits_button` (failed + credits path), `video_cancel_button` (processing/queued — same cancel broadcast as progress notifications; notification id = `url.hashCode() & 0x7FFFFFFF`). List row titles use `getVideoDetailDisplayTitle` SSOT with `Pluct-UI-Screen-01VideoDetail-02Component-02Header.kt` (generic TikTok titles collapsed to readable fallbacks).
+- Settings battery row: `settings_battery_background_row` at top of Preferences (`Pluct-UI-Screen-01HomeScreen-04Settings-03Permissions.kt`); `Journey-UX-24BatteryOptimizationRefresh-Validation` force-stops `app.pluct` before run when a prior journey left overlay/workers (UIAutomator hierarchy was a narrow frame without settings text).
+- Settings grouped `testTag` suffixes unchanged (`settings_section_permissions`, `settings_group_card_permissions`, etc.); section **labels** reordered to Preferences → Account → Credits → Support. Optional `expandCreditsRequestSection` on `PluctUIScreen01HomeScreen04Settings00SharedBody` opens the in-sheet **Credits** request block when balance blocks work (no extra tap).
+- Business Engine **video preview** for titles/thumbnails: authenticated **GET `/meta?url={url-encoded}`** (`PluctCoreAPI01UnifiedService13Metadata01Handler` / `PluctCoreAPIUnifiedService.getMetadata`); JSON maps to `MetadataResponse` (`title`, `author`, `description`, `duration`, `thumbnail`). Background worker prefetches once per job before progress notifications so **Active** rows show real art where the engine returns it.
 - `app/pluct/ui/components/PluctHomeShellTopBar` in `Pluct-UI-03Header.kt` — brand row + settings (`settings_button`).
 - `app/pluct/ui/components/Pluct-UI-Component-02Branding-01LogoMark.kt` — in-app mark uses `R.mipmap.ic_launcher_foreground` (aligned with adaptive launcher foreground; `pluct_brand_logo_mark`).
 - Journey: `scripts/nodejs/journeys/Journey-UX-27PluctRedesign-MockupParity-01Validation.js` — `npm run test:redesign`.
 - Journey: `scripts/nodejs/journeys/Journey-UX-28AppIconAndShellVisual-01Validation.js` — grouped settings + header icon + promise banner; `npm run test:shell-visual`.
+- Journey: `scripts/nodejs/journeys/Journey-UX-29HomeShellCaptureContrast-01Validation.js` — verify-retry home shell: capture root, example URL line, promise, `nav_home`, bottom-nav tap + logcat fatal guard; `npm run test:mockup-parity` (includes UX-27 + 28 + 29).
 
 ## Direct-to-value modules (2026-05-11)
 - `app/pluct/ui/readiness/Pluct-UI-Readiness-01Kind.kt` — readiness resolver (Customer / Speed & Trust).
@@ -93,6 +105,7 @@ Business Engine validation remains disabled by default until the app emits a cle
 - Credit fairness + invalid TikTok URL: `scripts/nodejs/journeys/Journey-UX-26TikTok-Url-Refund-NoCharge-01Validation.js`, runner `scripts/nodejs/Pluct-Test-Focused-08TikTok-Url-Refund-01Runner.js`, npm `npm run test:tiktok-refund`, doc `docs/CREDIT_FAIRNESS_ADB_LOOP.md`.
 
 ## Test Execution (Node-only)
+- `tapByTestTag('nav_home'|'nav_library'|'nav_settings')` resolves via **content-desc** fallbacks (`Home tab`, `Library tab`, `Settings tab`) when Compose does not emit `test-tag` in UIAutomator XML (Speed & Trust for ADB journeys).
 ```
 node scripts/nodejs/Pluct-Automatic-Orchestrator.js -scope All
 ```
@@ -114,6 +127,14 @@ NPM focused path (same journeys as `TEST_FILTER`):
 ```
 npm run test:paths
 ```
+
+Device-sensitive E2E subset (Dedupe SSOT + Intent-03 balance race):
+
+```
+npm run test:e2e-device-sensitive
+```
+
+Windows scripts: `scripts/windows/run-android-e2e.ps1` (ADB preflight before tests), `scripts/windows/verify-ios-ci-ready.ps1` (iOS CI secret checklist).
 
 After touching readiness, balance, capture, battery, or journey harness files, prefer:
 

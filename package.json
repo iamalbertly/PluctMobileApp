@@ -6,8 +6,8 @@
   "scripts": {
     "test": "npm run test:all",
     "test:all": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
-    "test:paths": "cross-env TEST_FILTER=Journey-Intent-03TikTok-04BalanceRace-01Validation.js,Journey-UX-24BatteryOptimizationRefresh-Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-28AppIconAndShellVisual-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
-    "test:updated": "cross-env TEST_FILTER=Journey-Intent-03TikTok-04BalanceRace-01Validation.js,Journey-UX-24BatteryOptimizationRefresh-Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-28AppIconAndShellVisual-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:paths": "cross-env TEST_FILTER=Journey-Intent-03TikTok-04BalanceRace-01Validation.js,Journey-UX-24BatteryOptimizationRefresh-Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-28AppIconAndShellVisual-01Validation.js,Journey-UX-29HomeShellCaptureContrast-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:updated": "cross-env TEST_FILTER=Journey-Intent-03TikTok-04BalanceRace-01Validation.js,Journey-UX-24BatteryOptimizationRefresh-Validation.js,Journey-UX-25DirectToValue-Readiness-01Validation.js,Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-28AppIconAndShellVisual-01Validation.js,Journey-UX-29HomeShellCaptureContrast-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:all:full": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:core": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Journey-AppLaunch --test Journey-QuickScan",
     "test:ui": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Pluct-UI-Header-01CreditBalance-Validation --test Pluct-Journey-Home-04EmptyState-01DemoLink",
@@ -15,12 +15,14 @@
     "test:tiktok-refund": "node scripts/nodejs/Pluct-Test-Focused-08TikTok-Url-Refund-01Runner.js",
     "test:redesign": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:shell-visual": "cross-env TEST_FILTER=Journey-UX-28AppIconAndShellVisual-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
+    "test:mockup-parity": "cross-env TEST_FILTER=Journey-UX-27PluctRedesign-MockupParity-01Validation.js,Journey-UX-28AppIconAndShellVisual-01Validation.js,Journey-UX-29HomeShellCaptureContrast-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:dedupe-ssot": "cross-env TEST_FILTER=Journey-Dedupe-Notification-SSOT-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ci": "cross-env CI=1 node scripts/nodejs/Pluct-Main-01Orchestrator.js --force-full",
     "test:failed": "node scripts/nodejs/Pluct-Main-01Orchestrator.js",
     "test:ux-fixes": "node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",
     "test:ux-fixes:dev": "cross-env DEV_MODE=1 node scripts/nodejs/Pluct-Test-Focused-01UXFixes.js",
-    "test:edge-cases": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Journey-EdgeCase-01RapidIntentReceipt-Validation --test Journey-EdgeCase-02CreditDepletion-Validation --test Journey-EdgeCase-03NetworkLoss-Validation --test Journey-EdgeCase-08NetworkInterruption-Validation"
+    "test:edge-cases": "node scripts/nodejs/Pluct-Main-01Orchestrator.js --test Journey-EdgeCase-01RapidIntentReceipt-Validation --test Journey-EdgeCase-02CreditDepletion-Validation --test Journey-EdgeCase-03NetworkLoss-Validation --test Journey-EdgeCase-08NetworkInterruption-Validation",
+    "test:e2e-device-sensitive": "cross-env TEST_FILTER=Journey-Dedupe-Notification-SSOT-01Validation.js,Journey-Intent-03TikTok-04BalanceRace-01Validation.js node scripts/nodejs/Pluct-Main-01Orchestrator.js"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

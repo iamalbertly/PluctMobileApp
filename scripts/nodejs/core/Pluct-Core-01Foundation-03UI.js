@@ -631,11 +631,14 @@ class PluctCoreFoundationUI {
             // Fallback: Try to find by contentDescription that matches the test tag pattern
             // For "settings_button", look for "Settings button" in content-desc
             const contentDescMap = {
+                'nav_home': 'Home tab',
+                'nav_library': 'Library tab',
+                'nav_settings': 'Settings tab',
                 'settings_button': 'Settings button',
                 'paste_button': 'Paste from clipboard',
                 'url_history_button': 'Show URL history',
                 'error_retry_button': 'Retry operation',
-                'extract_script_button': 'Extract Script',
+                'extract_script_button': 'Start',
                 'extract_script_action_button': 'Extract Script',
                 'url_input_field': 'Video URL input field',
                 'video_url_input': 'Video URL input field',

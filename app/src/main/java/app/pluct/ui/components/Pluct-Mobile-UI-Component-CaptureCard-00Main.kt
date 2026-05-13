@@ -1,8 +1,10 @@
 package app.pluct.ui.components
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +36,7 @@ import app.pluct.ui.components.PluctUIComponent03CaptureCard06Queue01Prompt
 import kotlinx.coroutines.delay
 import app.pluct.data.entity.ProcessingTier
 import app.pluct.data.entity.QueueReason
+import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreValidationInputSanitizer
@@ -45,7 +48,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -59,6 +61,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import app.pluct.notification.PluctNotificationHelper
@@ -89,7 +92,6 @@ fun PluctUIComponent03CaptureCard(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var urlText by remember { mutableStateOf(preFilledUrl ?: "") }
-    var hasFocus by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var showGetCoinsDialog by remember { mutableStateOf(false) }
     var showInsightsDialog by remember { mutableStateOf(false) }
@@ -105,6 +107,18 @@ fun PluctUIComponent03CaptureCard(
     var lastObservedStep by remember { mutableStateOf<OperationStep?>(null) }
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
     val sanitizer = remember { PluctCoreValidationInputSanitizer() }
+    val allVideos by (videoRepository?.getAllVideos() ?: flowOf(emptyList())).collectAsState(initial = emptyList())
+    val clipboardMgr = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+    val clipPrimary = clipboardMgr.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+    val showClipboardTikTokPasteChip = urlText.isBlank() && clipPrimary.isNotBlank() && sanitizer.isTikTokUrl(
+        sanitizer.extractUrlFromText(clipPrimary).trim()
+    )
+    val metadataPreview: VideoItem? = remember(urlText, allVideos, validationError) {
+        val r = sanitizer.validateUrl(urlText)
+        if (!r.isValid) return@remember null
+        val n = normalizeCaptureUrl(r.sanitizedValue)
+        allVideos.filter { normalizeCaptureUrl(it.url) == n }.maxByOrNull { it.timestamp }
+    }
     val currentValidation = remember(urlText) { sanitizer.validateUrl(urlText) }
     val isUrlValid = urlText.isNotBlank() && currentValidation.isValid
     val atomicCreditService = remember { PluctCoreCredit01AtomicReservation01Service() }
@@ -172,6 +186,7 @@ fun PluctUIComponent03CaptureCard(
             onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
             showQueuePrompt = true
             queuePromptReason = "No uses left — open Settings"
+            onRequestCredits?.invoke()
             isSubmitting = false
             isAutoSubmitting = false
             return@submit
@@ -190,6 +205,9 @@ fun PluctUIComponent03CaptureCard(
             )
 
             if (!reservationResult.success) {
+                if (reservationResult.error?.contains("Insufficient", ignoreCase = true) == true) {
+                    onRequestCredits?.invoke()
+                }
                 if (onQueueForLater != null) {
                     onQueueForLater(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
                 }
@@ -335,6 +353,7 @@ fun PluctUIComponent03CaptureCard(
                     if (onQueueForLater != null) {
                         onQueueForLater(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
                     }
+                    onRequestCredits?.invoke()
                     isAutoSubmitting = false
                 }
             } else {
@@ -357,6 +376,7 @@ fun PluctUIComponent03CaptureCard(
                     onQueueForLater?.invoke(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
                     showQueuePrompt = true
                     queuePromptReason = "No uses left — open Settings"
+                    onRequestCredits?.invoke()
                 }
             }
         }
@@ -420,74 +440,45 @@ fun PluctUIComponent03CaptureCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.65f))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Capture Video" }
+        border = BorderStroke(
+            width = 1.5.dp,
+            color = when {
+                validationError != null -> MaterialTheme.colorScheme.error
+                isUrlValid -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
+            }
         )
+    ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Helper message as collapsible info icon (progressive disclosure)
             ctaHelperMessage?.let { helper ->
-                Row(
+                val canTapCredits = helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null
+                Text(
+                    text = helper,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (canTapCredits) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                    },
+                    maxLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    var showDialog by remember { mutableStateOf(false) }
-                    
-                    IconButton(
-                        onClick = { showDialog = true },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .semantics {
-                                contentDescription = "Show help information"
-                                testTag = "helper_info_button"
-                            }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Info",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    if (showDialog) {
-                        androidx.compose.material3.AlertDialog(
-                            onDismissRequest = { showDialog = false },
-                            title = { Text("Information") },
-                            text = {
-                                Column {
-                                    Text(
-                                        text = helper,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    if (helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        TextButton(onClick = { 
-                                            showDialog = false
-                                            onRequestCredits()
-                                        }) {
-                                            Text("Open Settings")
-                                        }
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                TextButton(onClick = { showDialog = false }) {
-                                    Text("OK")
-                                }
+                        .padding(bottom = 6.dp)
+                        .then(
+                            if (canTapCredits) {
+                                Modifier.clickable { onRequestCredits?.invoke() }
+                            } else {
+                                Modifier
                             }
                         )
-                    }
-                }
+                        .semantics {
+                            contentDescription = helper
+                            testTag = "capture_cta_inline_helper"
+                        }
+                )
             }
             
             PluctURLInputField(
@@ -503,18 +494,8 @@ fun PluctUIComponent03CaptureCard(
                 validationError = validationError,
                 isProcessing = isProcessing,
                 onFocusChanged = { state ->
-                    if (state.isFocused && !hasFocus) {
-                        if (!isPrefilledUrl) {
-                            urlText = ""
-                            validationError = null
-                        }
-                        hasFocus = true
-                    }
-                    if (!state.isFocused) {
-                        hasFocus = false
-                        if (isPrefilledUrl && urlText.isBlank()) {
-                            isPrefilledUrl = false
-                        }
+                    if (!state.isFocused && isPrefilledUrl && urlText.isBlank()) {
+                        isPrefilledUrl = false
                     }
                 },
                 videoRepository = videoRepository,
@@ -523,7 +504,10 @@ fun PluctUIComponent03CaptureCard(
                 creditBalance = creditBalance,
                 isSubmitting = isSubmitting,
                 onWalletClick = onRefreshCreditBalance,
-                isLoadingCreditBalance = isLoadingCreditBalance
+                isLoadingCreditBalance = isLoadingCreditBalance,
+                metadataPreview = metadataPreview,
+                showClipboardTikTokPasteChip = showClipboardTikTokPasteChip,
+                fieldRowMinHeight = if (isProcessing) 46.dp else 52.dp
             )
 
             // Queue prompt for offline/no-credit scenarios
@@ -656,16 +640,6 @@ fun PluctUIComponent03CaptureCard(
                     processingMessage = null
                 }
             }
-
-            // Processing indicator only shown when actively processing
-            // Inline submit button in input field handles submission, no separate button needed
-            if (isProcessing) {
-                PluctProcessingIndicator(
-                    currentJobId = currentJobId,
-                    debugInfo = debugInfo
-                )
-            }
-            
             // Low credits warning (only when URL is valid and credits are low)
             if (isUrlValid && freeUsesRemaining <= 0 && creditBalance in 1..1 && !isProcessing) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -703,3 +677,6 @@ fun PluctUIComponent03CaptureCard(
         )
     }
 }
+
+private fun normalizeCaptureUrl(url: String): String =
+    url.trim().lowercase().removeSuffix("/")

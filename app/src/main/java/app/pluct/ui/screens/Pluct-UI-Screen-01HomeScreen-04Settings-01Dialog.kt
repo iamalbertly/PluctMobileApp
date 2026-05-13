@@ -24,7 +24,8 @@ fun PluctUIScreen01HomeScreen04Settings01Dialog(
     onViewDebugLogs: () -> Unit,
     onSendDiagnostic: () -> Unit = {},
     permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
-    onThemeModeChange: ((String) -> Unit)? = null
+    onThemeModeChange: ((String) -> Unit)? = null,
+    expandCreditsRequestSection: Boolean = false
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -47,6 +48,7 @@ fun PluctUIScreen01HomeScreen04Settings01Dialog(
             showSheetTitle = true,
             showCloseRow = true,
             onClose = onDismiss,
+            expandCreditsRequestSection = expandCreditsRequestSection,
             modifier = Modifier.fillMaxWidth()
         )
     }

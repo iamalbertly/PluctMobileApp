@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,13 +40,16 @@ fun PluctHomeShellTopBar(
     TopAppBar(
         title = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PluctUIComponent02Branding01LogoMark(size = 34.dp)
+                PluctUIComponent02Branding01LogoMark(size = 30.dp)
                 Text(
                     text = "Pluct",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
@@ -59,7 +64,11 @@ fun PluctHomeShellTopBar(
                         testTag = "settings_button"
                     }
             ) {
-                Icon(Icons.Default.Settings, contentDescription = null)
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp)
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -67,10 +76,12 @@ fun PluctHomeShellTopBar(
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             actionIconContentColor = MaterialTheme.colorScheme.onBackground
         ),
-        modifier = modifier.semantics {
-            contentDescription = "App header"
-            testTag = "home_shell_top_bar"
-        }
+        modifier = modifier
+            .padding(horizontal = 24.dp)
+            .semantics {
+                contentDescription = "App header"
+                testTag = "home_shell_top_bar"
+            }
     )
 }
 
@@ -158,7 +169,11 @@ private fun PluctHeaderBar(
                         testTag = "settings_button"
                     }
             ) {
-                Icon(Icons.Default.Settings, contentDescription = null)
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp)
+                )
             }
         },
         modifier = modifier.semantics {
