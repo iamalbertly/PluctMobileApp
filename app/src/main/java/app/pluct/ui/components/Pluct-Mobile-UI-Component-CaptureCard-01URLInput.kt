@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -108,7 +108,7 @@ fun PluctURLInputField(
     val walletDescription = when {
         isLoadingCreditBalance -> "Loading wallet amount"
         freeUsesRemaining > 0 -> "Free uses: $freeUsesRemaining. Tap to refresh."
-        else -> "Wallet amount: $creditBalance. Tap to refresh."
+        else -> "Wallet: $creditBalance credits. Tap to refresh."
     }
 
     fun pasteFromClipboard() {
@@ -141,14 +141,14 @@ fun PluctURLInputField(
         ) {
             Surface(
                 modifier = Modifier
-                    .widthIn(min = 56.dp, max = 76.dp)
-                    .defaultMinSize(minHeight = 72.dp)
+                    .widthIn(min = 52.dp, max = 70.dp)
+                    .heightIn(min = 54.dp, max = 64.dp)
                     .clickable(enabled = onWalletClick != null) { onWalletClick?.invoke() }
                     .semantics {
                         testTag = "capture_wallet_chip"
                         contentDescription = walletDescription
                     },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Column(
@@ -156,35 +156,43 @@ fun PluctURLInputField(
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 8.dp)
+                        .padding(horizontal = 5.dp, vertical = 5.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccountBalanceWallet,
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     if (isLoadingCreditBalance) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
-                    } else {
+                    } else if (freeUsesRemaining > 0) {
                         Text(
                             text = walletLabel,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                        Text(
+                            text = "free",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
+                        )
+                    } else {
+                        Text(
+                            text = "$creditBalance credits",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines = 1
+                        )
                     }
-                    Text(
-                        text = if (freeUsesRemaining > 0) "free" else "credits",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.88f)
-                    )
                 }
             }
 
@@ -246,13 +254,13 @@ fun PluctURLInputField(
                         .fillMaxWidth()
                         .height(fieldRowMinHeight),
                     shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
                     border = BorderStroke(
                         width = 1.dp,
                         color = when {
                             validationError != null -> MaterialTheme.colorScheme.error
-                            urlText.isNotEmpty() && isUrlValid -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                            urlText.isNotEmpty() && isUrlValid -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                         }
                     )
                 ) {
@@ -314,7 +322,7 @@ fun PluctURLInputField(
                                         Text(
                                             "Paste TikTok link here",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
                                         )
                                     }
                                     innerTextField()
@@ -421,7 +429,7 @@ fun PluctURLInputField(
                 Text(
                     text = "Example: https://vt.tiktok.com/...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.88f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.94f),
                 modifier = Modifier
                     .padding(start = 4.dp, top = 8.dp)
                     .fillMaxWidth()

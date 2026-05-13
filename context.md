@@ -93,7 +93,16 @@ Business Engine validation remains disabled by default until the app emits a cle
 - `app/pluct/ui/components/Pluct-UI-Component-02Branding-01LogoMark.kt` — in-app mark uses `R.mipmap.ic_launcher_foreground` (aligned with adaptive launcher foreground; `pluct_brand_logo_mark`).
 - Journey: `scripts/nodejs/journeys/Journey-UX-27PluctRedesign-MockupParity-01Validation.js` — `npm run test:redesign`.
 - Journey: `scripts/nodejs/journeys/Journey-UX-28AppIconAndShellVisual-01Validation.js` — grouped settings + header icon + promise banner; `npm run test:shell-visual`.
-- Journey: `scripts/nodejs/journeys/Journey-UX-29HomeShellCaptureContrast-01Validation.js` — verify-retry home shell: capture root, example URL line, promise, `nav_home`, bottom-nav tap + logcat fatal guard; `npm run test:mockup-parity` (includes UX-27 + 28 + 29).
+- Bottom nav: shorter bar height, **lighter selection indicator** (primary @ ~0.14 alpha), **brighter unselected** tab glyphs (`onSurfaceVariant` ~0.92 alpha) so Home stays legible like the reference mockup (**Speed & Trust**).
+- Capture card: **calmer idle border** (outline ~0.22 alpha), **valid** border primary ~0.52 alpha; inline **CTA helper** uses **`onSurface` + SemiBold** when tappable credits (was low-contrast primary-on-dark).
+- Wallet chip: **compact** `52–70dp` × `54–64dp`, **14dp** corners; **credit mode** shows one line **`{n} credits`**; a11y `contentDescription` uses **`Wallet: n credits`** or **`Free uses:`** prefix for ADB (**Customer**).
+- URL field: **stronger tonal surface** (`surfaceVariant` ~0.42 alpha), clearer **outline** states; placeholder / example line higher luminance.
+- Value promise row: **tighter padding**, **16dp** bolt icon, **single-line ellipsis** on narrow screens.
+- Home feed rows: **neutral** `surfaceVariant` thumb placeholder (no status-tinted “fake error” tile); **8dp** between primary action and overflow; handle line **`bodySmall`** muted; embedded **progress bar height 6dp** + existing `%` copy (**Realism & Simplicity**).
+- `PluctHomeShellTopBar`: horizontal padding **20dp** to align with home column rhythm.
+- Section headers: `testTag` **`home_section_active` / `home_section_recent`** (lowercase slug) for deterministic ADB.
+- Journey: `scripts/nodejs/journeys/Journey-UX-30PluctMockupParityVisual-01Validation.js` — cold start, overlay dismiss, asserts **paste / promise / example / wallet semantics / logcat**, nav round-trip; included in `npm run test:mockup-parity` with UX-27–29.
+- Journey: `scripts/nodejs/journeys/Journey-UX-29HomeShellCaptureContrast-01Validation.js` — verify-retry home shell: capture root, example URL line, promise, `nav_home`, bottom-nav tap + logcat fatal guard; `npm run test:mockup-parity` (includes UX-27 + 28 + 29 + **30**).
 
 ## Direct-to-value modules (2026-05-11)
 - `app/pluct/ui/readiness/Pluct-UI-Readiness-01Kind.kt` — readiness resolver (Customer / Speed & Trust).

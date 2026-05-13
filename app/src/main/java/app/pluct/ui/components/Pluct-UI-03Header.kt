@@ -77,7 +77,7 @@ fun PluctHomeShellTopBar(
             actionIconContentColor = MaterialTheme.colorScheme.onBackground
         ),
         modifier = modifier
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = 20.dp)
             .semantics {
                 contentDescription = "App header"
                 testTag = "home_shell_top_bar"

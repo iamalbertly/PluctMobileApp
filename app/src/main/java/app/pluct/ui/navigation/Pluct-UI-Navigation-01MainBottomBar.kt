@@ -32,7 +32,7 @@ fun PluctUIMainShellBottomBar(
 ) {
     val barTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
     NavigationBar(
-        modifier = modifier.height(88.dp),
+        modifier = modifier.height(76.dp),
         containerColor = barTint,
         tonalElevation = 0.dp,
         contentColor = MaterialTheme.colorScheme.onSurface
@@ -40,9 +40,9 @@ fun PluctUIMainShellBottomBar(
         val colors = NavigationBarItemDefaults.colors(
             selectedIconColor = MaterialTheme.colorScheme.primary,
             selectedTextColor = MaterialTheme.colorScheme.primary,
-            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
         )
         val homeTintUnsel = MaterialTheme.colorScheme.onSurfaceVariant
         val homeTintSel = MaterialTheme.colorScheme.primary

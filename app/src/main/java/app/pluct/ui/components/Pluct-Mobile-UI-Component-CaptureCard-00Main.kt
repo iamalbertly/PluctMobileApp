@@ -444,24 +444,29 @@ fun PluctUIComponent03CaptureCard(
             width = 1.5.dp,
             color = when {
                 validationError != null -> MaterialTheme.colorScheme.error
-                isUrlValid -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
+                isUrlValid -> MaterialTheme.colorScheme.primary.copy(alpha = 0.52f)
+                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
             }
         )
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             ctaHelperMessage?.let { helper ->
                 val canTapCredits = helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null
                 Text(
                     text = helper,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (canTapCredits) {
-                        MaterialTheme.colorScheme.primary
+                    style = if (canTapCredits) {
+                        MaterialTheme.typography.bodyMedium
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                        MaterialTheme.typography.bodySmall
+                    },
+                    fontWeight = if (canTapCredits) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (canTapCredits) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
                     },
                     maxLines = 2,
                     modifier = Modifier

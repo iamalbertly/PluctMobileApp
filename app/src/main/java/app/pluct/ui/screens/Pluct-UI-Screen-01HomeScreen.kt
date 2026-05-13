@@ -37,8 +37,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import java.util.Locale
 import app.pluct.core.permission.PluctCorePermission02Launcher01Helper
 import app.pluct.data.entity.LogLevel
 import app.pluct.data.entity.ProcessingStatus
@@ -238,7 +240,7 @@ private fun HomeSectionHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
-            .semantics { testTag = "home_section_$title" },
+            .semantics { testTag = "home_section_${title.lowercase(Locale.US)}" },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -366,7 +368,7 @@ private fun HomeContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                         .semantics { testTag = "home_value_promise_line" },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -374,13 +376,15 @@ private fun HomeContent(
                         imageVector = Icons.Default.FlashOn,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "We'll get the text and clean it up for you.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

@@ -132,8 +132,8 @@ fun PluctVideoItemCard(
                 if (handle.isNotBlank()) {
                     Text(
                         text = handle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -145,7 +145,7 @@ fun PluctVideoItemCard(
                 )
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PrimaryVideoAction(
@@ -397,18 +397,19 @@ private fun VideoOverflowMenu(
 
 @Composable
 private fun VideoThumbWithDuration(video: VideoItem) {
-    val baseTint = statusColor(video.status).copy(alpha = if (video.thumbnailUrl.isNotBlank()) 0f else 1f)
+    val scheme = MaterialTheme.colorScheme
+    val placeholderBg = scheme.surfaceVariant.copy(alpha = 0.55f)
     Box(
         modifier = Modifier
             .size(56.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (video.thumbnailUrl.isNotBlank()) Color(0xFF22222A) else baseTint),
+            .background(if (video.thumbnailUrl.isNotBlank()) Color(0xFF22222A) else placeholderBg),
         contentAlignment = Alignment.Center
     ) {
         if (video.thumbnailUrl.isNotBlank()) {
             AsyncImage(
                 model = video.thumbnailUrl,
-                contentDescription = null,
+                contentDescription = "Video thumbnail",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -417,7 +418,7 @@ private fun VideoThumbWithDuration(video: VideoItem) {
             Icon(
                 imageVector = Icons.Default.VideoLibrary,
                 contentDescription = null,
-                tint = Color.White,
+                tint = scheme.onSurfaceVariant.copy(alpha = 0.9f),
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -477,14 +478,6 @@ private fun copyTranscript(video: VideoItem, context: Context, snackbarHostState
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboardManager.setPrimaryClip(ClipData.newPlainText("Pluct Transcript", transcript))
     snackbarHostState?.let { scope.launch { it.showSnackbar("Copied", duration = SnackbarDuration.Short) } }
-}
-
-private fun statusColor(status: ProcessingStatus): Color = when (status) {
-    ProcessingStatus.COMPLETED -> Color(0xFF0B8F6A)
-    ProcessingStatus.PROCESSING -> Color(0xFF5E35D6)
-    ProcessingStatus.FAILED -> Color(0xFFC62828)
-    ProcessingStatus.QUEUED -> Color(0xFFE46A1A)
-    ProcessingStatus.UNKNOWN -> Color(0xFF68707A)
 }
 
 private fun shareText(video: VideoItem): String = buildString {

@@ -115,6 +115,7 @@ fun PluctProcessingIndicator(
                 progress = (maxOf(displayProgress, 4) / 100f).coerceIn(0.04f, 0.99f),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(6.dp)
                     .padding(top = if (embeddedFlat) 6.dp else 10.dp)
                     .semantics {
                         contentDescription = "Progress bar $displayProgress percent"
