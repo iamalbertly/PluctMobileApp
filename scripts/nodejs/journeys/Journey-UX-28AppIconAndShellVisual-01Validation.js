@@ -29,7 +29,37 @@ class JourneyUX28AppIconAndShellVisual01Validation extends BaseJourney {
         return { ok: false, error: lastErr };
     }
 
+    async dismissBlockingOverlays() {
+        for (let k = 0; k < 4; k++) {
+            await this.core.dumpUIHierarchy();
+            const raw = (this.core.readLastUIDump() || '').toLowerCase();
+            let tapped = false;
+            if (raw.includes('onboarding_skip_button') || raw.includes('onboarding_tutorial_dialog')) {
+                const t = await this.core.tapByTestTag('onboarding_skip_button');
+                if (t.success) tapped = true;
+            } else if (raw.includes('welcome_get_started_button') || raw.includes('welcome_dialog')) {
+                const t = await this.core.tapByTestTag('welcome_get_started_button');
+                if (t.success) tapped = true;
+            } else if (raw.includes('text="next"') || raw.includes('get transcripts in 3 taps')) {
+                const t = await this.core.tapByText('Next');
+                if (t.success) tapped = true;
+            } else if (raw.includes('text="got it"') || raw.includes('find the share button')) {
+                const t = await this.core.tapByText('Got It');
+                if (t.success) tapped = true;
+            } else if (raw.includes("i'll figure it out")) {
+                const t = await this.core.tapByText("I'll Figure It Out");
+                if (t.success) tapped = true;
+            } else if (raw.includes('permission_onboarding_skip_button') || raw.includes('permission_onboarding_dialog')) {
+                const t = await this.core.tapByTestTag('permission_onboarding_skip_button');
+                if (t.success) tapped = true;
+            }
+            if (!tapped) break;
+            await this.sleep(650);
+        }
+    }
+
     async assertHomeVisuals() {
+        await this.dismissBlockingOverlays();
         await this.core.dumpUIHierarchy();
         const raw = this.core.readLastUIDump() || '';
         const ui = raw.toLowerCase();
@@ -83,6 +113,7 @@ class JourneyUX28AppIconAndShellVisual01Validation extends BaseJourney {
     }
 
     async assertSettingsGrouped() {
+        await this.dismissBlockingOverlays();
         await this.core.dumpUIHierarchy();
         const raw = this.core.readLastUIDump() || '';
         const ui = raw.toLowerCase();

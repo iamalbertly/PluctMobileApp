@@ -6,6 +6,32 @@ class JourneyQueue02InsufficientCreditsValidation extends BaseJourney {
         this.name = 'Queue-02InsufficientCredits';
     }
 
+    async dismissBlockingOverlays() {
+        for (let i = 0; i < 4; i++) {
+            await this.core.dumpUIHierarchy();
+            const raw = (this.core.readLastUIDump() || '').toLowerCase();
+            let tapped = false;
+            if (raw.includes('onboarding_skip_button') || raw.includes('onboarding_tutorial_dialog')) {
+                const t = await this.core.tapByTestTag('onboarding_skip_button');
+                if (t.success) tapped = true;
+            } else if (raw.includes('text="next"') || raw.includes('get transcripts in 3 taps')) {
+                const t = await this.core.tapByText('Next');
+                if (t.success) tapped = true;
+            } else if (raw.includes('text="got it"') || raw.includes('find the share button')) {
+                const t = await this.core.tapByText('Got It');
+                if (t.success) tapped = true;
+            } else if (raw.includes("i'll figure it out")) {
+                const t = await this.core.tapByText("I'll Figure It Out");
+                if (t.success) tapped = true;
+            } else if (raw.includes('permission_onboarding_skip_button') || raw.includes('permission_onboarding_dialog')) {
+                const t = await this.core.tapByTestTag('permission_onboarding_skip_button');
+                if (t.success) tapped = true;
+            }
+            if (!tapped) break;
+            await this.core.sleep(650);
+        }
+    }
+
     async execute() {
         this.core.logger.info('🚀 Starting: Journey-Queue-02InsufficientCredits-Validation');
         
@@ -13,12 +39,28 @@ class JourneyQueue02InsufficientCreditsValidation extends BaseJourney {
             // Step 1: Ensure app is running
             await this.ensureAppForeground();
             await this.core.sleep(2000);
+            await this.dismissBlockingOverlays();
+            await this.core.dumpUIHierarchy();
+            const initialDump = this.core.readLastUIDump();
+            if (!initialDump.includes('url_input_field') && initialDump.includes('Back to home')) {
+                await this.core.tapByContentDesc('Back to home');
+                await this.core.sleep(900);
+            } else if (!initialDump.includes('url_input_field') && initialDump.includes('Home tab')) {
+                await this.core.tapByContentDesc('Home tab');
+                await this.core.sleep(900);
+            }
             
             // Step 2: Enter TikTok URL
             this.core.logger.info('📱 Step 2: Entering TikTok URL...');
             let urlTap = await this.core.tapByTestTag('url_input_field');
             if (!urlTap.success) {
-                urlTap = await this.core.tapByText('Paste TikTok Link');
+                urlTap = await this.core.tapByContentDesc('Video URL input field');
+            }
+            if (!urlTap.success) {
+                urlTap = await this.core.tapByText('Paste TikTok link here');
+            }
+            if (!urlTap.success) {
+                urlTap = await this.core.tapFirstEditText();
             }
             if (!urlTap.success) {
                 return { success: false, error: 'URL input field not found' };

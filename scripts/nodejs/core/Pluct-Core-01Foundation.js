@@ -364,6 +364,10 @@ class PluctCoreFoundation {
         return this.utils.generateTestJWT(userId);
     }
 
+    buildUserAuthHeaders(userId) {
+        return this.utils.buildUserAuthHeaders(userId);
+    }
+
     httpGet(url, headers = {}) {
         return this.utils.httpGet(url, headers);
     }

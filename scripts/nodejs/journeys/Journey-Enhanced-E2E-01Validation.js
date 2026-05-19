@@ -355,8 +355,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
             const startTime = Date.now();
             const balanceUrl = `${this.core.config.businessEngineUrl}/v1/credits/balance`;
 
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT();
+            const userHeaders = this.core.buildUserAuthHeaders('mobile-test-runner');
 
             // Use Node.js built-in HTTP module
             const https = require('https');
@@ -369,7 +368,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
                 const options = {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${jwtToken}`,
+                        ...userHeaders,
                         'Content-Type': 'application/json'
                     },
                     timeout: 10000
@@ -417,8 +416,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
             const startTime = Date.now();
             const transcribeUrl = `${this.core.config.businessEngineUrl}/ttt/transcribe`;
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT();
+            const userHeaders = this.core.buildUserAuthHeaders('mobile-test-runner');
             
             // Use Node.js built-in HTTP module
             const https = require('https');
@@ -435,7 +433,7 @@ class EnhancedE2EValidationJourney extends BaseJourney {
                 const options = {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${jwtToken}`,
+                        ...userHeaders,
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(postData)
                     },

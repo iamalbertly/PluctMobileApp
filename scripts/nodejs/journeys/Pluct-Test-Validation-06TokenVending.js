@@ -16,14 +16,12 @@ class PluctTestValidationTokenVending extends BaseJourney {
         try {
             this.core.logger.info('🔍 Validating token vending system...');
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT('mobile');
-            
             // Test token vending endpoint
+            const userId = 'mobile-test-runner';
             const vendResponse = await this.core.httpPost(
                 `${this.core.config.businessEngineUrl}/v1/vend-token`,
-                { userId: 'mobile' },
-                { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' }
+                { userId, clientRequestId: `vend-${Date.now()}` },
+                { ...this.core.buildUserAuthHeaders(userId), 'Content-Type': 'application/json' }
             );
             
             if (!vendResponse.success || vendResponse.status !== 200) {

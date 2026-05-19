@@ -68,23 +68,9 @@ class PluctCoreFoundationValidation {
                 return { success: false, error: bridgeResult.error };
             }
 
-            const jwtCheck = this.validateEngineJwtSecretForE2E();
-            if (!jwtCheck.success) {
-                if (!this.requiresAndroidEnvironment()) {
-                    this.logger.warn(
-                        'ENGINE_JWT_SECRET is unavailable. Skipping ADB journeys for this compile-only/headless run. Set PLUCT_REQUIRE_ANDROID_ENV=1 to make this a hard failure.'
-                    );
-                    return {
-                        success: true,
-                        skipped: true,
-                        skipJourneys: true,
-                        reason: 'missing_engine_jwt',
-                        error: jwtCheck.error,
-                        statusLabel: 'SKIPPED_MISSING_RELEASE_ENV',
-                        mode: 'device present, release auth missing'
-                    };
-                }
-                return { success: false, error: jwtCheck.error };
+            const authCheck = this.validateUserAuthForE2E();
+            if (!authCheck.success) {
+                return { success: false, error: authCheck.error };
             }
 
             // Stop noisy foreground apps that interfere with UI automation (observed overlays from com.expensphere).
@@ -99,7 +85,8 @@ class PluctCoreFoundationValidation {
                     adb: adbResult,
                     device: deviceResult,
                     app: appResult,
-                    localBusinessEngineBridge: bridgeResult
+                    localBusinessEngineBridge: bridgeResult,
+                    authMode: authCheck.authMode
                 }
             };
         } catch (error) {
@@ -109,23 +96,36 @@ class PluctCoreFoundationValidation {
     }
 
     /**
-     * Balance-gated journeys need JWT signing aligned with Business Engine.
-     * Opt out with PLUCT_E2E_SKIP_ENGINE_JWT_CHECK=1 for partial smoke runs only.
+     * Protected Business Engine journeys use a user JWT when available.
+     * When the secret is absent, run against the same mobile header auth shape used by release clients.
      */
-    validateEngineJwtSecretForE2E() {
+    validateUserAuthForE2E() {
         if (process.env.PLUCT_E2E_SKIP_ENGINE_JWT_CHECK === '1') {
-            this.logger.warn('PLUCT_E2E_SKIP_ENGINE_JWT_CHECK=1: skipping ENGINE_JWT_SECRET presence check (not for full release validation)');
-            return { success: true, skipped: true };
+            this.logger.warn('PLUCT_E2E_SKIP_ENGINE_JWT_CHECK=1: using mobile header auth fallback for protected Business Engine requests');
+            return { success: true, authMode: 'mobile_header' };
         }
+
+        if (process.env.BE_USER_JWT) {
+            return { success: true, authMode: 'provided_user_jwt' };
+        }
+
         const secret = process.env.ENGINE_JWT_SECRET;
-        if (!secret || !String(secret).trim()) {
+        if (secret && String(secret).trim()) {
+            return { success: true, authMode: 'generated_user_jwt' };
+        }
+
+        if (process.env.PLUCT_DISABLE_MOBILE_HEADER_AUTH_E2E === '1') {
             return {
                 success: false,
                 error:
-                    'ENGINE_JWT_SECRET is not set. Android E2E needs it for balance fetch / auto-submit (set in .dev.vars locally or export before npm run test:all). Optional smoke: PLUCT_E2E_SKIP_ENGINE_JWT_CHECK=1',
+                    'No BE_USER_JWT or ENGINE_JWT_SECRET is set and PLUCT_DISABLE_MOBILE_HEADER_AUTH_E2E=1. Android E2E cannot authenticate protected Business Engine requests.',
             };
         }
-        return { success: true };
+
+        this.logger.warn(
+            'ENGINE_JWT_SECRET is not set. Continuing with release-style mobile header auth; this is a full device journey, not an admin/service-token validation.'
+        );
+        return { success: true, authMode: 'mobile_header' };
     }
 
     requiresAndroidEnvironment() {

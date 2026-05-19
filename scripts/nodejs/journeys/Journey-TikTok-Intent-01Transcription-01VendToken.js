@@ -8,10 +8,10 @@ class ChildVendToken {
     async execute() {
         try {
             this.core.logger.info('🎫 [Child-01] Vending service token via Business Engine...');
-            const userJwt = this.core.generateTestJWT('mobile');
+            const userId = 'mobile-test-runner';
             const url = `${this.core.config.businessEngineUrl}/v1/vend-token`;
-            const payload = { userId: 'mobile', clientRequestId: `req_${Date.now()}` };
-            const headers = { Authorization: `Bearer ${userJwt}`, 'Content-Type': 'application/json' };
+            const payload = { userId, clientRequestId: `req_${Date.now()}` };
+            const headers = { ...this.core.buildUserAuthHeaders(userId), 'Content-Type': 'application/json' };
             const res = await this.core.httpPost(url, payload, headers);
             if (!res.success || res.status !== 200) {
                 return { success: false, error: res.body || res.error };
@@ -30,5 +30,4 @@ function register(orchestrator) {
 }
 
 module.exports = { ChildVendToken, register };
-
 

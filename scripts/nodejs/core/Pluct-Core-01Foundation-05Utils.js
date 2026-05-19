@@ -31,7 +31,10 @@ class PluctCoreFoundationUtils {
             
             // Simple JWT generation for testing
             const header = { alg: 'HS256', typ: 'JWT' };
-            const secret = 'prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e';
+            const secret = process.env.ENGINE_JWT_SECRET;
+            if (!secret) {
+                throw new Error('ENGINE_JWT_SECRET is required for test JWT generation');
+            }
             
             const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
             const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -42,6 +45,49 @@ class PluctCoreFoundationUtils {
             this.logger.error(`JWT generation failed: ${error.message}`);
             return null;
         }
+    }
+
+    isEngineJwtAvailable() {
+        return Boolean(process.env.BE_USER_JWT || (process.env.ENGINE_JWT_SECRET && String(process.env.ENGINE_JWT_SECRET).trim()));
+    }
+
+    buildClientRequestId(prefix = 'node') {
+        const suffix = Math.random().toString(36).slice(2, 10);
+        return `${prefix}-${Date.now()}-${suffix}`;
+    }
+
+    buildMobileHeaderAuth(userId = 'mobile-test-runner') {
+        const requestId = this.buildClientRequestId('mobile-e2e');
+        const rawUserId = String(userId || 'mobile-test-runner').trim();
+        const normalizedUserId = /^mobile-[A-Za-z0-9._:-]{6,128}$/.test(rawUserId)
+            ? rawUserId
+            : 'mobile-test-runner';
+
+        return {
+            'X-Client-Platform': 'android',
+            'X-Client-Version': process.env.PLUCT_TEST_CLIENT_VERSION || '2.10.2',
+            'X-Client-Request-Id': requestId,
+            'X-Request-ID': requestId,
+            'X-User-Id': normalizedUserId,
+            'X-Device-Id': process.env.PLUCT_TEST_DEVICE_ID || 'device-test-runner',
+        };
+    }
+
+    buildUserAuthHeaders(userId = 'mobile-test-runner') {
+        if (process.env.BE_USER_JWT) {
+            this.logger.info('Using BE_USER_JWT from environment');
+            return { Authorization: `Bearer ${process.env.BE_USER_JWT}` };
+        }
+
+        if (process.env.ENGINE_JWT_SECRET && String(process.env.ENGINE_JWT_SECRET).trim()) {
+            const jwt = this.generateTestJWT(userId);
+            if (jwt) {
+                return { Authorization: `Bearer ${jwt}` };
+            }
+        }
+
+        this.logger.warn('ENGINE_JWT_SECRET missing; using release-style mobile header auth for protected Business Engine requests');
+        return this.buildMobileHeaderAuth(userId);
     }
 
     /**

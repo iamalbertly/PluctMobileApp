@@ -125,8 +125,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
             const startTime = Date.now();
             const balanceUrl = `${this.core.config.businessEngineUrl}/v1/credits/balance`;
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT();
+            const userHeaders = this.core.buildUserAuthHeaders('mobile-test-runner');
             
             // Use Node.js built-in HTTP module
             const https = require('https');
@@ -139,7 +138,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
                 const options = {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${jwtToken}`,
+                        ...userHeaders,
                         'Content-Type': 'application/json'
                     },
                     timeout: 10000
@@ -187,8 +186,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
             const startTime = Date.now();
             const vendUrl = `${this.core.config.businessEngineUrl}/v1/vend-token`;
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT();
+            const userHeaders = this.core.buildUserAuthHeaders('mobile-test-runner');
             const clientRequestId = `test_${Date.now()}`;
             
             // Use Node.js built-in HTTP module
@@ -200,13 +198,14 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
                 const client = url.protocol === 'https:' ? https : http;
 
                 const postData = JSON.stringify({
+                    userId: 'mobile-test-runner',
                     clientRequestId: clientRequestId
                 });
 
                 const options = {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${jwtToken}`,
+                        ...userHeaders,
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(postData)
                     },
@@ -256,8 +255,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
             const startTime = Date.now();
             const transcribeUrl = `${this.core.config.businessEngineUrl}/ttt/transcribe`;
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT();
+            const userHeaders = this.core.buildUserAuthHeaders('mobile-test-runner');
             
             // Use Node.js built-in HTTP module
             const https = require('https');
@@ -274,7 +272,7 @@ class APIConnectivityComprehensiveTestJourney extends BaseJourney {
                 const options = {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${jwtToken}`,
+                        ...userHeaders,
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(postData)
                     },

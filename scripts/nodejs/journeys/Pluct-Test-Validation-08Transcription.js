@@ -16,15 +16,13 @@ class PluctTestValidationTranscription extends BaseJourney {
         try {
             this.core.logger.info('🔍 Validating end-to-end transcription...');
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT('mobile');
-            
             // Vend a service token (use SSOT base URL)
+            const userId = 'mobile-test-runner';
             const vendClientRequestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
             const vendResponse = await this.core.httpPost(
                 `${this.core.config.businessEngineUrl}/v1/vend-token`,
-                { userId: 'mobile', clientRequestId: vendClientRequestId },
-                { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' }
+                { userId, clientRequestId: vendClientRequestId },
+                { ...this.core.buildUserAuthHeaders(userId), 'Content-Type': 'application/json' }
             );
             
             if (!vendResponse.success || vendResponse.status !== 200) {

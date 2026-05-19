@@ -19,21 +19,14 @@ class APIConnectivityJourney extends BaseJourney {
         }
 
         const userId = process.env.TEST_USER_ID || `mobile-automation-${Date.now()}`;
-        const envJwt = process.env.BE_USER_JWT;
-        const userJwt = envJwt || this.core.generateTestJWT(userId);
-        if (!userJwt) {
-            return { success: false, error: 'Failed to generate test JWT' };
-        }
-        if (envJwt) {
-            this.core.logger.info('Using BE_USER_JWT from environment');
-        }
+        const userHeaders = this.core.buildUserAuthHeaders(userId);
 
         // Vend service token
         const vendPayload = { userId, clientRequestId: `req_${Date.now()}` };
         const vendResponse = await this.core.httpPost(
             `${beBase}/v1/vend-token`,
             vendPayload,
-            { Authorization: `Bearer ${userJwt}` }
+            userHeaders
         );
         if (!vendResponse.success || vendResponse.status !== 200) {
             return { success: false, error: `Token vending failed (${vendResponse.status || vendResponse.error})` };

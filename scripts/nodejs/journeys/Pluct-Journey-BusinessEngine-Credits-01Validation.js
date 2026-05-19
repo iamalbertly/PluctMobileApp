@@ -20,14 +20,13 @@ class PluctJourneyBusinessEngineCredits01Validation {
             const balanceUrl = process.env.PLACT_BE_BALANCE_URL || `${this.core.config.businessEngineUrl}/v1/credits/balance`;
             this.core.logger.info(`Calling Business Engine balance endpoint: ${balanceUrl}`);
 
-            const jwt = this.core.generateTestJWT('mobile-test');
-            const response = await this.core.httpGet(balanceUrl, jwt ? { Authorization: `Bearer ${jwt}` } : {});
+            const response = await this.core.httpGet(balanceUrl, this.core.buildUserAuthHeaders('mobile-test-runner'));
             if (!response || !response.success) {
                 throw new Error(`No response data from Business Engine balance endpoint: ${response?.error || 'unknown error'}`);
             }
 
             const parsed = this.core.utils.parseJSON(response.body, {});
-            const balance = parsed.balance ?? parsed.availableCredits ?? parsed.main ?? 0;
+            const balance = parsed.availableUnits ?? parsed.balance ?? parsed.availableCredits ?? parsed.main ?? 0;
             this.core.logger.info(`Balance response received: ${balance}`);
 
             if (typeof balance !== 'number') {

@@ -16,13 +16,10 @@ class PluctTestValidationCreditBalance extends BaseJourney {
         try {
             this.core.logger.info('🔍 Validating credit balance system...');
             
-            // Generate test JWT token
-            const jwtToken = this.core.generateTestJWT('mobile');
-            
-            // Test credit balance endpoint with valid JWT
+            // Test credit balance endpoint with release-compatible user auth.
             const balanceResponse = await this.core.httpGet(
                 `${this.core.config.businessEngineUrl}/v1/credits/balance`,
-                { 'Authorization': `Bearer ${jwtToken}` }
+                this.core.buildUserAuthHeaders('mobile-test-runner')
             );
             
             if (!balanceResponse.success || balanceResponse.status !== 200) {
@@ -30,12 +27,13 @@ class PluctTestValidationCreditBalance extends BaseJourney {
             }
             
             const balanceData = JSON.parse(balanceResponse.body);
-            if (typeof balanceData.balance !== 'number') {
+            const available = balanceData.availableUnits ?? balanceData.balance ?? balanceData.availableCredits;
+            if (typeof available !== 'number') {
                 return { success: false, error: 'Invalid balance response format' };
             }
             
-            this.core.logger.info(`✅ Credit balance validation passed - Balance: ${balanceData.balance}`);
-            return { success: true, details: { balance: balanceData.balance, userId: balanceData.userId } };
+            this.core.logger.info(`Credit balance validation passed - Available: ${available}`);
+            return { success: true, details: { balance: available, reservedUnits: balanceData.reservedUnits, userId: balanceData.userId } };
             
         } catch (error) {
             this.core.logger.error(`❌ Credit balance validation failed: ${error.message}`);

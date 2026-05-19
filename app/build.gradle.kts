@@ -10,9 +10,6 @@ plugins {
 val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
     ?: System.getenv("PLUCT_ENGINE_BASE_URL")
     ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
-val engineJwtSecret: String = (findProperty("engineJwtSecret") as String?)
-    ?: System.getenv("ENGINE_JWT_SECRET")
-    ?: ""
 val pluctVersionName = "1.0.1"
 
 android {
@@ -42,7 +39,7 @@ android {
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
             buildConfigField("String", "PLATFORM", "\"android\"")
-            buildConfigField("String", "ENGINE_JWT_SECRET", "\"${engineJwtSecret.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "ENGINE_JWT_SECRET", "\"\"")
             // Optimize debug builds
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"

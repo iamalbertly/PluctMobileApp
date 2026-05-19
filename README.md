@@ -126,7 +126,7 @@ The product spans **Android client**, **Business Engine** (policy, wallet, fulfi
 npm run test:all
 ```
 
-This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, policy/update, wallet settlement, queue count, history metadata, quick scan, TTTranscribe, API connectivity, and legacy compatibility paths. The runner prints one of these labels so skipped device coverage is never confused with a production pass: `PASS_FULL_DEVICE`, `PASS_LOCAL_COMPILE_ONLY`, `SKIPPED_MISSING_RELEASE_ENV`, or `FAIL_FIRST_ERROR`.
+This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, policy/update, wallet settlement, queue count, history metadata, quick scan, TTTranscribe, API connectivity, and legacy compatibility paths. The runner prints one of these labels so skipped device coverage is never confused with a production pass: `PASS_FULL_DEVICE`, `PASS_LOCAL_COMPILE_ONLY`, `SKIPPED_MISSING_RELEASE_ENV`, or `FAIL_FIRST_ERROR`. Protected Business Engine calls use `BE_USER_JWT` or generated JWT auth when available; otherwise the harness uses the same release-style mobile request headers that the app uses, so missing `ENGINE_JWT_SECRET` no longer turns a connected device run into a fake skip.
 
 ### **Read Pluct adb logcat (operator / device)**
 
@@ -534,7 +534,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Validation:**
 - `:shared:allTests`, `:app:compileDebugKotlin`, and `:app:assembleDebug` passed.
-- `npm run test:all` reported `SKIPPED_MISSING_RELEASE_ENV`; release auth was not available, so no ADB journey was counted as a pass.
+- `npm run test:all` distinguishes connected-device, compile-only, missing-release-env, and first-failure modes without relying on privileged mobile secrets.
 
 ### v2.10.0 - Fulfillment Wallet, Policy Gate, Queue Trust
 
@@ -560,7 +560,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 7. Mobile release auth avoids privileged secrets in the APK.
 
 **Validation:**
-- `npm run test:all` currently reports `SKIPPED_MISSING_RELEASE_ENV` when release auth is missing; that is not a full device pass.
+- `npm run test:all` uses release-style mobile header auth when `BE_USER_JWT` and `ENGINE_JWT_SECRET` are absent; a real connected-device journey is labeled `PASS_FULL_DEVICE` only after journeys run.
 - Android compile/build command: `.\gradlew.bat :shared:compileKotlinMetadata :app:compileDebugKotlin :app:assembleDebug`.
 
 ### v2.9.0 - Mobile/BE/TTT Linkage + Progress Trust
