@@ -522,7 +522,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.10.0 - Fulfillment Wallet, Policy Gate, Queue Trust (Current)
+### v2.10.1 - Request Identity + Update Gate Hardening (Current)
+
+**UX/Reliability Improvements:**
+1. Mobile now sends both `X-Request-ID` and canonical `X-Client-Request-Id` so retries resolve to the same backend job.
+2. Mobile sends a distinct stable `X-Device-Id` instead of reusing the user id, improving abuse checks without extra user steps.
+3. Android hard update now follows the simple production rule: block only when server minimum version code is greater than installed `VERSION_CODE`.
+4. Client policy parsing now reads nested Android APK URLs from `platforms.android.apkUrl`.
+5. Client policy parsing treats `features.transcriptionSubmit=false` as a submit disable signal.
+6. Device identity logs no longer print the raw Android ID.
+
+**Validation:**
+- `:shared:allTests`, `:app:compileDebugKotlin`, and `:app:assembleDebug` passed.
+- `npm run test:all` reported `SKIPPED_MISSING_RELEASE_ENV`; release auth was not available, so no ADB journey was counted as a pass.
+
+### v2.10.0 - Fulfillment Wallet, Policy Gate, Queue Trust
 
 **UX/Reliability Improvements:**
 1. The visible product path is now quote -> reserve -> status -> charged/refunded, while legacy vend-token remains compatibility plumbing.

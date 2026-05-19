@@ -28,9 +28,14 @@ class PluctCoreUserIdentification @Inject constructor(
     val userId: String
         get() = _userId ?: generateUserId()
 
+    private var _deviceId: String? = null
+    val deviceId: String
+        get() = _deviceId ?: generateDeviceId()
+
     init {
         _userId = generateUserId()
-        Log.d(TAG, "Generated user ID: $userId")
+        _deviceId = generateDeviceId()
+        Log.d(TAG, "Generated user identity")
     }
 
     /**
@@ -39,42 +44,31 @@ class PluctCoreUserIdentification @Inject constructor(
      */
     private fun generateUserId(): String {
         try {
-            // Get Android ID (unique per device)
-            val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            
-            // Get device model and manufacturer for additional uniqueness
-            val deviceModel = android.os.Build.MODEL
-            val deviceManufacturer = android.os.Build.MANUFACTURER
-            
-            // Create a composite string for hashing
-            val compositeString = "$androidId-$deviceModel-$deviceManufacturer"
-            
-            // Generate SHA-256 hash
-            val digest = MessageDigest.getInstance("SHA-256")
-            val hashBytes = digest.digest(compositeString.toByteArray())
-            
-            // Convert to hex string
-            val hashHex = hashBytes.joinToString("") { "%02x".format(it) }
-            
-            // Take first 16 characters of hash for uniqueness
-            val shortHash = hashHex.substring(0, 16)
-            
-            // Create mobile-hyphenated username
-            // Format: mobile-{hash}
+            val shortHash = generateStableDeviceHash()
             val userId = "mobile-$shortHash"
-            
-            Log.d(TAG, "Generated user ID: $userId")
-            Log.d(TAG, "Based on Android ID: $androidId")
-            Log.d(TAG, "Device: $deviceManufacturer $deviceModel")
-            
+            Log.d(TAG, "Generated user ID prefix: ${userId.take(12)}")
             return userId
-            
         } catch (e: Exception) {
             Log.e(TAG, "Error generating user ID: ${e.message}", e)
-            // Fallback to a persistent-like ID if possible, but for now just log error
-            // In worst case, use a hash of the exception message or something stable-ish
             return "mobile-error-fallback"
         }
+    }
+
+    private fun generateDeviceId(): String {
+        return try {
+            "device-${generateStableDeviceHash()}"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error generating device ID: ${e.message}", e)
+            "device-error-fallback"
+        }
+    }
+
+    private fun generateStableDeviceHash(): String {
+        val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
+        val compositeString = "$androidId-${android.os.Build.MODEL}-${android.os.Build.MANUFACTURER}"
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(compositeString.toByteArray())
+        return hashBytes.joinToString("") { "%02x".format(it) }.substring(0, 16)
     }
 
     /**
@@ -86,7 +80,7 @@ class PluctCoreUserIdentification @Inject constructor(
      * Validate that the user ID follows the expected format
      */
     fun isValidUserId(userId: String): Boolean {
-        return userId.startsWith("mobile-") && userId.length >= 20 && userId.matches(Regex("mobile-[a-f0-9]{12}-[a-f0-9]{4}"))
+        return userId.matches(Regex("mobile-[a-f0-9]{16}"))
     }
 
     /**
@@ -95,7 +89,7 @@ class PluctCoreUserIdentification @Inject constructor(
     fun getUserIdentificationDetails(): Map<String, String> {
         return mapOf(
             "userId" to userId,
-            "androidId" to Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID),
+            "deviceId" to deviceId,
             "deviceModel" to android.os.Build.MODEL,
             "deviceManufacturer" to android.os.Build.MANUFACTURER,
             "isValidFormat" to isValidUserId(userId).toString()

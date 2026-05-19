@@ -29,6 +29,7 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         authToken: String? = null,
         requestId: String,
         userId: String? = null,
+        deviceId: String? = null,
         timeoutOverrideMs: Long? = null
     ): HttpURLConnection {
         val normalizedEndpoint = if (endpoint.startsWith("/vend-token")) {
@@ -50,10 +51,13 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         connection.setRequestProperty("User-Agent", "PluctMobile/${app.pluct.BuildConfig.VERSION_NAME} (${app.pluct.BuildConfig.PLATFORM})")
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("X-Request-ID", requestId)
+        connection.setRequestProperty("X-Client-Request-Id", requestId)
         connection.setRequestProperty("X-Client-Version", app.pluct.BuildConfig.VERSION_NAME)
         connection.setRequestProperty("X-Client-Platform", app.pluct.BuildConfig.PLATFORM)
         userId?.let {
             connection.setRequestProperty("X-User-Id", it)
+        }
+        deviceId?.let {
             connection.setRequestProperty("X-Device-Id", it)
         }
 

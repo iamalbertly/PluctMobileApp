@@ -1,6 +1,7 @@
 package app.pluct.services
 
 import android.util.Log
+import app.pluct.shared.PluctRequestIds
 import kotlinx.coroutines.*
 import java.net.HttpURLConnection
 import java.net.URL
@@ -108,7 +109,7 @@ class PluctCoreAPIHTTPClientImpl(
         timeoutOverrideMs: Long? = null
     ): Result<Any> {
         return withContext(Dispatchers.IO) {
-            val requestId = "req_${System.currentTimeMillis()}"
+            val requestId = PluctRequestIds.generate()
             val timestamp = System.currentTimeMillis()
             val fullUrl = "${app.pluct.core.api.PluctCoreAPI00Constants.BASE_URL}$endpoint"
             val userId = userIdentification.userId
@@ -124,6 +125,7 @@ class PluctCoreAPIHTTPClientImpl(
                     authToken = authToken,
                     requestId = requestId,
                     userId = userId,
+                    deviceId = userIdentification.deviceId,
                     timeoutOverrideMs = timeoutOverrideMs
                 )
             } catch (e: Exception) {
@@ -184,7 +186,7 @@ class PluctCoreAPIHTTPClientImpl(
                             requestHeaders = buildString {
                                 append("X-Request-ID=$requestId; ")
                                 append("X-User-Id=$userId; ")
-                                if (authToken != null) append("Authorization: Bearer ${authToken.take(12)}...${authToken.takeLast(6)}")
+                                if (authToken != null) append("Authorization: Bearer <redacted>")
                             },
                             responseStatusCode = responseCode,
                             responseStatusMessage = responseMessage,

@@ -36,10 +36,14 @@ object PluctClientPolicyModels {
         if (raw.isBlank()) return false
         return try {
             val obj = json.parseToJsonElement(raw).jsonObject
+            val featureSubmit = obj["features"]?.jsonObject
+                ?.get("transcriptionSubmit")?.jsonPrimitive
             val primitive = obj["disableTranscribeSubmit"]?.jsonPrimitive
                 ?: obj["featureFlags"]?.jsonObject?.get("disableTranscribeSubmit")?.jsonPrimitive
-                ?: return false
-            primitive.booleanOrNull == true || primitive.content.equals("true", ignoreCase = true)
+            if (featureSubmit?.booleanOrNull == false || featureSubmit?.content.equals("false", ignoreCase = true)) {
+                return true
+            }
+            primitive?.booleanOrNull == true || primitive?.content.equals("true", ignoreCase = true)
         } catch (_: Exception) {
             false
         }
@@ -64,20 +68,21 @@ object PluctClientPolicyModels {
             val androidMinimum = obj["platforms"]?.jsonObject
                 ?.get("android")?.jsonObject
                 ?.get("minimumVersionCode")?.jsonPrimitive?.content?.toIntOrNull()
-            val forceUpdate = obj["platforms"]?.jsonObject
-                ?.get("android")?.jsonObject
-                ?.get("forceUpdate")?.jsonPrimitive?.booleanOrNull
-                ?: parse(raw)?.updateMode.equals("hard", ignoreCase = true)
             val minimum = androidMinimum ?: rootMinimum ?: return false
-            forceUpdate && minimum > currentVersionCode
+            minimum > currentVersionCode
         } catch (_: Exception) {
             false
         }
     }
 
     fun updateUrl(raw: String): String? {
+        val nestedApkUrl = runCatching {
+            json.parseToJsonElement(raw).jsonObject["platforms"]?.jsonObject
+                ?.get("android")?.jsonObject
+                ?.get("apkUrl")?.jsonPrimitive?.content
+        }.getOrNull()
         val policy = parse(raw) ?: return null
-        return listOf(policy.apkDownloadUrl, policy.fallbackUrl, policy.playStoreUrl, policy.iosUrl)
+        return listOf(nestedApkUrl, policy.apkDownloadUrl, policy.fallbackUrl, policy.playStoreUrl, policy.iosUrl)
             .firstOrNull { !it.isNullOrBlank() }
     }
 
