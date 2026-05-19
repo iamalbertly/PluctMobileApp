@@ -10,6 +10,9 @@ plugins {
 val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
     ?: System.getenv("PLUCT_ENGINE_BASE_URL")
     ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
+val engineJwtSecret: String = (findProperty("engineJwtSecret") as String?)
+    ?: System.getenv("ENGINE_JWT_SECRET")
+    ?: ""
 val pluctVersionName = "1.0.1"
 
 android {
@@ -28,6 +31,7 @@ android {
             useSupportLibrary = true
         }
         buildConfigField("String", "ENGINE_BASE_URL", "\"$pluctEngineBaseUrl\"")
+        buildConfigField("String", "ENGINE_JWT_SECRET", "\"\"")
     }
 
     buildTypes {
@@ -38,6 +42,7 @@ android {
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
             buildConfigField("String", "PLATFORM", "\"android\"")
+            buildConfigField("String", "ENGINE_JWT_SECRET", "\"${engineJwtSecret.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
             // Optimize debug builds
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"
@@ -48,6 +53,7 @@ android {
             isShrinkResources = true
             buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
             buildConfigField("String", "PLATFORM", "\"android\"")
+            buildConfigField("String", "ENGINE_JWT_SECRET", "\"\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -94,6 +100,8 @@ ksp {
 }
 
 dependencies {
+    implementation(project(":shared"))
+
     // Core Android dependencies
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")

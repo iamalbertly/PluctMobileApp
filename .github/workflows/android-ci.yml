@@ -1,0 +1,66 @@
+name: Android CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run shared tests
+        run: ./gradlew :shared:allTests
+
+      - name: Run Android unit tests
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Record APK release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          VERSION_CODE="$(./gradlew -q :app:properties | awk -F': ' '/^versionCode:/ {print $2; exit}')"
+          echo "apk_sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "git_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Pluct Android APK"
+            echo "- versionCode: ${VERSION_CODE:-unknown}"
+            echo "- git SHA: ${GITHUB_SHA}"
+            echo "- SHA256: ${SHA256}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluct-android-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Verify Business Engine app link
+        if: ${{ vars.PLUCT_BUSINESS_ENGINE_URL != '' }}
+        run: |
+          set -euo pipefail
+          curl -fsS "${{ vars.PLUCT_BUSINESS_ENGINE_URL }}/v1/public/client-policy" | tee /tmp/pluct-policy.json
+          grep -E '"latestVersionCode"|"apkDownloadUrl"|"platforms"' /tmp/pluct-policy.json
+          curl -fsSI "${{ vars.PLUCT_BUSINESS_ENGINE_URL }}/downloads/android/latest.apk" | tee /tmp/pluct-apk-head.txt
+          grep -Ei "^(location|content-type):" /tmp/pluct-apk-head.txt

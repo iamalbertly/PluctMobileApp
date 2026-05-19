@@ -29,12 +29,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctHomeShellTopBar(
     onSettingsClick: () -> Unit,
+    creditBalance: Int = 0,
+    waitingCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     TopAppBar(
@@ -51,6 +54,18 @@ fun PluctHomeShellTopBar(
                     text = "Pluct",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = when {
+                        waitingCount > 0 && creditBalance < 1 -> "$waitingCount waiting · Need balance"
+                        waitingCount > 0 -> "Balance $creditBalance · Waiting $waitingCount"
+                        else -> "Balance $creditBalance"
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         },
@@ -77,7 +92,7 @@ fun PluctHomeShellTopBar(
             actionIconContentColor = MaterialTheme.colorScheme.onBackground
         ),
         modifier = modifier
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
             .semantics {
                 contentDescription = "App header"
                 testTag = "home_shell_top_bar"
@@ -194,13 +209,13 @@ private fun CreditBalanceChip(
     val label = when {
         isLoading -> "..."
         error != null -> "!"
-        else -> "$creditBalance credits"
+        else -> "Balance $creditBalance"
     }
     val description = when {
-        isLoading -> "Loading credits — wallet balance"
-        error != null -> "Credit balance error: $error"
-        lowBalance -> "Credit balance: $creditBalance credits - low balance"
-        else -> "Credit balance: $creditBalance credits"
+        isLoading -> "Loading wallet balance"
+        error != null -> "Wallet balance error: $error"
+        lowBalance -> "Wallet balance: $creditBalance units - low balance"
+        else -> "Wallet balance: $creditBalance units"
     } + if (refreshable) " - tap to refresh" else ""
 
     Surface(
@@ -219,7 +234,7 @@ private fun CreditBalanceChip(
     ) {
         Row(
             modifier = Modifier
-                .width(116.dp),
+                .width(128.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {

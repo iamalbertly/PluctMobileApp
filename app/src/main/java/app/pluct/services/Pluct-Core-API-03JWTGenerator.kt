@@ -1,6 +1,7 @@
 package app.pluct.services
 
 import android.util.Log
+import app.pluct.BuildConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -18,7 +19,6 @@ class PluctCoreAPIJWTGenerator {
 
     companion object {
         private const val TAG = "PluctCoreAPIJWTGenerator"
-        private const val JWT_SECRET = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
         private const val ALGORITHM = "HS256"
         private const val TOKEN_EXPIRY_SECONDS = 900L // 15 minutes (per Business Engine documentation - max 15 min for JWT tokens)
         private const val AUDIENCE = "pluct-business-engine"
@@ -35,6 +35,10 @@ class PluctCoreAPIJWTGenerator {
     fun generateUserJWT(userId: String): String {
         val json = Json { ignoreUnknownKeys = true }
         Log.d(TAG, "Generating JWT token for user: $userId")
+        if (BuildConfig.ENGINE_JWT_SECRET.isBlank()) {
+            Log.w(TAG, "No local JWT signing secret in this build; using server mobile auth fallback")
+            return ""
+        }
 
         // Use current epoch seconds for JWT timestamps
         // Calculate exp from current time to avoid clock skew issues
@@ -65,7 +69,7 @@ class PluctCoreAPIJWTGenerator {
         val signature = generateSignature("$encodedHeader.$encodedPayload")
         
         val token = "$encodedHeader.$encodedPayload.$signature"
-        Log.d(TAG, "Generated JWT token: ${token.take(50)}...")
+        Log.d(TAG, "Generated JWT token for user: $userId")
         
         return token
     }
@@ -74,8 +78,9 @@ class PluctCoreAPIJWTGenerator {
      * Generate HMAC-SHA256 signature for JWT
      */
     private fun generateSignature(data: String): String {
+        val jwtSecret = BuildConfig.ENGINE_JWT_SECRET
         val mac = Mac.getInstance("HmacSHA256")
-        val secretKey = SecretKeySpec(JWT_SECRET.toByteArray(), "HmacSHA256")
+        val secretKey = SecretKeySpec(jwtSecret.toByteArray(), "HmacSHA256")
         mac.init(secretKey)
         val signature = mac.doFinal(data.toByteArray())
         return base64UrlEncode(signature)
@@ -93,6 +98,7 @@ class PluctCoreAPIJWTGenerator {
      */
     fun validateJWT(token: String): Boolean {
         return try {
+            if (BuildConfig.ENGINE_JWT_SECRET.isBlank()) return false
             val parts = token.split(".")
             if (parts.size != 3) return false
             

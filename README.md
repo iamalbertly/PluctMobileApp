@@ -54,6 +54,16 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
 ### **API Integration Flow**
 ```
+1. Health Check -> Business Engine Status
+2. Client Policy -> update gate, APK URL, feature gates
+3. Balance Check -> available and reserved wallet units
+4. Quote -> price shown before work starts
+5. Fulfill -> reserve only when the engine accepts work
+6. Status Polling -> completed, charged, refunded, or ready/no charge
+7. Result Processing -> transcript delivery and compact history row
+```
+## **API Integration Flow**
+```
 1. 🏥 Health Check → Business Engine Status
 2. 🔐 JWT Generation → Authentication Token
 3. 💰 Balance Check → Credit Validation
@@ -109,21 +119,14 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
 ### **Three-tier system (evolution contract)**
 
-The product spans **Android client**, **Business Engine** (API, credits, health), and **TTTranscribe** (transcription execution). Today, client pain is surfaced via **logcat** (`PluctUserPain`, `HealthMonitor`), **Room debug logs**, and **Settings → Send diagnostic**—not pushed to the engine until a future **versioned, secure** ingest is agreed. When the app or engine moves ahead of the other, use **app `VERSION_CODE`**, **`GET /v1/public/client-policy`**, and **`GET /health/services`** as the coordination signals; document any new fields in the integration guide before relying on them in production.
-
-### **Integration Guide**
-For complete API integration instructions, authentication setup, and best practices, see the **[Mobile to Business Engine Integration Guide](MOBILE-to-BUSINESSengine-INTEGRATION-GUIDE.md)**.
-
-## 🧪 **Testing Framework**
-
-All current automatic journeys use the Node/ADB orchestration in `scripts/nodejs`. Playwright MCP applies only to **web** dashboards you validate separately from this repo. The runner fails fast on the first broken UI, API, or device step and prints focused UI/logcat diagnostics.
+The product spans **Android client**, **Business Engine** (policy, wallet, fulfillment, health), and **TTTranscribe** (transcription execution only). Today, client pain is surfaced via **logcat** (`PluctUserPain`, `HealthMonitor`), **Room debug logs**, and **Settings -> Send diagnostic**. When the app or engine moves ahead of the other, use **app `VERSION_CODE`**, **`GET /v1/public/client-policy`**, and **`GET /health/services`** as the coordination signals. `/v1/public/client-policy` is the single source for Android hard update, latest APK URL/SHA/version, future iOS URL, transcription disable, wallet fulfillment, free tier, and legacy vend-token compatibility gates. Playwright MCP applies only to **web** dashboards you validate separately from this repo. The runner fails fast on the first broken UI, API, or device step and prints focused UI/logcat diagnostics.
 
 ### **Quick Start**
 ```bash
 npm run test:all
 ```
 
-This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, high-priority API/transcription/token paths next, then remaining journeys.
+This runs registered journeys in customer-risk order: latest changed paths first, last failed tests next, policy/update, wallet settlement, queue count, history metadata, quick scan, TTTranscribe, API connectivity, and legacy compatibility paths. The runner prints one of these labels so skipped device coverage is never confused with a production pass: `PASS_FULL_DEVICE`, `PASS_LOCAL_COMPILE_ONLY`, `SKIPPED_MISSING_RELEASE_ENV`, or `FAIL_FIRST_ERROR`.
 
 ### **Read Pluct adb logcat (operator / device)**
 
@@ -519,7 +522,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.9.0 - Mobile/BE/TTT Linkage + Progress Trust (Current)
+### v2.10.0 - Fulfillment Wallet, Policy Gate, Queue Trust (Current)
+
+**UX/Reliability Improvements:**
+1. The visible product path is now quote -> reserve -> status -> charged/refunded, while legacy vend-token remains compatibility plumbing.
+2. Home/header balance copy can include waiting work, for example `Balance 3 · Waiting 2` or `2 waiting · Need balance`.
+3. Wallet wording is consistent: balance, waiting, reserved, charged, not charged, and ready/no charge.
+4. History rows reuse the existing row space for `@creator · Today 14:32` and `42s · Text · Done`.
+5. Missing TikTok metadata falls back to `TikTok · saved time` instead of blank identity text.
+6. Android hard update is driven only by server `minimumVersionCode > BuildConfig.VERSION_CODE`.
+7. Cached/fresh client policy can protect submit paths without blocking saved transcripts during network failure.
+8. Release builds no longer embed a local engine signing secret; Business Engine exposes a controlled mobile header-auth fallback gate.
+9. The latest APK contract is visible through Business Engine policy and download redirects with versionCode, git SHA, and SHA256 fields.
+10. The Node runner labels validation truthfully as `PASS_FULL_DEVICE`, `PASS_LOCAL_COMPILE_ONLY`, `SKIPPED_MISSING_RELEASE_ENV`, or `FAIL_FIRST_ERROR`.
+
+**Edge Cases Covered:**
+1. Outdated app policy blocks new submit only when the server minimum version exceeds the installed version code.
+2. Policy fetch failure does not erase access to already saved transcripts.
+3. APK delivery can be marked `SKIPPED_MISSING_RELEASE_ENV` locally when `MOBILE_APK_URL` is absent instead of being called a full pass.
+4. Queued work remains visible when balance is zero.
+5. Duplicate/retry paths keep using the same request/job identity instead of charging again.
+6. Cached transcript reuse can settle as ready/no charge.
+7. Mobile release auth avoids privileged secrets in the APK.
+
+**Validation:**
+- `npm run test:all` currently reports `SKIPPED_MISSING_RELEASE_ENV` when release auth is missing; that is not a full device pass.
+- Android compile/build command: `.\gradlew.bat :shared:compileKotlinMetadata :app:compileDebugKotlin :app:assembleDebug`.
+
+### v2.9.0 - Mobile/BE/TTT Linkage + Progress Trust
 
 **UX/Reliability Improvements:**
 1. Mobile now sends truthful `PluctMobile/<version> (android)` User-Agent and `X-Client-Version` headers.

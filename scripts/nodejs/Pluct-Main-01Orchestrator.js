@@ -29,7 +29,7 @@ class PluctMainOrchestrator {
      */
     async run(options = {}) {
         this.core.logger.info('🎯 Starting Pluct Main Orchestrator...');
-        this.core.logger.info('🎯 Device UI checks use ADB + UIAutomator hierarchy (stable testTags), same assertion style as headless browser automation; not Playwright/Puppeteer.');
+        this.core.logger.info('🎯 Device UI checks use ADB + UIAutomator hierarchy (stable testTags). This is native Android automation, not web Puppeteer/Playwright.');
         this.core.logger.info(`🎯 Scope: All, URL: ${this.core.config.url}`);
         if (options && Array.isArray(options.tests) && options.tests.length > 0) {
             this.core.logger.info(`🎯 Test filter active: ${options.tests.join(', ')}`);
@@ -43,9 +43,32 @@ class PluctMainOrchestrator {
             this.core.logger.info('🎯 Validating environment...');
             const envResult = await this.core.validateEnvironment();
             if (!envResult.success) {
-                throw new Error('Environment validation failed');
+                throw new Error('FAIL_FIRST_ERROR Environment validation failed');
             }
-            this.core.logger.info('✅ Environment validation passed');
+            if (envResult.skipped) {
+                this.core.logger.warn('⚠️ Environment checks skipped (PLUCT_SKIP_ANDROID_ENV=1) — journeys that need ADB may still fail');
+                if (envResult.skipJourneys) {
+                    const statusLabel = envResult.statusLabel || 'SKIPPED_MISSING_RELEASE_ENV';
+                    const report = {
+                        skipped: true,
+                        reason: envResult.reason,
+                        statusLabel,
+                        mode: envResult.mode || 'headless compile-only',
+                        statistics: {
+                            total: 0,
+                            successful: 0,
+                            failed: 0,
+                            successRate: 100,
+                            duration: 0
+                        }
+                    };
+                    this.core.logger.warn(`⚠️ Skipping ADB journeys: ${envResult.reason || 'environment unavailable'}`);
+                    this.core.logger.warn(`${statusLabel}: ${report.mode}; no device journey executed`);
+                    return { success: true, skipped: true, statusLabel, report };
+                }
+            } else {
+                this.core.logger.info(`Environment validation passed (${envResult.statusLabel || 'PASS_FULL_DEVICE'})`);
+            }
 
             // Load all journeys first
             await this.journeyOrchestrator.loadAllJourneys();
@@ -74,7 +97,7 @@ class PluctMainOrchestrator {
             if (!testResults.success) {
                 this.core.logger.error('❌ Test execution failed');
                 this.core.logger.error(`❌ Error: ${testResults.error}`);
-                return { success: false, error: testResults.error, testResults };
+                return { success: false, statusLabel: 'FAIL_FIRST_ERROR', error: testResults.error, testResults };
             }
 
             // Generate enhanced report
@@ -82,10 +105,11 @@ class PluctMainOrchestrator {
             this.core.logger.info('📊 Enhanced test report generated');
 
             this.core.logger.info('✅ All journeys completed successfully');
-            return { success: true, report, testResults };
+            return { success: true, statusLabel: envResult.statusLabel || 'PASS_FULL_DEVICE', report, testResults };
         } catch (error) {
-            this.core.logger.error('❌ Main orchestration failed:', error.message);
-            return { success: false, error: error.message };
+            const message = String(error.message || error);
+            this.core.logger.error('Main orchestration failed:', message);
+            return { success: false, statusLabel: 'FAIL_FIRST_ERROR', error: message };
         }
     }
 
@@ -216,10 +240,11 @@ if (require.main === module) {
     orchestrator.run(options)
         .then(result => {
             if (result.success) {
-                console.log('🎉 All tests completed successfully');
+                const label = result.statusLabel || result.report?.statusLabel || 'PASS_FULL_DEVICE';
+                console.log(`${label}: ${result.skipped ? 'journeys skipped; see reason above' : 'validated requested journeys'}`);
                 process.exit(0);
             } else {
-                console.error('❌ Tests failed:', result.error);
+                console.error(`FAIL_FIRST_ERROR: ${result.error}`);
                 process.exit(1);
             }
         })

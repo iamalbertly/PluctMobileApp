@@ -198,6 +198,16 @@ module.exports = {
             'Journey-Dedupe-Notification-SSOT-01Validation.js': 'Dedupe-Notification-SSOT-01Validation'
         },
     smartTestLatestChangedTests: [
+        'Journey-UX-25DirectToValue-Readiness-01Validation',
+        'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+        'Journey-UX-24BatteryOptimizationRefresh-Validation',
+        'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+        'Journey-UX-22VideoTitleFallback-Validation',
+        'Journey-UX-22VideoTitleFallback-Validation.js',
+        'Journey-Queue-02InsufficientCredits-Validation',
+        'Journey-Queue-02InsufficientCredits-Validation.js',
+        'Journey-QuickScan',
+        'Journey-QuickScan.js',
         'Journey-UX-30PluctMockupParityVisual-01Validation',
         'Journey-UX-30PluctMockupParityVisual-01Validation.js',
         'Journey-UX-29HomeShellCaptureContrast-01Validation',
@@ -206,6 +216,16 @@ module.exports = {
         'Journey-Dedupe-Notification-SSOT-01Validation.js'
     ],
     smartTestHighPriorityTests: [
+        'Journey-UX-25DirectToValue-Readiness-01Validation',
+        'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+        'Journey-UX-24BatteryOptimizationRefresh-Validation',
+        'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+        'Journey-UX-22VideoTitleFallback-Validation',
+        'Journey-UX-22VideoTitleFallback-Validation.js',
+        'Journey-Queue-02InsufficientCredits-Validation',
+        'Journey-Queue-02InsufficientCredits-Validation.js',
+        'Journey-QuickScan',
+        'Journey-QuickScan.js',
         'Journey-UX-30PluctMockupParityVisual-01Validation',
         'Journey-UX-30PluctMockupParityVisual-01Validation.js',
         'Journey-UX-29HomeShellCaptureContrast-01Validation',

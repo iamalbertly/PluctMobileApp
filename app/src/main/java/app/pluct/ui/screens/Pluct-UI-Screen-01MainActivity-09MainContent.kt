@@ -11,6 +11,8 @@ import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +49,7 @@ import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreUserIdentification
 import app.pluct.services.PluctCoreValidationInputSanitizer
 import app.pluct.services.PluctQueueManager
+import app.pluct.shared.PluctClientPolicyModels
 import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHomeShellTopBar
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
@@ -85,7 +88,7 @@ fun PluctMainContent(
     fun openUpgradePolicyUrl() {
         val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
         val snapshot = prefs.getString("client_policy_snapshot", "") ?: ""
-        val policyUrl = Regex("\"(playStoreUrl|fallbackUrl)\"\\s*:\\s*\"([^\"]+)\"").find(snapshot)?.groupValues?.getOrNull(2)?.trim()
+        val policyUrl = PluctClientPolicyModels.updateUrl(snapshot)
             ?: "https://play.google.com/store/apps/details?id=app.pluct"
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(policyUrl)))
     }
@@ -109,6 +112,8 @@ fun PluctMainContent(
     var hasVendTokenAttempted by remember { mutableStateOf(false) }
     var showPermissionOnboarding by remember { mutableStateOf(false) }
     var showOnboardingTutorial by remember { mutableStateOf(false) }
+    var hardUpdateRequired by remember { mutableStateOf(false) }
+    var policyMessage by remember { mutableStateOf("Update Pluct to continue.") }
     
     // Track queued and processing videos for notifications
     val queuedVideos = videoRepository.getVideosByStatus(ProcessingStatus.QUEUED)
@@ -237,6 +242,17 @@ fun PluctMainContent(
         if (PluctCoreAPIUnifiedService.isPolicyBlockingTranscribe(policySnap)) {
             ctaHelperMessage = "Update Pluct in Play Store, then open again."
         }
+        apiService.refreshClientPolicy(force = false)
+            .onSuccess { raw ->
+                val policy = PluctClientPolicyModels.parse(raw)
+                hardUpdateRequired = PluctClientPolicyModels.isHardUpdateRequiredByCode(raw, app.pluct.BuildConfig.VERSION_CODE)
+                policyMessage = policy?.message
+                    ?: if (hardUpdateRequired) "Update Pluct to keep TikTok to text working." else "Latest Pluct is ready."
+                if (hardUpdateRequired) {
+                    ctaHelperMessage = "Update required. Tap Update."
+                }
+            }
+            .onFailure { Log.w("MainActivity", "startup_policy_check_failed ${it.message}") }
     }
     
     // Check if tutorial is needed - skip permission onboarding (now contextual)
@@ -439,9 +455,16 @@ fun PluctMainContent(
         eventHandlers.createOnRetryVideo(creditBalance, freeUsesRemaining)
     }
 
-    val onTierSubmit = remember(readinessKind, rawOnTierSubmit, scope, snackbarHostState) {
+    val onTierSubmit = remember(readinessKind, rawOnTierSubmit, scope, snackbarHostState, hardUpdateRequired) {
         { url: String, tier: app.pluct.data.entity.ProcessingTier ->
-            if (readinessKind != PluctUIReadiness01Kind.READY) {
+            if (hardUpdateRequired) {
+                openUpgradePolicyUrl()
+                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
+                    scope,
+                    snackbarHostState,
+                    "Update Pluct to continue."
+                )
+            } else if (readinessKind != PluctUIReadiness01Kind.READY) {
                 PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
                     scope,
                     snackbarHostState,
@@ -549,7 +572,9 @@ fun PluctMainContent(
             topBar = {
                 when (mainShellTab) {
                     PluctUIMainShellTab.HOME -> PluctHomeShellTopBar(
-                        onSettingsClick = { mainShellTab = PluctUIMainShellTab.SETTINGS }
+                        onSettingsClick = { mainShellTab = PluctUIMainShellTab.SETTINGS },
+                        creditBalance = creditBalance,
+                        waitingCount = queuedCount
                     )
                     PluctUIMainShellTab.LIBRARY -> CenterAlignedTopAppBar(
                         title = { Text("Library") }
@@ -577,6 +602,13 @@ fun PluctMainContent(
                 )
             }
         ) { padding ->
+            val homeCtaMessage = when {
+                hardUpdateRequired -> "Update required. Tap Update."
+                queuedCount > 0 && creditBalance < 1 && freeUsesRemaining < 1 ->
+                    "$queuedCount waiting. Add balance and we'll continue."
+                queuedCount > 0 -> "$queuedCount waiting. We'll continue when ready."
+                else -> ctaHelperMessage
+            }
             when (mainShellTab) {
                 PluctUIMainShellTab.HOME -> PluctHomeScreen(
                     creditBalance = creditBalance,
@@ -598,7 +630,7 @@ fun PluctMainContent(
                     onRefreshCreditBalance = refreshCreditBalance,
                     snackbarHostState = snackbarHostState,
                     videoRepository = videoRepository,
-                    ctaHelperMessage = ctaHelperMessage,
+                    ctaHelperMessage = homeCtaMessage,
                     debugLogManager = debugLogManager,
                     onQueueForLater = onQueueForLaterForCapture,
                     isLoadingCreditBalance = isLoading || !balanceKnown,
@@ -635,6 +667,19 @@ fun PluctMainContent(
                     onThemeModeChange = onThemeModeChange
                 )
             }
+        }
+
+        if (hardUpdateRequired) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Update Pluct") },
+                text = { Text(policyMessage) },
+                confirmButton = {
+                    Button(onClick = { openUpgradePolicyUrl() }) {
+                        Text("Update")
+                    }
+                }
+            )
         }
 
         if (showDebugLogViewerMain) {

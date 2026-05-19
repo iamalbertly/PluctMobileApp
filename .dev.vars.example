@@ -1,0 +1,7 @@
+# Copy to .dev.vars locally. Do not commit real values.
+ENGINE_JWT_SECRET=
+TTT_SHARED_SECRET=
+PLUCT_ENGINE_BASE_URL=https://pluct-business-engine.romeo-lya2.workers.dev
+
+# Android Node E2E (npm run test:all): required unless PLUCT_E2E_SKIP_ENGINE_JWT_CHECK=1
+# Optional Intent-03 recovery: PLUCT_INTENT03_HARNESS_TAP=1

@@ -91,13 +91,11 @@ fun PluctVideoItemCard(
     val family = remember(video.id, video.status, video.failureReason) {
         PluctCoreError08OutcomeFamily.fromVideoItem(video)
     }
-    val handle = remember(video.author) {
-        val a = video.author.trim()
-        when {
-            a.isBlank() -> ""
-            a.startsWith("@") -> a
-            else -> "@$a"
-        }
+    val handle = remember(video.author, video.url) {
+        displayTikTokHandle(video)
+    }
+    val timeLine = remember(video.timestamp, video.queuedAt, video.status, handle) {
+        "${handle.ifBlank { "TikTok" }} · ${compactEventTime(video)}"
     }
 
     Card(
@@ -107,7 +105,7 @@ fun PluctVideoItemCard(
                 onClick = onClick,
                 onLongClick = { if (video.status == ProcessingStatus.COMPLETED) overflowOpen = true }
             )
-            .semantics { contentDescription = "Video item: $title" },
+            .semantics { contentDescription = "Video item: $title $timeLine" },
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp)
@@ -129,9 +127,9 @@ fun PluctVideoItemCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (handle.isNotBlank()) {
+                if (timeLine.isNotBlank()) {
                     Text(
-                        text = handle,
+                        text = timeLine,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
                         maxLines = 1,
@@ -194,7 +192,7 @@ private fun VideoStatusBlock(
     when (video.status) {
         ProcessingStatus.QUEUED -> {
             Text(
-                text = "Waiting",
+                text = compactHistorySecondaryLine(video),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
@@ -217,7 +215,7 @@ private fun VideoStatusBlock(
                 else -> "Could not finish"
             }
             Text(
-                text = headline,
+                text = compactHistorySecondaryLine(video).ifBlank { headline },
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = when (family) {
@@ -227,7 +225,7 @@ private fun VideoStatusBlock(
             )
             if (family == PluctCoreError08OutcomeFamily.SERVER_NET || family == PluctCoreError08OutcomeFamily.WAIT) {
                 Text(
-                    text = "Connection failed. No credit lost.",
+                    text = "Saved for retry",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -235,7 +233,7 @@ private fun VideoStatusBlock(
         }
         ProcessingStatus.COMPLETED -> {
             Text(
-                text = completedStatusLine(video),
+                text = compactHistorySecondaryLine(video),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF0B8F6A)
@@ -447,18 +445,46 @@ private fun formatDurationClock(seconds: Long): String {
     return String.format(Locale.getDefault(), "%d:%02d", m, s)
 }
 
-private fun completedStatusLine(video: VideoItem): String {
-    val dayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-    val ts = video.timestamp
-    val now = System.currentTimeMillis()
-    val sameDay = dayKey.format(Date(ts)) == dayKey.format(Date(now))
-    val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val rest = if (sameDay) {
-        "Today, ${timeFmt.format(Date(ts))}"
-    } else {
-        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(ts))
+private fun displayTikTokHandle(video: VideoItem): String {
+    val author = video.author.trim().removePrefix("@")
+    val fromUrl = Regex("""/(@[A-Za-z0-9_.-]+)/""").find(video.url)?.groupValues?.getOrNull(1)?.removePrefix("@").orEmpty()
+    val value = when {
+        author.isNotBlank() && !author.equals("creator", ignoreCase = true) -> author
+        fromUrl.isNotBlank() -> fromUrl
+        else -> "TikTok"
     }
-    return "Completed \u2022 $rest"
+    return if (value.equals("TikTok", ignoreCase = true)) "TikTok" else "@$value"
+}
+
+private fun compactEventTime(video: VideoItem): String {
+    val ts = video.queuedAt ?: video.timestamp
+    if (ts <= 0L) return "saved time"
+    val dayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    val now = System.currentTimeMillis()
+    val today = dayKey.format(Date(ts)) == dayKey.format(Date(now))
+    val yesterday = dayKey.format(Date(ts)) == dayKey.format(Date(now - 24L * 60L * 60L * 1000L))
+    val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+    return when {
+        today -> "Today $time"
+        yesterday -> "Yesterday"
+        else -> SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(ts))
+    }
+}
+
+private fun compactHistorySecondaryLine(video: VideoItem): String {
+    val duration = when {
+        video.duration <= 0L -> ""
+        video.duration < 60L -> "${video.duration}s"
+        else -> "${video.duration / 60L}m ${video.duration % 60L}s"
+    }
+    val status = when (video.status) {
+        ProcessingStatus.COMPLETED -> "Done"
+        ProcessingStatus.PROCESSING -> "Reserved 1"
+        ProcessingStatus.QUEUED -> "Waiting"
+        ProcessingStatus.FAILED -> "Not charged"
+        else -> "Saved"
+    }
+    return listOf(duration, "Text", status).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
 private fun requestCancelTranscription(context: Context, rawUrl: String) {

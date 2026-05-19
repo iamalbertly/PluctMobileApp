@@ -57,7 +57,7 @@ class PluctCoreAPIHTTPClientRequestBuilder {
             connection.setRequestProperty("X-Device-Id", it)
         }
 
-        if (authToken != null) {
+        if (!authToken.isNullOrBlank()) {
             connection.setRequestProperty("Authorization", "Bearer $authToken")
             Log.d(TAG, "Authorization header set")
         }
