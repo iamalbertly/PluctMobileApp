@@ -258,8 +258,8 @@ fun generateUserJWT(userId: String): String {
         "exp" to (now + 900)                // 15 minutes max
     )
     
-    // Use the same secret as the server
-    val secret = "prod-jwt-secret-Z8qKsL2wDn9rFy6aVbP3tGxE0cH4mN5jR7sT1uC9e"
+    // Use the same secret as the server, supplied outside source control.
+    val secret = System.getenv("ENGINE_JWT_SECRET")
     return JWT.create()
         .withPayload(payload)
         .withExpiresAt(Date(now + 900 * 1000))

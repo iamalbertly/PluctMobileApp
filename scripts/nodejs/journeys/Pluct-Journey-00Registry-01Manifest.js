@@ -5,8 +5,15 @@
  * Loaded by Pluct-Journey-01Orchestrator and Pluct-Smart-Test-Runner (priority hints).
  */
 
+const unique = (items) => Array.from(new Set(items));
+
 module.exports = {
-    executionOrder: [
+    executionOrder: unique([
+            'Journey-APIConnectivity.js',
+            'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
+            'Journey-UX-25DirectToValue-Readiness-01Validation.js',
+            'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
+            'Journey-Dedupe-Notification-SSOT-01Validation.js',
             // Start with intent user journey as requested
             'Journey-TikTok-Intent-01Transcription.js',
             // Comprehensive Intent Flow Validation (runs early to catch regressions)
@@ -104,7 +111,7 @@ module.exports = {
             'Journey-Refactor-04ComingSoonDialogRemoval-Validation.js',
             'Journey-Refactor-05NamingConsistency-Validation.js',
             'Journey-Refactor-06PreWarmingOptimization-Validation.js'
-        ],
+        ]),
     journeyNameMapping: {
             'Journey-AppLaunch.js': 'AppLaunch',
             'Journey-ErrorNotificationValidation.js': 'ErrorNotificationValidation',
@@ -197,7 +204,11 @@ module.exports = {
             'Journey-Refactor-06PreWarmingOptimization-Validation.js': 'Refactor-06PreWarmingOptimization-Validation',
             'Journey-Dedupe-Notification-SSOT-01Validation.js': 'Dedupe-Notification-SSOT-01Validation'
         },
-    smartTestLatestChangedTests: [
+    smartTestLatestChangedTests: unique([
+        'Journey-APIConnectivity',
+        'Journey-APIConnectivity.js',
+        'Pluct-Journey-BusinessEngine-Credits-01Validation',
+        'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
         'Journey-UX-25DirectToValue-Readiness-01Validation',
         'Journey-UX-25DirectToValue-Readiness-01Validation.js',
         'Journey-UX-24BatteryOptimizationRefresh-Validation',
@@ -214,8 +225,12 @@ module.exports = {
         'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
         'Journey-Dedupe-Notification-SSOT-01Validation',
         'Journey-Dedupe-Notification-SSOT-01Validation.js'
-    ],
-    smartTestHighPriorityTests: [
+    ]),
+    smartTestHighPriorityTests: unique([
+        'Journey-APIConnectivity',
+        'Journey-APIConnectivity.js',
+        'Pluct-Journey-BusinessEngine-Credits-01Validation',
+        'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
         'Journey-UX-25DirectToValue-Readiness-01Validation',
         'Journey-UX-25DirectToValue-Readiness-01Validation.js',
         'Journey-UX-24BatteryOptimizationRefresh-Validation',
@@ -232,5 +247,5 @@ module.exports = {
         'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
         'Journey-Dedupe-Notification-SSOT-01Validation',
         'Journey-Dedupe-Notification-SSOT-01Validation.js'
-    ]
+    ])
 };

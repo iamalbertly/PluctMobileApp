@@ -64,11 +64,11 @@ fun PluctUIScreen01HomeScreen04Settings04CreditsSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics {
-                        contentDescription = "Add credits"
+                        contentDescription = "Add wallet balance"
                         testTag = "settings_request_credits_button"
                     }
             ) {
-                Text("Add Credits")
+                Text("Add Balance")
             }
         }
     }

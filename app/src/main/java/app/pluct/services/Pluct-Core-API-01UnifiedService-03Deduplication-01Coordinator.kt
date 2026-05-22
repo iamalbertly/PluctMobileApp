@@ -4,10 +4,10 @@ import android.util.Log
 import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
+import app.pluct.shared.PluctRequestIds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -99,7 +99,7 @@ class PluctCoreAPI01UnifiedService03Deduplication01Coordinator @Inject construct
                 Log.d(TAG, "Reusing existing request ID for URL: ${existingRequest.requestId}")
                 existingRequest.requestId
             } else {
-                "req_${UUID.randomUUID()}"
+                PluctRequestIds.generate()
             }
 
             // 4. Create or update database entry (DuplicateGuard logic)

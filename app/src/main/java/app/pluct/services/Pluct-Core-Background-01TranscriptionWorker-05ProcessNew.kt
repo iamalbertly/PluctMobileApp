@@ -56,6 +56,34 @@ internal suspend fun pluctProcessNewTranscription(env: PluctWorkerProcessNewEnvi
         }
     }
 
+    val videoForMeta = videoRepository.getVideoByUrl(url)
+    if (videoForMeta != null) {
+        try {
+            val metaRes = apiService.getMetadata(url, timeoutMs = 12_000L)
+            val meta = metaRes.getOrNull()
+            if (meta != null) {
+                val t = meta.title.trim()
+                val a = meta.author.trim()
+                val th = meta.thumbnail?.trim().orEmpty()
+                val d = if (meta.duration > 0) meta.duration.toLong() else videoForMeta.duration
+                val desc = meta.description.trim()
+                val updated = videoForMeta.copy(
+                    title = t.ifBlank { videoForMeta.title },
+                    author = a.ifBlank { videoForMeta.author },
+                    thumbnailUrl = th.ifBlank { videoForMeta.thumbnailUrl },
+                    duration = d,
+                    description = if (desc.isNotBlank()) desc else videoForMeta.description
+                )
+                if (updated != videoForMeta) {
+                    videoRepository.insertVideo(updated)
+                    Log.d(PROCESS_TAG, "Metadata prefetch (GET /meta) refreshed title/thumbnail for list UI")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(PROCESS_TAG, "Metadata prefetch skipped: ${e.message}")
+        }
+    }
+
     showProgressNotification(url, 0, "Starting transcription...", notificationId)
 
     val result = coroutineScope {

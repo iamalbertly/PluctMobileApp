@@ -42,4 +42,16 @@ class PluctRetryPolicyTest {
         assertTrue(PluctClientPolicyModels.isTranscribeDisabled(policy))
         assertNull(PluctClientPolicyModels.updateUrl("{}"))
     }
+
+    @Test
+    fun clientPolicyDetectsSoftUpdateAndProductionMessageFields() {
+        val policy = """{"updateMode":"soft","messageShort":"Update available","messageDetail":"Latest Pluct is faster.","platforms":{"android":{"minimumVersionCode":3,"latestVersionCode":5,"apkUrl":"https://play.google.com/store/apps/details?id=app.pluct"}}}"""
+
+        assertFalse(PluctClientPolicyModels.isHardUpdateRequiredByCode(policy, 3))
+        assertTrue(PluctClientPolicyModels.isSoftUpdateAvailableByCode(policy, 4))
+        assertFalse(PluctClientPolicyModels.isSoftUpdateAvailableByCode(policy, 5))
+        assertEquals("Latest Pluct is faster.", PluctClientPolicyModels.updateMessage(policy, hardUpdateRequired = false, softUpdateAvailable = true))
+        assertEquals(PluctClientPolicyModels.SOFT_UPDATE_CTA, PluctClientPolicyModels.ctaMessage(hardUpdateRequired = false, softUpdateAvailable = true))
+        assertTrue(PluctClientPolicyModels.isHardUpdateCta(PluctClientPolicyModels.HARD_UPDATE_CTA))
+    }
 }

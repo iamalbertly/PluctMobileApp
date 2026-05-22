@@ -113,6 +113,7 @@ fun PluctMainContent(
     var showPermissionOnboarding by remember { mutableStateOf(false) }
     var showOnboardingTutorial by remember { mutableStateOf(false) }
     var hardUpdateRequired by remember { mutableStateOf(false) }
+    var softUpdateAvailable by remember { mutableStateOf(false) }
     var policyMessage by remember { mutableStateOf("Update Pluct to continue.") }
     
     // Track queued and processing videos for notifications
@@ -244,12 +245,14 @@ fun PluctMainContent(
         }
         apiService.refreshClientPolicy(force = false)
             .onSuccess { raw ->
-                val policy = PluctClientPolicyModels.parse(raw)
                 hardUpdateRequired = PluctClientPolicyModels.isHardUpdateRequiredByCode(raw, app.pluct.BuildConfig.VERSION_CODE)
-                policyMessage = policy?.message
-                    ?: if (hardUpdateRequired) "Update Pluct to keep TikTok to text working." else "Latest Pluct is ready."
-                if (hardUpdateRequired) {
-                    ctaHelperMessage = "Update required. Tap Update."
+                softUpdateAvailable = PluctClientPolicyModels.isSoftUpdateAvailableByCode(raw, app.pluct.BuildConfig.VERSION_CODE)
+                policyMessage = PluctClientPolicyModels.updateMessage(raw, hardUpdateRequired, softUpdateAvailable)
+                val updateCta = PluctClientPolicyModels.ctaMessage(hardUpdateRequired, softUpdateAvailable)
+                if (hardUpdateRequired && updateCta != null) {
+                    ctaHelperMessage = updateCta
+                } else if (softUpdateAvailable && ctaHelperMessage.isNullOrBlank()) {
+                    ctaHelperMessage = updateCta
                 }
             }
             .onFailure { Log.w("MainActivity", "startup_policy_check_failed ${it.message}") }
@@ -603,7 +606,8 @@ fun PluctMainContent(
             }
         ) { padding ->
             val homeCtaMessage = when {
-                hardUpdateRequired -> "Update required. Tap Update."
+                hardUpdateRequired -> PluctClientPolicyModels.HARD_UPDATE_CTA
+                softUpdateAvailable && ctaHelperMessage.isNullOrBlank() -> PluctClientPolicyModels.SOFT_UPDATE_CTA
                 queuedCount > 0 && creditBalance < 1 && freeUsesRemaining < 1 ->
                     "$queuedCount waiting. Add balance and we'll continue."
                 queuedCount > 0 -> "$queuedCount waiting. We'll continue when ready."

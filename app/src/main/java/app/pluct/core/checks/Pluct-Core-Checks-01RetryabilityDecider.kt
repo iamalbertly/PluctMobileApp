@@ -2,6 +2,8 @@ package app.pluct.core.checks
 
 import android.util.Log
 import app.pluct.services.PluctCoreAPIDetailedError
+import app.pluct.shared.PluctApiError
+import app.pluct.shared.PluctRetryPolicy
 
 /**
  * Pluct-Core-Checks-01RetryabilityDecider - Centralized retry decision logic
@@ -60,36 +62,28 @@ object PluctCoreChecks01RetryabilityDecider {
             return false
         }
 
-        return error.isRetryable
+        return PluctRetryPolicy.isRetryable(
+            PluctApiError(
+                statusCode = statusCode.takeIf { it > 0 },
+                message = error.userMessage,
+                exceptionType = error.javaClass.simpleName,
+                retryableHint = error.isRetryable
+            )
+        )
     }
 
     /**
      * Check if error message indicates a retryable condition
      */
     private fun isMessageRetryable(message: String): Boolean {
-        return message.contains("timeout") ||
-                message.contains("timed out") ||
-                message.contains("network") ||
-                message.contains("connection") ||
-                message.contains("unavailable") ||
-                message.contains("temporarily") ||
-                message.contains("reset by peer") ||
-                message.contains("no route to host") ||
-                message.contains("host unreachable")
+        return PluctRetryPolicy.isRetryable(PluctApiError(message = message))
     }
 
     /**
      * Check if exception type indicates a retryable condition
      */
     private fun isExceptionTypeRetryable(exceptionType: String): Boolean {
-        val retryableTypes = listOf(
-            "SocketTimeoutException",
-            "ConnectException",
-            "UnknownHostException",
-            "SocketException",
-            "EOFException"
-        )
-        return retryableTypes.any { exceptionType.contains(it) }
+        return PluctRetryPolicy.isRetryable(PluctApiError(exceptionType = exceptionType))
     }
 
     /**
@@ -106,7 +100,18 @@ object PluctCoreChecks01RetryabilityDecider {
             }
         }
         // Count all retryable errors toward circuit breaker
-        return isErrorRetryable(error)
+        return if (error is PluctCoreAPIDetailedError) {
+            PluctRetryPolicy.shouldCountForCircuitBreaker(
+                PluctApiError(
+                    statusCode = error.technicalDetails.responseStatusCode.takeIf { it > 0 },
+                    message = error.userMessage,
+                    exceptionType = error.javaClass.simpleName,
+                    retryableHint = error.isRetryable
+                )
+            )
+        } else {
+            isErrorRetryable(error)
+        }
     }
 
     /**
@@ -114,7 +119,6 @@ object PluctCoreChecks01RetryabilityDecider {
      * Uses exponential backoff: 1s, 2s, 4s, etc., up to 30s
      */
     fun calculateRetryDelayMs(attemptNumber: Int, baseDelayMs: Long = 1000): Long {
-        val exponentialDelay = baseDelayMs * (1L shl (attemptNumber - 1)) // 2^(attempt-1)
-        return minOf(exponentialDelay, 30000) // Cap at 30 seconds
+        return PluctRetryPolicy.calculateRetryDelayMs(attemptNumber, baseDelayMs)
     }
 }

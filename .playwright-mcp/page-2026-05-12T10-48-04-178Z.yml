@@ -1,0 +1,46 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - text:  
+    - navigation [ref=e4]:
+      - checkbox [ref=e5]
+      - checkbox
+      - generic [ref=e6]:
+        - link "Open Menu" [ref=e7] [cursor=pointer]:
+          - /url: "#itc-menustate"
+          - generic [ref=e8]: Open Menu
+        - generic:
+          - list
+          - generic:
+            - paragraph:
+              - link "Sign In":
+                - /url: /login
+  - generic [ref=e12]:
+    - progressbar
+    - iframe [active] [ref=e25]:
+      - main "App Store Connect" [ref=f5e2]:
+        - generic [ref=f5e12]:
+          - heading "App Store Connect" [level=2] [ref=f5e14]
+          - generic [ref=f5e15]:
+            - generic [ref=f5e18]:
+              - generic [ref=f5e21]:
+                - textbox "Email or Phone Number" [active] [ref=f5e22]
+                - generic: Email or Phone Number
+              - textbox [ref=f5e23]
+              - generic: Password
+            - button "Continue" [disabled]:
+              - generic: 
+          - link "Forgot password?  Opens in a new window." [ref=f5e28] [cursor=pointer]:
+            - /url: https://iforgot.apple.com/password/verify/appleid
+            - text: Forgot password? 
+            - generic [ref=f5e29]: Opens in a new window.
+  - generic [ref=e28]:
+    - link "Apple.com" [ref=e29] [cursor=pointer]:
+      - /url: http://www.apple.com
+    - list [ref=e32]:
+      - listitem [ref=e33]: Copyright © 2026 Apple Inc. All rights reserved.
+      - listitem [ref=e34]:
+        - link "Terms of Service" [ref=e35] [cursor=pointer]:
+          - /url: /olympus/v1/terms/ASC
+      - listitem [ref=e36]:
+        - link "Privacy Policy" [ref=e37] [cursor=pointer]:
+          - /url: http://www.apple.com/legal/privacy/

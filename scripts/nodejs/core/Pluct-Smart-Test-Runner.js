@@ -15,12 +15,13 @@ const journeyManifestHints = (() => {
 
 class PluctSmartTestRunner {
     constructor(core) {
+        const unique = items => Array.from(new Set(items));
         this.core = core;
         this.tracker = new PluctTestResultsTracker();
         this.executionStrategy = null;
         this.startTime = null;
         this.forceFullRun = false;
-        this.latestChangedTests = [
+        this.latestChangedTests = unique([
             ...(journeyManifestHints.smartTestLatestChangedTests || []),
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
@@ -70,8 +71,8 @@ class PluctSmartTestRunner {
             'Journey-EdgeCase-03NetworkLoss-Validation.js',
             'Journey-QuickScan',
             'Journey-QuickScan.js'
-        ];
-        this.highPriorityTests = [
+        ]);
+        this.highPriorityTests = unique([
             ...(journeyManifestHints.smartTestHighPriorityTests || []),
             'Journey-Intent-03TikTok-04BalanceRace-01Validation',
             'Journey-Intent-03TikTok-04BalanceRace-01Validation.js',
@@ -99,7 +100,7 @@ class PluctSmartTestRunner {
             'Pluct-Test-Validation-04APIConnectivity.js',
             'Pluct-Test-Validation-06TokenVending',
             'Pluct-Test-Validation-06TokenVending.js'
-        ];
+        ]);
     }
 
     /**

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,11 +20,11 @@ import app.pluct.core.retry.PluctCoreRetryUnifiedHandler
 import app.pluct.core.api.PluctCoreAPI00Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import app.pluct.data.entity.ProcessingStatus
+import app.pluct.shared.PluctClientPolicyModels
+import app.pluct.shared.PluctDeviceProfile
+import app.pluct.shared.PluctRequestIds
+import app.pluct.ui.polling.PluctUIPolling01AdaptiveIntervalCalculator
 import java.util.Locale
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Pluct-Core-API-01UnifiedService-01Main - Unified API service orchestrator.
@@ -46,23 +47,10 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     companion object {
         private const val TAG = "PluctCoreAPIUnified"
-        private val policyJson = Json { ignoreUnknownKeys = true }
 
         /** True when BE policy disables transcribe; false on blank or parse failure (fail-open; see log ClientPolicy). */
         fun isPolicyBlockingTranscribe(raw: String): Boolean {
-            if (raw.isBlank()) return false
-            return try {
-                val obj = policyJson.parseToJsonElement(raw).jsonObject
-                when (val v = obj["disableTranscribeSubmit"]) {
-                    null -> false
-                    else ->
-                        v.jsonPrimitive.content.equals("true", ignoreCase = true) ||
-                            (v.jsonPrimitive.booleanOrNull == true)
-                }
-            } catch (_: Exception) {
-                Log.w(TAG, "ClientPolicy: parse_failed policy_len=${raw.length}")
-                false
-            }
+            return PluctClientPolicyModels.isTranscribeDisabled(raw)
         }
     }
 
@@ -179,7 +167,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         return balanceHandler.getEstimate(url)
     }
 
-    suspend fun vendToken(clientRequestId: String = "req_${System.currentTimeMillis()}"): Result<VendTokenResponse> {
+    suspend fun vendToken(clientRequestId: String = PluctRequestIds.generate()): Result<VendTokenResponse> {
         ensureServerTimeWarmup()
         return tokenHandler.vendToken(clientRequestId)
     }
@@ -194,6 +182,28 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         return execute<TranscriptionResponse>("POST", "/ttt/transcribe", payload, serviceToken)
     }
 
+    private suspend fun requestQuote(url: String, clientRequestId: String): Result<QuoteResponse> {
+        val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+        val payload = mapOf(
+            "inputType" to "tiktok_url",
+            "url" to url,
+            "requestedProducts" to listOf("transcript"),
+            "clientRequestId" to clientRequestId
+        )
+        return execute<QuoteResponse>("POST", "/v1/quote", payload, token)
+    }
+
+    private suspend fun fulfillQuote(quoteId: String, clientRequestId: String): Result<FulfillResponse> {
+        val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+        val payload = mapOf("quoteId" to quoteId, "clientRequestId" to clientRequestId)
+        return execute<FulfillResponse>("POST", "/v1/fulfill", payload, token)
+    }
+
+    private suspend fun pollCanonicalJob(jobId: String): Result<TranscriptionStatusResponse> {
+        val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+        return execute<TranscriptionStatusResponse>("GET", "/v1/jobs/$jobId", null, token)
+    }
+
     suspend fun getServiceToken(forceRefresh: Boolean = false): Result<String> {
         ensureServerTimeWarmup()
         return tokenHandler.getServiceToken(forceRefresh)
@@ -205,6 +215,24 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     suspend fun pollTranscriptionStatus(jobId: String, userJWT: String): Result<TranscriptionStatusResponse> {
         return statusHandler.pollTranscriptionStatus(jobId, userJWT)
+    }
+
+    suspend fun refreshClientPolicy(force: Boolean = false): Result<String> {
+        val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (!force && now - prefs.getLong("client_policy_checked_at", 0L) <= 30 * 60 * 1000L) {
+            prefs.getString("client_policy_snapshot", "")?.takeIf { it.isNotBlank() }?.let {
+                return Result.success(it)
+            }
+        }
+        return execute<Any>("GET", "/v1/public/client-policy").mapCatching { response ->
+            val raw = response.toString()
+            prefs.edit()
+                .putLong("client_policy_checked_at", now)
+                .putString("client_policy_snapshot", raw)
+                .apply()
+            raw
+        }
     }
 
     /**
@@ -241,7 +269,84 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         } else {
             currentHealth
         }
+        val walletResult = processTikTokVideoWithWallet(url, isBackground)
+        if (walletResult.isSuccess) return walletResult
+        val walletError = walletResult.exceptionOrNull()
+        val detailed = walletError as? PluctCoreAPIDetailedError
+        val canUseLegacyFallback = detailed?.technicalDetails?.responseStatusCode == 404 ||
+            detailed?.technicalDetails?.errorCode == "route_not_found" ||
+            walletError?.message?.contains("quote_not_found", ignoreCase = true) == true
+        if (!canUseLegacyFallback) return walletResult
+        Log.w(TAG, "Wallet fulfillment unavailable, falling back to legacy TTTranscribe flow: ${walletError?.message}")
         return transcriptionFlowHandler.processTikTokVideo(url, isBackground, effectiveHealth)
+    }
+
+    private suspend fun processTikTokVideoWithWallet(url: String, isBackground: Boolean): Result<TranscriptionStatusResponse> {
+        val quoteRequestId = PluctRequestIds.generate("quote")
+        val quote = requestQuote(url, quoteRequestId).getOrElse { return Result.failure(it) }
+        val reserveUnits = quote.estimated.reserveUnits
+        debugLogManager.logInfo(
+            category = "WALLET",
+            operation = "quote_received",
+            message = if (quote.estimated.cacheHit) "Already processed. Text is ready. Cost: 0" else "Quote received. Reserve: $reserveUnits",
+            details = "quoteId=${quote.quoteId}; priceVersion=${quote.priceVersion}; available=${quote.balance?.availableUnits}; reserved=${quote.balance?.reservedUnits}"
+        )
+
+        val fulfillRequestId = quoteRequestId
+        val fulfill = fulfillQuote(quote.quoteId, fulfillRequestId).getOrElse { return Result.failure(it) }
+        debugLogManager.logInfo(
+            category = "WALLET",
+            operation = "reservation_submitted",
+            message = "Reserved: ${fulfill.reservedUnits}. No charge if Pluct fails.",
+            details = "jobId=${fulfill.jobId}; status=${fulfill.status}; balanceAfter=${fulfill.balanceAfterReservation}"
+        )
+
+        fun resultFromFulfill(finalFulfill: FulfillResponse): TranscriptionStatusResponse? {
+            val text = finalFulfill.result?.transcription
+                ?: finalFulfill.result?.transcript
+                ?: finalFulfill.result?.text
+            return if (!text.isNullOrBlank()) {
+                TranscriptionStatusResponse(
+                    jobId = finalFulfill.jobId,
+                    status = "completed",
+                    progress = 100,
+                    transcript = text,
+                    text = text,
+                    result = finalFulfill.result,
+                    _cacheHit = finalFulfill.settlement?.settledUnits == 0
+                )
+            } else null
+        }
+
+        resultFromFulfill(fulfill)?.let { return Result.success(it) }
+
+        repeat(PluctCoreAPI00Constants.MAX_POLL_ATTEMPTS) { attempt ->
+            val waitMs = PluctUIPolling01AdaptiveIntervalCalculator.calculateNextPollIntervalMs(
+                attemptNumber = attempt + 1,
+                isBackground = isBackground,
+                config = PluctUIPolling01AdaptiveIntervalCalculator.PollingConfig()
+            )
+            delay(waitMs)
+            val status = pollCanonicalJob(fulfill.jobId).getOrElse { error ->
+                if (attempt >= PluctCoreAPI00Constants.MAX_POLL_ATTEMPTS - 1) return Result.failure(error)
+                return@repeat
+            }
+            val transcript = app.pluct.services.api.PluctCoreAPITranscriptionResult01Extractor.extract(status).transcript
+            if (!transcript.isNullOrBlank()) {
+                debugLogManager.logInfo(
+                    category = "WALLET",
+                    operation = "settlement_completed",
+                    message = "Done. Final wallet settlement received.",
+                    details = "jobId=${fulfill.jobId}; status=${status.status}"
+                )
+                return Result.success(status.copy(status = "completed", progress = 100, transcript = transcript, text = transcript))
+            }
+            if (status.status.contains("failed_refunded", ignoreCase = true) || status.status.contains("cancelled_refunded", ignoreCase = true)) {
+                return Result.failure(Exception("Processing failed and reserved units were refunded."))
+            }
+        }
+
+        return Result.failure(Exception("Transcription timed out. Reserved units will settle or refund when the job finishes."))
     }
 
     private suspend fun ensureServerTimeWarmup() {
@@ -250,27 +355,27 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         serverTimeWarmupComplete = warmedHealth["api"] == HealthStatus.HEALTHY
         if (serverTimeWarmupComplete && !profileSyncAttempted) {
             profileSyncAttempted = true
-            val profile = mapOf(
-                "deviceModel" to "${Build.MANUFACTURER} ${Build.MODEL}".take(120),
-                "deviceType" to "phone",
-                "osName" to "android",
-                "osVersion" to Build.VERSION.RELEASE.take(32),
-                "appVersion" to app.pluct.BuildConfig.VERSION_NAME.take(32),
-                "locale" to Locale.getDefault().toLanguageTag().take(16),
-                "source" to "runtime_refresh"
+            val profile = PluctDeviceProfile(
+                deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
+                deviceType = "phone",
+                osName = "android",
+                osVersion = Build.VERSION.RELEASE,
+                appVersion = app.pluct.BuildConfig.VERSION_NAME,
+                locale = Locale.getDefault().toLanguageTag(),
+                source = "runtime_refresh"
             )
-            val fingerprint = profile.toSortedMap().entries.joinToString("|") { "${it.key}=${it.value}" }.hashCode().toString()
+            val profilePayload: Map<String, Any> = profile.toApiPayload()
+            val fingerprint = profile.stableFingerprint()
             val prefs = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE)
             if (prefs.getString("profile_payload_hash", "") != fingerprint) {
                 val token = jwtGenerator.generateUserJWT(userIdentification.userId)
-                execute<Any>("POST", "/v1/profile/device", profile, token)
+                execute<Any>("POST", "/v1/profile/device", profilePayload, token)
                     .onSuccess { prefs.edit().putString("profile_payload_hash", fingerprint).apply() }
                     .onFailure { Log.w(TAG, "Device profile sync skipped: ${it.message}") }
             }
             val now = System.currentTimeMillis()
             if (now - prefs.getLong("client_policy_checked_at", 0L) > 6 * 60 * 60 * 1000L) {
-                execute<Any>("GET", "/v1/public/client-policy")
-                    .onSuccess { prefs.edit().putLong("client_policy_checked_at", now).putString("client_policy_snapshot", it.toString()).apply() }
+                refreshClientPolicy(force = true)
                     .onFailure { Log.w(TAG, "Client policy refresh skipped: ${it.message}") }
             }
         }
@@ -283,7 +388,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         authToken: String? = null,
         timeoutMs: Long? = null
     ): Result<T> {
-        val requestId = "req_${System.currentTimeMillis()}"
+        val requestId = PluctRequestIds.generate()
         val requestUrl = "${PluctCoreAPI00Constants.BASE_URL}$endpoint"
         if (circuitBreaker.isOpen()) {
             try {

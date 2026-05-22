@@ -21,10 +21,15 @@ data class PluctClientPolicy(
     val fallbackUrl: String? = null,
     val apkDownloadUrl: String? = null,
     val iosUrl: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val messageShort: String? = null,
+    val messageDetail: String? = null
 )
 
 object PluctClientPolicyModels {
+    const val HARD_UPDATE_CTA = "Update required. Tap Update."
+    const val SOFT_UPDATE_CTA = "Update ready. Faster and safer."
+
     private val json = Json { ignoreUnknownKeys = true }
 
     fun parse(raw: String): PluctClientPolicy? {
@@ -75,6 +80,23 @@ object PluctClientPolicyModels {
         }
     }
 
+    fun isSoftUpdateAvailableByCode(raw: String, currentVersionCode: Int): Boolean {
+        if (raw.isBlank()) return false
+        return try {
+            val obj = json.parseToJsonElement(raw).jsonObject
+            val mode = obj["updateMode"]?.jsonPrimitive?.content?.lowercase() ?: "soft"
+            if (mode == "none" || isHardUpdateRequiredByCode(raw, currentVersionCode)) return false
+            val rootLatest = obj["latestVersionCode"]?.jsonPrimitive?.content?.toIntOrNull()
+            val androidLatest = obj["platforms"]?.jsonObject
+                ?.get("android")?.jsonObject
+                ?.get("latestVersionCode")?.jsonPrimitive?.content?.toIntOrNull()
+            val latest = androidLatest ?: rootLatest ?: return false
+            latest > currentVersionCode
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun updateUrl(raw: String): String? {
         val nestedApkUrl = runCatching {
             json.parseToJsonElement(raw).jsonObject["platforms"]?.jsonObject
@@ -84,6 +106,31 @@ object PluctClientPolicyModels {
         val policy = parse(raw) ?: return null
         return listOf(nestedApkUrl, policy.apkDownloadUrl, policy.fallbackUrl, policy.playStoreUrl, policy.iosUrl)
             .firstOrNull { !it.isNullOrBlank() }
+    }
+
+    fun updateMessage(raw: String, hardUpdateRequired: Boolean, softUpdateAvailable: Boolean): String {
+        val policy = parse(raw)
+        return policy?.messageDetail
+            ?: policy?.message
+            ?: policy?.messageShort
+            ?: when {
+                hardUpdateRequired -> "Update Pluct to keep TikTok to text working."
+                softUpdateAvailable -> "A faster Pluct update is ready."
+                else -> "Latest Pluct is ready."
+            }
+    }
+
+    fun ctaMessage(hardUpdateRequired: Boolean, softUpdateAvailable: Boolean): String? {
+        return when {
+            hardUpdateRequired -> HARD_UPDATE_CTA
+            softUpdateAvailable -> SOFT_UPDATE_CTA
+            else -> null
+        }
+    }
+
+    fun isHardUpdateCta(message: String?): Boolean {
+        return message?.equals(HARD_UPDATE_CTA, ignoreCase = true) == true ||
+            message?.contains("Update required", ignoreCase = true) == true
     }
 
     private fun compareVersions(left: String, right: String): Int {

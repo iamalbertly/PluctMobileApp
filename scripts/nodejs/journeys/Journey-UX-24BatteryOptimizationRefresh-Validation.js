@@ -34,7 +34,12 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
 
     async execute() {
         this.core.logger.info('Starting Battery Optimization Refresh Validation');
-        
+
+        // Cold start: prior journeys may leave WorkManager processing + overlay; that shrinks the UIAutomator
+        // hierarchy to a narrow frame so Settings rows never appear and battery checks never run.
+        await this.core.executeCommand('adb shell am force-stop app.pluct', 12000, undefined, { allowFailure: true });
+        await this.core.sleep(800);
+
         // Step 1: Launch app
         await this.core.launchApp();
         await this.core.sleep(3000);
@@ -134,6 +139,7 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
             const u = uiDump.toLowerCase();
             if (
                 okLog ||
+                u.includes('settings_battery_background_row') ||
                 u.includes('permissions') ||
                 u.includes('send report') ||
                 u.includes('background processing') ||
@@ -160,6 +166,7 @@ class JourneyUX24BatteryOptimizationRefreshValidation extends BaseJourney {
             u.includes('settings content') ||
             u.includes('account');
         const hasBatterySection =
+            uiDump.includes('settings_battery_background_row') ||
             uiDump.includes('Background Processing') ||
             uiDump.includes('Battery Optimization') ||
             u.includes('battery') ||

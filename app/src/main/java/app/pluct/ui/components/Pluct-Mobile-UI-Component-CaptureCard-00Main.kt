@@ -41,9 +41,9 @@ import app.pluct.data.repository.PluctVideoRepository
 import app.pluct.services.PluctCoreAPIUnifiedService
 import app.pluct.services.PluctCoreValidationInputSanitizer
 import app.pluct.services.OperationStep
+import app.pluct.shared.PluctClientPolicyModels
 import app.pluct.ui.models.data.PersistentError
 import app.pluct.core.categorization.PluctCoreCategorization01ErrorClassifier
-import app.pluct.core.credit.PluctCoreCredit01AtomicReservation01Service
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.BatterySaver
@@ -121,7 +121,6 @@ fun PluctUIComponent03CaptureCard(
     }
     val currentValidation = remember(urlText) { sanitizer.validateUrl(urlText) }
     val isUrlValid = urlText.isNotBlank() && currentValidation.isValid
-    val atomicCreditService = remember { PluctCoreCredit01AtomicReservation01Service() }
     var progressNotificationsReady by remember { mutableStateOf(PluctCorePermission01Manager.hasNotificationPermission(context)) }
     var backgroundProcessingReady by remember { mutableStateOf(PluctCorePermission01Manager.isBatteryOptimizationExempt(context)) }
 
@@ -168,6 +167,13 @@ fun PluctUIComponent03CaptureCard(
         queuePromptReason = null
         Log.d("CaptureCard", "Set isSubmitting=true")
 
+        if (PluctClientPolicyModels.isHardUpdateCta(ctaHelperMessage)) {
+            validationError = "Update Pluct to continue."
+            isSubmitting = false
+            isAutoSubmitting = false
+            return@submit
+        }
+
         val validationResult = sanitizer.validateUrl(urlText)
         val normalizedUrl = if (validationResult.isValid) validationResult.sanitizedValue else urlText
         Log.d("CaptureCard", "URL validation: isValid=${validationResult.isValid}, normalizedUrl='$normalizedUrl', error=${validationResult.errorMessage}")
@@ -192,39 +198,7 @@ fun PluctUIComponent03CaptureCard(
             return@submit
         }
 
-        val costLabel =
-            if (freeUsesRemaining > 0) "Free · uses left: $freeUsesRemaining"
-            else "Uses 1 · you have: $creditBalance"
-
-        // Reserve credits first; only then start the API flow (was racing: transcription ran before reserve finished).
         scope.launch {
-            val reservationResult = atomicCreditService.reserveCredit(
-                amount = 1,
-                currentBalance = creditBalance,
-                currentFreeUses = freeUsesRemaining
-            )
-
-            if (!reservationResult.success) {
-                if (reservationResult.error?.contains("Insufficient", ignoreCase = true) == true) {
-                    onRequestCredits?.invoke()
-                }
-                if (onQueueForLater != null) {
-                    onQueueForLater(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
-                }
-                isSubmitting = false
-                isAutoSubmitting = false
-                return@launch
-            }
-
-            val reservedId = reservationResult.reservationId
-                ?: run {
-                    Log.e("CaptureCard", "reserveCredit succeeded but reservationId null")
-                    isSubmitting = false
-                    isAutoSubmitting = false
-                    return@launch
-                }
-            Log.d("CaptureCard", "Credit reserved: $reservedId")
-
             val onComplete: () -> Unit = {
                 Log.d("CaptureCard", "onComplete called - resetting state")
                 processingMessage = null
@@ -233,17 +207,14 @@ fun PluctUIComponent03CaptureCard(
                 persistentError = null
                 isSubmitting = false
                 timedOutOnce = false
-                scope.launch {
-                    atomicCreditService.commitReservation(reservedId)
-                }
             }
 
-            processingMessage = "Checking saved copy…"
+            processingMessage = "Checking saved copy..."
             withContext(Dispatchers.IO) {
                 videoRepository?.getVideoByUrl(normalizedUrl)
             }
             delay(220)
-            processingMessage = "Working… $costLabel"
+            processingMessage = "Checking cost..."
             Log.d("CaptureCard", "Set processingMessage: $processingMessage")
 
             if (apiService != null) {
@@ -261,8 +232,13 @@ fun PluctUIComponent03CaptureCard(
                     onError = { error ->
                         Log.e("CaptureCard", "API flow failed: $error")
                         processingMessage = null
-                        scope.launch {
-                            atomicCreditService.releaseReservation(reservedId)
+                        if (error.contains("insufficient", ignoreCase = true) ||
+                            error.contains("balance", ignoreCase = true) ||
+                            error.contains("credit", ignoreCase = true)
+                        ) {
+                            onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
+                            queuePromptReason = "No balance - saved for later"
+                            showQueuePrompt = true
                         }
                         val cat = PluctCoreCategorization01ErrorClassifier.categorizeError(null, error)
                         persistentError = PersistentError(
@@ -278,7 +254,7 @@ fun PluctUIComponent03CaptureCard(
                     shouldMinimize = isAutoSubmitting
                 )
             } else {
-                Log.w("CaptureCard", "⚠️ API service is NULL, using fallback submit")
+                Log.w("CaptureCard", "API service is NULL, using fallback submit")
                 onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
                 onComplete()
             }
@@ -454,7 +430,8 @@ fun PluctUIComponent03CaptureCard(
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             ctaHelperMessage?.let { helper ->
-                val canTapCredits = helper.contains("Add credits", ignoreCase = true) && onRequestCredits != null
+                val canTapCredits = (helper.contains("Add credits", ignoreCase = true) ||
+                    helper.contains("Add balance", ignoreCase = true)) && onRequestCredits != null
                 Text(
                     text = helper,
                     style = if (canTapCredits) {

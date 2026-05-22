@@ -4,6 +4,15 @@
 
 Pluct is a cutting-edge mobile application that provides instant AI-powered transcription services for TikTok videos. Built with modern Android architecture and comprehensive API integration, Pluct delivers seamless video-to-text conversion with real-time processing and intelligent content analysis.
 
+## Current SSOT Status - 2026-05-22
+
+- Business Engine production Worker `3f4dfe6a-033d-47e7-b818-2f949d341471` is the current deployed control plane for app policy, wallet quote/fulfill, service health, and Android update routing.
+- `GET /v1/public/client-policy` is the single app policy source for Android hard/soft update state, APK or Play Store fallback URL, version codes, feature gates, wallet fulfillment, free tier, and legacy vend-token compatibility.
+- `GET /downloads/android/latest.apk` currently resolves to the Play Store fallback with short public cache headers. Set Business Engine `MOBILE_APK_URL` when a signed APK artifact should be delivered directly.
+- New paid work follows quote -> fulfill -> job status. `/v1/vend-token` remains compatibility authorization plumbing for older app paths.
+- Automated validation starts with latest touched surfaces, then recent failures, then high-priority journeys. The validated path for this update was `Journey-APIConnectivity`, Business Engine credits, direct-to-value readiness, battery refresh, and notification dedupe.
+- Android journey automation is Node + ADB/UIAutomator. Playwright MCP is only for Business Engine web/admin surfaces.
+
 ## ✨ **Key Features**
 
 ### 🎯 **Core Functionality**
@@ -62,8 +71,8 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 6. Status Polling -> completed, charged, refunded, or ready/no charge
 7. Result Processing -> transcript delivery and compact history row
 ```
-## **API Integration Flow**
-```
+<!-- Removed duplicate legacy token-vending API flow; current flow is above. -->
+<!--
 1. 🏥 Health Check → Business Engine Status
 2. 🔐 JWT Generation → Authentication Token
 3. 💰 Balance Check → Credit Validation
@@ -71,7 +80,7 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 5. 🎬 Transcription Start → TTTranscribe Job
 6. ⏳ Status Polling → Completion Monitoring
 7. ✅ Result Processing → Transcript Delivery
-```
+-->
 
 ## 🚀 **Getting Started**
 
@@ -115,6 +124,8 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
    # Validate notification SSOT + dedupe wiring (ADB + logcat + UI)
    npm run test:dedupe-ssot
+   ```
+
    The canonical test entrypoint is `npm run test:all`, backed by the Node journey orchestrator in `scripts/nodejs`. **Android UI validation is ADB + Node**, not browser automation. **Playwright MCP** (if enabled in your environment) is for **web** surfaces only, not the Android app. Test URLs include `https://vt.tiktok.com/ZS9bDyvc5/` for validation. See **[Testing](#-testing-framework)** below for complete testing documentation and options.
 
 ### **Three-tier system (evolution contract)**

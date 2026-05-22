@@ -2,7 +2,11 @@ package app.pluct.services
 
 import android.util.Log
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.OutputStreamWriter
@@ -21,6 +25,24 @@ class PluctCoreAPIHTTPClientRequestBuilder {
     }
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    private fun toJsonElement(value: Any?): JsonElement {
+        return when (value) {
+            null -> JsonNull
+            is JsonElement -> value
+            is String -> JsonPrimitive(value)
+            is Int -> JsonPrimitive(value)
+            is Long -> JsonPrimitive(value)
+            is Double -> JsonPrimitive(value)
+            is Float -> JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is Number -> JsonPrimitive(value.toDouble())
+            is Iterable<*> -> JsonArray(value.map { toJsonElement(it) })
+            is Array<*> -> JsonArray(value.map { toJsonElement(it) })
+            is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElement(v) })
+            else -> JsonPrimitive(value.toString())
+        }
+    }
 
     fun buildConnection(
         method: String,
@@ -71,15 +93,7 @@ class PluctCoreAPIHTTPClientRequestBuilder {
             // Use kotlinx.serialization for proper JSON encoding
             val jsonObject = buildJsonObject {
                 payload.forEach { (key, value) ->
-                    when (value) {
-                        is String -> put(key, value)
-                        is Int -> put(key, value)
-                        is Long -> put(key, value)
-                        is Double -> put(key, value)
-                        is Float -> put(key, value)
-                        is Boolean -> put(key, value)
-                        else -> put(key, value.toString())
-                    }
+                    put(key, toJsonElement(value))
                 }
             }
             val jsonPayload = json.encodeToString(JsonObject.serializer(), jsonObject)

@@ -1,5 +1,6 @@
 package app.pluct.services
 
+import app.pluct.shared.PluctTikTokUrlValidator
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,58 +54,28 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
     }
 
     fun isTikTokUrl(url: String): Boolean {
-        val trimmedUrl = extractUrlFromText(url)
-        return parseTikTokUrl(trimmedUrl).isValid
+        return PluctTikTokUrlValidator.isTikTokUrl(url)
     }
 
     fun isTikTokShortLink(url: String): Boolean {
-        val parsed = runCatching { URL(extractUrlFromText(url)) }.getOrNull() ?: return false
-        return parsed.host.equals("vm.tiktok.com", true) || parsed.host.equals("vt.tiktok.com", true)
+        return PluctTikTokUrlValidator.isTikTokShortLink(url)
     }
 
     fun extractUrlFromText(input: String): String {
-        val cleaned = cleanInput(input)
-        val candidate = URL_IN_TEXT_REGEX.find(cleaned)?.value ?: cleaned
-        return candidate
-            .trim()
-            .trimEnd('.', ',', ';', ')', ']', '}', '"', '\'')
+        return PluctTikTokUrlValidator.extractUrlFromText(input)
     }
 
     fun validateUrl(url: String): ValidationResult {
-        if (url.isBlank()) {
-            return ValidationResult(false, errorMessage = "Paste a TikTok link first.")
-        }
-
-        val cleanedInput = cleanInput(url)
-        val urlMatches = URL_IN_TEXT_REGEX.findAll(cleanedInput).map { it.value }.toList()
-        if (HTTP_SIGNAL_REGEX.findAll(cleanedInput).count() > 1 || urlMatches.size > 1) {
-            return ValidationResult(false, errorMessage = "Paste one TikTok link only.")
-        }
-
-        val trimmedUrl = extractUrlFromText(url)
-        if (trimmedUrl.length > MAX_URL_LENGTH) {
-            return ValidationResult(
-                isValid = false,
-                errorMessage = "URL too long (max $MAX_URL_LENGTH characters)"
-            )
-        }
-
-        try {
-            URL(trimmedUrl)
-        } catch (e: Exception) {
-            return ValidationResult(false, errorMessage = "Paste one full TikTok link.")
-        }
-
-        val tiktok = parseTikTokUrl(trimmedUrl)
+        val tiktok = PluctTikTokUrlValidator.validateUrl(url)
         if (!tiktok.isValid) {
-            return ValidationResult(false, errorMessage = tiktok.error ?: "Only TikTok video links work here.")
+            return ValidationResult(false, errorMessage = tiktok.errorMessage)
         }
 
-        Log.d(TAG, "TikTok URL sanitized: $trimmedUrl -> ${tiktok.sanitizedUrl}")
+        Log.d(TAG, "TikTok URL sanitized: ${extractUrlFromText(url)} -> ${tiktok.sanitizedValue}")
         return ValidationResult(
             isValid = true,
-            sanitizedValue = tiktok.sanitizedUrl.orEmpty(),
-            warnings = listOfNotNull(tiktok.warning)
+            sanitizedValue = tiktok.sanitizedValue,
+            warnings = tiktok.warnings
         )
     }
 
@@ -304,7 +275,8 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
     ): ValidationResult {
         val hasEnoughCredits = when (tier) {
             app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT -> currentFreeUses > 0 || currentBalance >= 1
-            app.pluct.data.entity.ProcessingTier.GENERATE_INSIGHTS -> currentBalance >= 2
+            app.pluct.data.entity.ProcessingTier.GENERATE_INSIGHTS,
+            app.pluct.data.entity.ProcessingTier.AI_ANALYSIS -> currentBalance >= 2
             else -> false // Other tiers not supported yet
         }
         
@@ -320,6 +292,8 @@ class PluctCoreValidationInputSanitizer @Inject constructor() {
             app.pluct.data.entity.ProcessingTier.EXTRACT_SCRIPT -> 
                 "Insufficient credits. You need 1 credit or a free use remaining. Current: $currentBalance credits, $currentFreeUses free uses."
             app.pluct.data.entity.ProcessingTier.GENERATE_INSIGHTS -> 
+                "Insufficient credits. You need 2 credits for AI Insights. Current: $currentBalance credits."
+            app.pluct.data.entity.ProcessingTier.AI_ANALYSIS ->
                 "Insufficient credits. You need 2 credits for AI Insights. Current: $currentBalance credits."
             else -> 
                 "Insufficient credits for this tier. Current: $currentBalance credits, $currentFreeUses free uses."

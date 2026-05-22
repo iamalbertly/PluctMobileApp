@@ -41,7 +41,7 @@ class PluctCoreAPIHTTPClientLogger {
         }
 
         if (authToken != null) {
-            Log.d(API_LOG_TAG, "   Auth Token (truncated): ${authToken.take(30)}...${authToken.takeLast(10)}")
+            Log.d(API_LOG_TAG, "   Auth Token: <redacted>")
         }
 
         Log.d(TAG, "API REQUEST [$requestId] - $method $endpoint")

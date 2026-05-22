@@ -2,6 +2,7 @@ package app.pluct.services
 
 import android.content.Context
 import android.util.Log
+import app.pluct.shared.PluctRequestIds
 
 /**
  * Pluct-Core-API-01UnifiedService-12Token-01Handler
@@ -25,7 +26,7 @@ class PluctCoreAPI01UnifiedService12Token01Handler(
     /**
      * Vend a service token for transcription
      */
-    suspend fun vendToken(clientRequestId: String = "req_${System.currentTimeMillis()}"): Result<VendTokenResponse> {
+    suspend fun vendToken(clientRequestId: String = PluctRequestIds.generate()): Result<VendTokenResponse> {
         // Check for cached response (idempotency) using unified coordinator
         val cachedResponse = deduplicationCoordinator.getCachedResponse(clientRequestId)
         if (cachedResponse != null && cachedResponse is VendTokenResponse) {
@@ -74,7 +75,7 @@ class PluctCoreAPI01UnifiedService12Token01Handler(
         }
         
         // Cache miss or forced refresh - vend new token
-        val vendResult = vendToken("status_check_${System.currentTimeMillis()}")
+        val vendResult = vendToken(PluctRequestIds.generate("status_check"))
         return vendResult.fold(
             onSuccess = { vend ->
                 val token = vend.token ?: vend.serviceToken

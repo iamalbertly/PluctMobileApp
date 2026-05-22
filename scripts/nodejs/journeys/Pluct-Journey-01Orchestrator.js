@@ -369,6 +369,26 @@ class BaseJourney {
     }
 
     /**
+     * Wake screen and swipe up to dismiss lock shade (matches Intent-03 / UX-25 device reality).
+     */
+    async wakeDismissLockShade() {
+        await this.core.executeCommand('adb shell input keyevent 224', 5000, undefined, { allowFailure: true });
+        await this.core.sleep(400);
+        await this.core.executeCommand('adb shell input swipe 520 1850 520 600 320', 8000, undefined, { allowFailure: true });
+        await this.core.sleep(400);
+    }
+
+    /**
+     * Best-effort: dismiss keyguard, clear lock shade, bring Pluct foreground.
+     */
+    async nudgePluctForeground() {
+        await this.core.executeCommand('adb shell wm dismiss-keyguard', 5000, undefined, { allowFailure: true });
+        await this.wakeDismissLockShade();
+        await this.core.ensureAppForeground();
+        await this.core.sleep(500);
+    }
+
+    /**
      * Fail with logcat output, API logs, and UI dump for debugging
      */
     async failWithDiagnostics(errorMessage) {

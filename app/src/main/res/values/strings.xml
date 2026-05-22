@@ -30,14 +30,14 @@
     <string name="cd_contextual_permission_not_now">Not now</string>
     <string name="cd_contextual_permission_dialog">Contextual permission dialog</string>
     <!-- Insufficient credits dialogs (PLU-15) -->
-    <string name="insufficient_credits_title">Insufficient Credits</string>
-    <string name="insufficient_credits_need">You need %1$d credits to continue.</string>
-    <string name="insufficient_credits_current_balance">Current balance: %1$d credits</string>
-    <string name="insufficient_credits_required">Required: %1$d credits</string>
-    <string name="insufficient_credits_purchase_more">Purchase %1$d more credits to transcribe this video.</string>
-    <string name="insufficient_credits_note_refund">Note: Credits are held during processing and automatically refunded if transcription fails.</string>
-    <string name="insufficient_credits_purchase">Purchase Credits</string>
-    <string name="insufficient_credits_add_credits_now">Add Credits Now</string>
+    <string name="insufficient_credits_title">Insufficient Balance</string>
+    <string name="insufficient_credits_need">You need %1$d wallet units to continue.</string>
+    <string name="insufficient_credits_current_balance">Available balance: %1$d units</string>
+    <string name="insufficient_credits_required">Reserved for this job: %1$d units</string>
+    <string name="insufficient_credits_purchase_more">Add %1$d more units to process this video.</string>
+    <string name="insufficient_credits_note_refund">Units are reserved during processing and automatically refunded if Pluct fails.</string>
+    <string name="insufficient_credits_purchase">Add Balance</string>
+    <string name="insufficient_credits_add_credits_now">Add Balance Now</string>
     <string name="insufficient_credits_save_for_later">Save for Later</string>
     <string name="insufficient_credits_cancel">Cancel</string>
     <string name="insufficient_credits_queue_suggestion">Save this video for later? We\'ll process it automatically once you add credits.</string>
@@ -51,11 +51,11 @@
     <string name="cd_insufficient_credits_cancel">Cancel</string>
     <!-- Cost estimate dialog (PLU-15) -->
     <string name="cost_estimate_confirm_title">Confirm Transcription</string>
-    <string name="cost_estimate_approx">This video will cost approximately:</string>
-    <string name="cost_estimate_balance">Your current balance: %1$d credits</string>
-    <string name="cost_estimate_not_enough">Not enough credits for this transcription</string>
+    <string name="cost_estimate_approx">This video will reserve:</string>
+    <string name="cost_estimate_balance">Available balance: %1$d units</string>
+    <string name="cost_estimate_not_enough">Not enough balance for this transcription</string>
     <string name="cost_estimate_continue_question">Do you want to continue?</string>
-    <string name="cost_estimate_note_refund">Note: Credits are held during processing and automatically refunded if transcription fails.</string>
+    <string name="cost_estimate_note_refund">No charge if Pluct fails. Cached text returns at zero cost.</string>
     <string name="cost_estimate_continue">Continue</string>
     <string name="cost_estimate_cancel">Cancel</string>
     <string name="cd_cost_estimate_dialog_title">Cost estimate dialog title</string>
@@ -68,7 +68,7 @@
         <item quantity="other">You have %d videos already in queue.</item>
     </plurals>
     <plurals name="cost_estimate_credit_line">
-        <item quantity="one">%1$d credit</item>
-        <item quantity="other">%1$d credits</item>
+        <item quantity="one">%1$d unit</item>
+        <item quantity="other">%1$d units</item>
     </plurals>
 </resources>

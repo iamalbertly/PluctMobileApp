@@ -34,7 +34,7 @@ object PluctQueueNotificationManager {
         val message = when {
             queuedCount > 0 && processingCount > 0 ->
                 "$queuedCount in queue, $processingCount processing"
-            queuedCount > 0 -> "$queuedCount video(s) waiting for credits/connection"
+            queuedCount > 0 -> "$queuedCount waiting - add balance or reconnect"
             processingCount > 0 -> "$processingCount video(s) processing"
             else -> return
         }
@@ -77,7 +77,7 @@ object PluctQueueNotificationManager {
                             append(
                                 when (reason) {
                                     QueueReason.NO_INTERNET -> "Waiting for internet connection"
-                                    QueueReason.INSUFFICIENT_CREDITS -> "Waiting for credits"
+                                    QueueReason.INSUFFICIENT_CREDITS -> "Waiting for balance"
                                     QueueReason.RATE_LIMITED -> "Rate limited, will retry"
                                     QueueReason.SERVICE_UNAVAILABLE -> "Service unavailable, will retry"
                                     null -> "Queued for processing"
@@ -89,9 +89,9 @@ object PluctQueueNotificationManager {
                             val noCreditsCount = queueReasons.values.count { it == QueueReason.INSUFFICIENT_CREDITS }
                             when {
                                 noInternetCount > 0 && noCreditsCount > 0 ->
-                                    append("$noInternetCount waiting for internet, $noCreditsCount waiting for credits")
+                                    append("$noInternetCount waiting for internet, $noCreditsCount waiting for balance")
                                 noInternetCount > 0 -> append("$noInternetCount waiting for internet")
-                                noCreditsCount > 0 -> append("$noCreditsCount waiting for credits")
+                noCreditsCount > 0 -> append("$noCreditsCount waiting for balance")
                                 else -> append("Will process when ready")
                             }
                         }
@@ -104,7 +104,7 @@ object PluctQueueNotificationManager {
 
                 val notification = NotificationCompat.Builder(context, PluctNotification01Primitives.CHANNEL_ID_QUEUE)
                     .setSmallIcon(PluctNotification01Primitives.smallIconResId(context))
-                    .setContentTitle("$queuedCount video(s) queued")
+                    .setContentTitle("$queuedCount waiting in Pluct")
                     .setContentText(notificationText)
                     .setContentIntent(pendingIntent)
                     .setOngoing(true)

@@ -368,7 +368,7 @@ private fun HomeContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                         .semantics { testTag = "home_value_promise_line" },
                     verticalAlignment = Alignment.CenterVertically
                 ) {

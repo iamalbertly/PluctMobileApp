@@ -8,3 +8,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10" apply false
     id("com.google.devtools.ksp") version "1.9.10-1.0.13" apply false
 }
+
+subprojects {
+    tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+        maxParallelForks = 1
+        forkEvery = 0
+        jvmArgs("-Xmx128m", "-XX:+UseSerialGC")
+    }
+}

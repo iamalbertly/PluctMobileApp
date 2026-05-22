@@ -46,14 +46,20 @@ class PluctQueueManager(
                 Log.d(TAG, "Video already queued: $url")
                 return Result.success(existingVideo)
             }
+            if (existingVideo != null && existingVideo.status == ProcessingStatus.COMPLETED) {
+                Log.d(TAG, "Video already completed, not queueing duplicate: $url")
+                return Result.success(existingVideo)
+            }
             
             val videoId = System.currentTimeMillis().toString()
+            val inferredAuthor = metadata?.author?.takeIf { it.isNotBlank() }
+                ?: Regex("""/(@[A-Za-z0-9_.-]+)/""").find(url)?.groupValues?.getOrNull(1).orEmpty()
             val queuedVideo = VideoItem(
                 id = videoId,
                 url = url,
-                title = metadata?.title ?: "Queued Video",
+                title = metadata?.title?.takeIf { it.isNotBlank() } ?: "Waiting for text",
                 thumbnailUrl = metadata?.thumbnail ?: "",
-                author = metadata?.author ?: "",
+                author = inferredAuthor.removePrefix("@"),
                 duration = metadata?.duration?.toLong() ?: 0L,
                 status = ProcessingStatus.QUEUED,
                 progress = 0,
@@ -105,12 +111,14 @@ class PluctQueueManager(
             }
             
             var processedCount = 0
+            var availableBudget = currentBalance + currentFreeUses
             queuedVideos.forEach { video ->
                 val canProcess = when (video.queueReason) {
                     QueueReason.INSUFFICIENT_CREDITS -> {
                         val required = when (video.tier) {
-                            ProcessingTier.EXTRACT_SCRIPT -> currentFreeUses > 0 || currentBalance >= 1
-                            ProcessingTier.GENERATE_INSIGHTS -> currentBalance >= 2
+                            ProcessingTier.EXTRACT_SCRIPT -> availableBudget >= 1
+                            ProcessingTier.GENERATE_INSIGHTS,
+                            ProcessingTier.AI_ANALYSIS -> availableBudget >= 2
                             else -> false
                         }
                         if (required) {
@@ -152,6 +160,12 @@ class PluctQueueManager(
                         
                         // Process the video
                         onProcess(processingVideo)
+                        availableBudget = (availableBudget - when (video.tier) {
+                            ProcessingTier.EXTRACT_SCRIPT -> 1
+                            ProcessingTier.GENERATE_INSIGHTS,
+                            ProcessingTier.AI_ANALYSIS -> 2
+                            else -> 1
+                        }).coerceAtLeast(0)
                         processedCount++
                         Log.d(TAG, "Processed queued video: ${video.url}")
                     } catch (e: Exception) {
@@ -196,4 +210,3 @@ class PluctQueueManager(
         }
     }
 }
-

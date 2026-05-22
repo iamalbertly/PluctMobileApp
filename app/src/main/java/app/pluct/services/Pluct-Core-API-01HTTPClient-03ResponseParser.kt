@@ -108,6 +108,9 @@ class PluctCoreAPIHTTPClientResponseParser {
         return try {
             val result = when {
                 endpoint.contains("/credits/balance") -> json.decodeFromString<CreditBalanceResponse>(responseBody)
+                endpoint.contains("/v1/quote") -> json.decodeFromString<QuoteResponse>(responseBody)
+                endpoint.contains("/v1/fulfill") -> json.decodeFromString<FulfillResponse>(responseBody)
+                endpoint.contains("/v1/jobs") -> parseTranscriptionStatusResponse(responseBody, endpoint)
                 endpoint.contains("/estimate") -> json.decodeFromString<EstimateResponse>(responseBody)
                 endpoint.contains("/vend-token") -> json.decodeFromString<VendTokenResponse>(responseBody)
                 endpoint.contains("/meta") -> json.decodeFromString<MetadataResponse>(responseBody)

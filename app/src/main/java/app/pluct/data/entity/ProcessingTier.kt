@@ -11,5 +11,10 @@ enum class ProcessingTier {
      * Premium tier transcription - generates AI insights
      * Costs: 2 credits
      */
-    GENERATE_INSIGHTS
+    GENERATE_INSIGHTS,
+
+    /**
+     * Legacy name kept for older tests/data paths. New code should use GENERATE_INSIGHTS.
+     */
+    AI_ANALYSIS
 }
