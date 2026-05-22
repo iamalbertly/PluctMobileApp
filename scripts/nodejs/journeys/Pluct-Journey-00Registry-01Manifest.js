@@ -10,6 +10,7 @@ const unique = (items) => Array.from(new Set(items));
 module.exports = {
     executionOrder: unique([
             'Journey-APIConnectivity.js',
+            'Journey-UX-31DirectValue-FatigueGuard-01Validation.js',
             'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
             'Journey-UX-25DirectToValue-Readiness-01Validation.js',
             'Journey-UX-24BatteryOptimizationRefresh-Validation.js',
@@ -89,6 +90,7 @@ module.exports = {
             'Journey-UX-28AppIconAndShellVisual-01Validation.js',
             'Journey-UX-29HomeShellCaptureContrast-01Validation.js',
             'Journey-UX-30PluctMockupParityVisual-01Validation.js',
+            'Journey-UX-31DirectValue-FatigueGuard-01Validation.js',
             // Edge Case Validation Journeys
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js',
             'Journey-EdgeCase-02CreditDepletion-Validation.js',
@@ -186,6 +188,7 @@ module.exports = {
             'Journey-UX-28AppIconAndShellVisual-01Validation.js': 'UX-28AppIconAndShellVisual-01Validation',
             'Journey-UX-29HomeShellCaptureContrast-01Validation.js': 'UX-29HomeShellCaptureContrast-01Validation',
             'Journey-UX-30PluctMockupParityVisual-01Validation.js': 'UX-30PluctMockupParityVisual-01Validation',
+            'Journey-UX-31DirectValue-FatigueGuard-01Validation.js': 'UX-31DirectValue-FatigueGuard-01Validation',
             // Edge Case Validation Journey Mappings
             'Journey-EdgeCase-01RapidIntentReceipt-Validation.js': 'EdgeCase-01RapidIntentReceipt-Validation',
             'Journey-EdgeCase-02CreditDepletion-Validation.js': 'EdgeCase-02CreditDepletion-Validation',
@@ -207,6 +210,8 @@ module.exports = {
     smartTestLatestChangedTests: unique([
         'Journey-APIConnectivity',
         'Journey-APIConnectivity.js',
+        'Journey-UX-31DirectValue-FatigueGuard-01Validation',
+        'Journey-UX-31DirectValue-FatigueGuard-01Validation.js',
         'Pluct-Journey-BusinessEngine-Credits-01Validation',
         'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
         'Journey-UX-25DirectToValue-Readiness-01Validation',
@@ -229,6 +234,8 @@ module.exports = {
     smartTestHighPriorityTests: unique([
         'Journey-APIConnectivity',
         'Journey-APIConnectivity.js',
+        'Journey-UX-31DirectValue-FatigueGuard-01Validation',
+        'Journey-UX-31DirectValue-FatigueGuard-01Validation.js',
         'Pluct-Journey-BusinessEngine-Credits-01Validation',
         'Pluct-Journey-BusinessEngine-Credits-01Validation.js',
         'Journey-UX-25DirectToValue-Readiness-01Validation',

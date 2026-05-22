@@ -95,7 +95,8 @@ fun PluctUIComponent03CaptureCard06Queue01Prompt(
                             val reason = when {
                                 queuePromptReason?.contains("internet", ignoreCase = true) == true -> 
                                     QueueReason.NO_INTERNET
-                                queuePromptReason?.contains("credits", ignoreCase = true) == true -> 
+                                queuePromptReason?.contains("credits", ignoreCase = true) == true ||
+                                    queuePromptReason?.contains("uses", ignoreCase = true) == true ->
                                     QueueReason.INSUFFICIENT_CREDITS
                                 else -> QueueReason.SERVICE_UNAVAILABLE
                             }
@@ -104,14 +105,17 @@ fun PluctUIComponent03CaptureCard06Queue01Prompt(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Save for Later")
+                    Text("Save")
                 }
-                if (queuePromptReason?.contains("credits", ignoreCase = true) == true && onRequestCredits != null) {
+                if ((queuePromptReason?.contains("credits", ignoreCase = true) == true ||
+                        queuePromptReason?.contains("uses", ignoreCase = true) == true) &&
+                    onRequestCredits != null
+                ) {
                     OutlinedButton(
                         onClick = onShowGetCoinsDialog,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Add Credits")
+                        Text("Add uses")
                     }
                 }
             }

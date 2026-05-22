@@ -105,10 +105,15 @@ fun PluctURLInputField(
         freeUsesRemaining > 0 -> "$freeUsesRemaining"
         else -> "$creditBalance"
     }
+    val walletUnitsText = when {
+        isLoadingCreditBalance -> ""
+        (freeUsesRemaining + creditBalance) == 1 -> "use"
+        else -> "uses"
+    }
     val walletDescription = when {
-        isLoadingCreditBalance -> "Loading wallet amount"
-        freeUsesRemaining > 0 -> "Free uses: $freeUsesRemaining. Tap to refresh."
-        else -> "Wallet: $creditBalance credits. Tap to refresh."
+        isLoadingCreditBalance -> "Loading uses left"
+        freeUsesRemaining > 0 -> "$freeUsesRemaining $walletUnitsText left. Tap to refresh."
+        else -> "$creditBalance $walletUnitsText left. Tap to refresh."
     }
 
     fun pasteFromClipboard() {
@@ -179,14 +184,14 @@ fun PluctURLInputField(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "free",
+                            text = walletUnitsText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
                         )
                     } else {
                         Text(
-                            text = "$creditBalance credits",
+                            text = "$walletLabel $walletUnitsText",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -320,7 +325,7 @@ fun PluctURLInputField(
                                 Box(contentAlignment = Alignment.CenterStart) {
                                     if (urlText.isEmpty()) {
                                         Text(
-                                            "Paste TikTok link here",
+                                            "Paste TikTok link",
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
                                         )
@@ -427,7 +432,7 @@ fun PluctURLInputField(
 
         if (!showMetaRow) {
                 Text(
-                    text = "Example: https://vt.tiktok.com/...",
+                    text = "TikTok link: https://vt.tiktok.com/...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.94f),
                 modifier = Modifier

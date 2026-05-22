@@ -191,7 +191,7 @@ fun PluctUIComponent03CaptureCard(
             Log.d("CaptureCard", "No credits available; queueing instead of submitting")
             onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
             showQueuePrompt = true
-            queuePromptReason = "No uses left — open Settings"
+            queuePromptReason = "No uses left - saved"
             onRequestCredits?.invoke()
             isSubmitting = false
             isAutoSubmitting = false
@@ -237,7 +237,7 @@ fun PluctUIComponent03CaptureCard(
                             error.contains("credit", ignoreCase = true)
                         ) {
                             onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
-                            queuePromptReason = "No balance - saved for later"
+                            queuePromptReason = "No uses left - saved"
                             showQueuePrompt = true
                         }
                         val cat = PluctCoreCategorization01ErrorClassifier.categorizeError(null, error)
@@ -351,7 +351,7 @@ fun PluctUIComponent03CaptureCard(
                 if (validationResult.isValid) {
                     onQueueForLater?.invoke(validationResult.sanitizedValue, QueueReason.INSUFFICIENT_CREDITS)
                     showQueuePrompt = true
-                    queuePromptReason = "No uses left — open Settings"
+                    queuePromptReason = "No uses left - saved"
                     onRequestCredits?.invoke()
                 }
             }
@@ -632,7 +632,7 @@ fun PluctUIComponent03CaptureCard(
                         testTag = "get_coins_button"
                     }
                 ) {
-                    Text("Low balance — add more")
+                    Text("Low uses - add more")
                 }
             }
 

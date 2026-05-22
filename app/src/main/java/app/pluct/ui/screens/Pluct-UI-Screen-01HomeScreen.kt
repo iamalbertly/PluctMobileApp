@@ -22,7 +22,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -91,7 +90,6 @@ fun PluctHomeScreen(
     /** When false, caller owns [Scaffold] + top bar; only body is drawn (shell navigation). */
     useInnerScaffold: Boolean = true,
     innerContentPadding: PaddingValues = PaddingValues(0.dp),
-    onNavigateToLibrary: () -> Unit = {},
     permissionLauncherHelper: PluctCorePermission02Launcher01Helper? = null,
     /** When null, an in-screen debug viewer is used; when set, caller owns the viewer (main shell). */
     onViewDebugLogs: (() -> Unit)? = null
@@ -152,7 +150,6 @@ fun PluctHomeScreen(
             onViewDebugLogs = openDebugLogs,
             onQueueForLater = onQueueForLater,
             isLoadingCreditBalance = isLoadingCreditBalance,
-            onNavigateToLibrary = onNavigateToLibrary,
             onRefreshCreditBalance = onRefreshCreditBalance
         )
     }
@@ -233,8 +230,7 @@ fun PluctHomeScreen(
 @Composable
 private fun HomeSectionHeader(
     title: String,
-    badge: Int?,
-    onViewAll: () -> Unit
+    badge: Int?
 ) {
     Row(
         modifier = Modifier
@@ -266,15 +262,6 @@ private fun HomeSectionHeader(
                 }
             }
         }
-        TextButton(
-            onClick = onViewAll,
-            modifier = Modifier.semantics {
-                testTag = "home_view_all_${title.lowercase()}"
-                contentDescription = "View all $title"
-            }
-        ) {
-            Text("View all", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-        }
     }
 }
 
@@ -304,7 +291,6 @@ private fun HomeContent(
     onViewDebugLogs: () -> Unit = {},
     onQueueForLater: ((String, QueueReason) -> Unit)? = null,
     isLoadingCreditBalance: Boolean = false,
-    onNavigateToLibrary: () -> Unit = {},
     onRefreshCreditBalance: () -> Unit = {}
 ) {
     val activeVideosAll = remember(uniqueVideos) {
@@ -329,6 +315,7 @@ private fun HomeContent(
             .fillMaxSize()
             .padding(paddingValues)
             .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -380,7 +367,7 @@ private fun HomeContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "We'll get the text and clean it up for you.",
+                        text = "Text will appear here.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
                         maxLines = 1,
@@ -394,8 +381,7 @@ private fun HomeContent(
             item {
                 HomeSectionHeader(
                     title = "Active",
-                    badge = activeVideosAll.size,
-                    onViewAll = onNavigateToLibrary
+                    badge = activeVideosAll.size
                 )
             }
             items(activeVideos, key = { it.id }) { video ->
@@ -420,8 +406,7 @@ private fun HomeContent(
             item {
                 HomeSectionHeader(
                     title = "Recent",
-                    badge = null,
-                    onViewAll = onNavigateToLibrary
+                    badge = null
                 )
             }
             items(recentVideos, key = { it.id }) { video ->

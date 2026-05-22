@@ -6,7 +6,7 @@ const path = require('path');
  * Journey-UX-30PluctMockupParityVisual-01Validation
  * Customer / Realism & Simplicity / Speed & Trust:
  * Cold start, dismiss overlays, verify-retry UI dump for mockup-parity surfaces:
- * wallet copy ("Wallet:" or "Free uses:"), paste placeholder, promise line, section tags,
+ * wallet copy ("uses left"), paste placeholder, promise line, section tags,
  * thicker progress semantics, logcat FATAL guard, bottom-nav round trip.
  */
 class JourneyUX30PluctMockupParityVisual01Validation extends BaseJourney {
@@ -100,12 +100,11 @@ class JourneyUX30PluctMockupParityVisual01Validation extends BaseJourney {
         const u = homeRaw.toLowerCase();
         const missing = [];
         if (!u.includes('paste tiktok')) missing.push('paste_placeholder');
-        if (!u.includes("we'll get the text") && !u.includes('clean it up')) missing.push('value_promise');
-        if (!u.includes('example:') && !u.includes('vt.tiktok.com')) missing.push('example_hint');
+        if (!u.includes('text will appear here') && !u.includes('home_value_promise_line')) missing.push('value_promise');
+        if (!u.includes('tiktok link:') && !u.includes('vt.tiktok.com')) missing.push('example_hint');
         const walletOk =
-            u.includes('wallet:') ||
-            u.includes('free uses:') ||
-            u.includes('wallet amount') ||
+            u.includes('uses left') ||
+            u.includes('loading uses left') ||
             u.includes('capture_wallet_chip');
         if (!walletOk) missing.push('wallet_semantics');
         if (!u.includes('home_section_active') && !(u.includes('view all') && u.includes('active'))) {

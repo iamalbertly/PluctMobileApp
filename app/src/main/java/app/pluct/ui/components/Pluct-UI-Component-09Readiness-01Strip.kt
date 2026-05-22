@@ -68,7 +68,7 @@ fun PluctUIComponent09Readiness01Strip(
         }
         PluctUIReadiness01Kind.NO_CREDITS -> {
             icon = Icons.Default.AccountBalanceWallet
-            title = "No balance"
+            title = "No uses left"
             subtitle = "Add to continue"
             primaryLabel = "Add"
             onPrimary = onOpenMoney

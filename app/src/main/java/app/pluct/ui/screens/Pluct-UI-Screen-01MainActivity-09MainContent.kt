@@ -645,7 +645,6 @@ fun PluctMainContent(
                     onThemeModeChange = onThemeModeChange,
                     useInnerScaffold = false,
                     innerContentPadding = padding,
-                    onNavigateToLibrary = { mainShellTab = PluctUIMainShellTab.LIBRARY },
                     permissionLauncherHelper = permissionLauncherHelper,
                     onViewDebugLogs = { showDebugLogViewerMain = true }
                 )

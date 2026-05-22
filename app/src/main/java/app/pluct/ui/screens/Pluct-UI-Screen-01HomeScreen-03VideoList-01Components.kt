@@ -479,9 +479,9 @@ private fun compactHistorySecondaryLine(video: VideoItem): String {
     }
     val status = when (video.status) {
         ProcessingStatus.COMPLETED -> "Done"
-        ProcessingStatus.PROCESSING -> "Reserved 1"
+        ProcessingStatus.PROCESSING -> "Working"
         ProcessingStatus.QUEUED -> "Waiting"
-        ProcessingStatus.FAILED -> "Not charged"
+        ProcessingStatus.FAILED -> "Saved"
         else -> "Saved"
     }
     return listOf(duration, "Text", status).filter { it.isNotBlank() }.joinToString(" · ")

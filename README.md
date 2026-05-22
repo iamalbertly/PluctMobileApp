@@ -6,12 +6,13 @@ Pluct is a cutting-edge mobile application that provides instant AI-powered tran
 
 ## Current SSOT Status - 2026-05-22
 
-- Business Engine production Worker `3f4dfe6a-033d-47e7-b818-2f949d341471` is the current deployed control plane for app policy, wallet quote/fulfill, service health, and Android update routing.
-- `GET /v1/public/client-policy` is the single app policy source for Android hard/soft update state, APK or Play Store fallback URL, version codes, feature gates, wallet fulfillment, free tier, and legacy vend-token compatibility.
-- `GET /downloads/android/latest.apk` currently resolves to the Play Store fallback with short public cache headers. Set Business Engine `MOBILE_APK_URL` when a signed APK artifact should be delivered directly.
+- Business Engine production Worker `be924cdc-4c3d-41d7-90bb-e06282f0ff5c` is the current deployed control plane for app policy, wallet quote/fulfill, service health, and Android update routing.
+- `GET /v1/public/client-policy` is the single app policy source for Android hard/soft update state, APK or fallback URL, version codes, feature gates, wallet fulfillment, free tier, and legacy vend-token compatibility.
+- `GET /downloads/android/latest.apk` currently redirects to `https://apknow.one/rSqOHsZVNusERyU` with short public cache headers. `MOBILE_PLAY_STORE_URL` intentionally stays blank until an official listing exists; set Business Engine `MOBILE_APK_URL` when a signed APK artifact should be delivered directly.
 - New paid work follows quote -> fulfill -> job status. `/v1/vend-token` remains compatibility authorization plumbing for older app paths.
-- Automated validation starts with latest touched surfaces, then recent failures, then high-priority journeys. The validated path for this update was `Journey-APIConnectivity`, Business Engine credits, direct-to-value readiness, battery refresh, and notification dedupe.
+- Automated validation starts with latest touched surfaces, then recent failures, then high-priority journeys. The validated path for this update was `Journey-APIConnectivity`, `Journey-UX-31DirectValue-FatigueGuard-01Validation`, Business Engine wallet/API coverage, direct-to-value readiness, visual parity, intent guard, and onboarding parity.
 - Android journey automation is Node + ADB/UIAutomator. Playwright MCP is only for Business Engine web/admin surfaces.
+- Home now uses the senior-friendly phrase `uses left`, removes duplicate section-level `View all` actions, protects the bottom row from nav-bar clipping, and keeps the primary paste-to-value card visible without extra navigation.
 
 ## ✨ **Key Features**
 
@@ -312,6 +313,8 @@ npm run test:updated
 ### **Node Journey Coverage**
 The current focused journeys validate the core user paths:
 
+Direct value fatigue coverage is anchored by `scripts/nodejs/journeys/Journey-UX-31DirectValue-FatigueGuard-01Validation.js`: it verifies the first screen keeps paste, uses-left wallet signal, no legacy balance/no-charge confusion, no duplicate `View all`, production policy, APK redirect, bottom navigation, and logcat crash guard.
+
 - **🎯 App Launch**: UI component validation and initialization
 - **📤 Share Intent**: TikTok URL handling and capture sheet display
 - **⚡ Quick Scan**: Button interaction and processing initiation
@@ -331,6 +334,13 @@ The current focused journeys validate the core user paths:
 ```
 
 ## 🔧 **Technical Implementation**
+
+Latest production device validation:
+- `.\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1`
+- `.\gradlew.bat :app:assembleDebug --no-daemon --max-workers=1`
+- `adb install -r app\build\outputs\apk\debug\app-debug.apk`
+- `npm run test:updated` -> `PASS_FULL_DEVICE`
+- Business Engine `npm run test:all` -> 24/24 CLI E2E plus unit and Playwright coverage passed.
 
 ### **Core Services**
 
@@ -533,7 +543,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Recent Updates
 
-### v2.10.1 - Request Identity + Update Gate Hardening (Current)
+### v2.10.2 - Direct Value Home + APK Fallback Trust (Current)
+
+**UX/Reliability Improvements:**
+1. Home copy now says `uses left` everywhere visible in the main flow, removing the vague balance/credit wording that slowed non-English users.
+2. The paste card uses shorter placeholder and example text so the direct-to-value action stays readable on small screens.
+3. Active/recent section headers no longer duplicate `View all`, reducing false navigation choices.
+4. History status text removes `Not charged` noise and uses simpler saved/working signals.
+5. Home list bottom padding prevents the bottom navigation from covering the last recent item.
+6. Queue/low-use prompts say `Save` and `Add uses`, matching the action the user actually needs.
+7. Header wallet copy can show available uses and waiting work in one compact signal.
+8. Production Android download routing now uses the temporary APK fallback while Play Store is intentionally blank.
+9. A release helper script validates an APK URL, updates Business Engine `MOBILE_APK_URL`, deploys, and rechecks policy/download routing.
+
+**Edge Cases Covered:**
+1. Zero or one use uses correct singular/plural copy.
+2. A stale capture sheet is dismissed before direct-value UI validation.
+3. Older tests accept the new simple value copy instead of failing on retired balance wording.
+4. APK policy is not allowed to invent a Play Store URL before the official listing exists.
+5. ADB validation fails on first crash/ANR/logcat fatal after the updated UI path.
+
+**Validation:**
+- `:app:compileDebugKotlin`, `:app:assembleDebug`, `adb install -r`, and `npm run test:updated` passed against the connected device.
+- Business Engine `npm run test:all` passed after deployment, with CLI E2E request reports redacting privileged headers.
+
+### v2.10.1 - Request Identity + Update Gate Hardening
 
 **UX/Reliability Improvements:**
 1. Mobile now sends both `X-Request-ID` and canonical `X-Client-Request-Id` so retries resolve to the same backend job.

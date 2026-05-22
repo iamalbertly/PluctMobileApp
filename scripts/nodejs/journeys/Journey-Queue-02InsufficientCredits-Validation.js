@@ -57,7 +57,7 @@ class JourneyQueue02InsufficientCreditsValidation extends BaseJourney {
                 urlTap = await this.core.tapByContentDesc('Video URL input field');
             }
             if (!urlTap.success) {
-                urlTap = await this.core.tapByText('Paste TikTok link here');
+                urlTap = await this.core.tapByText('Paste TikTok link');
             }
             if (!urlTap.success) {
                 urlTap = await this.core.tapFirstEditText();
@@ -94,19 +94,23 @@ class JourneyQueue02InsufficientCreditsValidation extends BaseJourney {
             
             // Step 5: Verify "Save for Later" button visible
             this.core.logger.info('📱 Step 5: Verifying "Save for Later" button...');
-            const hasSaveForLater = uiDump.includes('Save for Later') || 
+            const hasSaveForLater = uiDump.includes('Save') ||
+                                   uiDump.includes('Save for Later') ||
                                    uiDump.includes('Save for later');
             
             if (!hasSaveForLater) {
-                return { success: false, error: 'Save for Later button not found' };
+                return { success: false, error: 'Save button not found' };
             }
             this.core.logger.info('✅ Save for Later button found');
             
             // Step 6: Tap "Save for Later"
             this.core.logger.info('📱 Step 6: Tapping "Save for Later"...');
-            const saveTap = await this.core.tapByText('Save for Later');
+            let saveTap = await this.core.tapByText('Save');
             if (!saveTap.success) {
-                return { success: false, error: 'Save for Later button tap failed' };
+                saveTap = await this.core.tapByText('Save for Later');
+            }
+            if (!saveTap.success) {
+                return { success: false, error: 'Save button tap failed' };
             }
             await this.core.sleep(2000);
             

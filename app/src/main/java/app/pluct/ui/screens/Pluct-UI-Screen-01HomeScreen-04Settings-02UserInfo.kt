@@ -27,7 +27,7 @@ fun PluctUIScreen01HomeScreen04Settings02UserInfoSection(
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "Balance: $creditBalance",
+            text = "$creditBalance ${if (creditBalance == 1) "use" else "uses"} left",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
         )

@@ -32,6 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
+private fun usesLeftLabel(creditBalance: Int): String =
+    "$creditBalance ${if (creditBalance == 1) "use" else "uses"} left"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctHomeShellTopBar(
@@ -57,9 +60,9 @@ fun PluctHomeShellTopBar(
                 )
                 Text(
                     text = when {
-                        waitingCount > 0 && creditBalance < 1 -> "$waitingCount waiting · Need balance"
-                        waitingCount > 0 -> "Balance $creditBalance · Waiting $waitingCount"
-                        else -> "Balance $creditBalance"
+                        waitingCount > 0 && creditBalance < 1 -> "$waitingCount waiting"
+                        waitingCount > 0 -> "${usesLeftLabel(creditBalance)} � $waitingCount waiting"
+                        else -> usesLeftLabel(creditBalance)
                     },
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
@@ -209,13 +212,13 @@ private fun CreditBalanceChip(
     val label = when {
         isLoading -> "..."
         error != null -> "!"
-        else -> "Balance $creditBalance"
+        else -> usesLeftLabel(creditBalance)
     }
     val description = when {
-        isLoading -> "Loading wallet balance"
-        error != null -> "Wallet balance error: $error"
-        lowBalance -> "Wallet balance: $creditBalance units - low balance"
-        else -> "Wallet balance: $creditBalance units"
+        isLoading -> "Loading uses left"
+        error != null -> "Uses left error: $error"
+        lowBalance -> "${usesLeftLabel(creditBalance)} - low"
+        else -> usesLeftLabel(creditBalance)
     } + if (refreshable) " - tap to refresh" else ""
 
     Surface(
@@ -234,7 +237,7 @@ private fun CreditBalanceChip(
     ) {
         Row(
             modifier = Modifier
-                .width(128.dp),
+                .width(136.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
