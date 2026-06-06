@@ -4,15 +4,19 @@
 
 Pluct is a cutting-edge mobile application that provides instant AI-powered transcription services for TikTok videos. Built with modern Android architecture and comprehensive API integration, Pluct delivers seamless video-to-text conversion with real-time processing and intelligent content analysis.
 
-## Current SSOT Status - 2026-05-22
+## Current SSOT Status - 2026-06-06
 
-- Business Engine production Worker `be924cdc-4c3d-41d7-90bb-e06282f0ff5c` is the current deployed control plane for app policy, wallet quote/fulfill, service health, and Android update routing.
-- `GET /v1/public/client-policy` is the single app policy source for Android hard/soft update state, APK or fallback URL, version codes, feature gates, wallet fulfillment, free tier, and legacy vend-token compatibility.
-- `GET /downloads/android/latest.apk` currently redirects to `https://apknow.one/rSqOHsZVNusERyU` with short public cache headers. `MOBILE_PLAY_STORE_URL` intentionally stays blank until an official listing exists; set Business Engine `MOBILE_APK_URL` when a signed APK artifact should be delivered directly.
+- This README is the SSOT for the current mobile/business-engine contract; do not create a separate audit/status markdown file for the same scope.
+- Business Engine local Mission Control is validated at `http://127.0.0.1:8788/admin/dashboard`; browser requests to `/` redirect there while API clients still receive JSON.
+- `GET /v1/public/client-policy` is the single app policy source for Android update state, APK/fallback URL, version codes, feature gates, wallet fulfillment, weekly free-use state, and legacy vend-token compatibility.
+- Android source is now `versionName=1.0.2`, `versionCode=4`. Business Engine policy returns `minimumVersionCode=4`, `latestVersionCode=4`, and forces update only for older clients such as installed `versionCode=3`.
+- Weekly free uses are tracked by the Business Engine as the source of truth. The Android app no longer invents optimistic free-use defaults when the server balance is unknown.
+- Top-up requests use `POST /v1/credits/request` and the dashboard credit-request table; approval/denial is persisted by the Business Engine.
+- TTTranscribe outage handling is surfaced in Mission Control through impact counters, affected users, stuck jobs, and a wake action. Local validation on 2026-06-06 reported `0` affected users, `0` recent failures, and `0` stuck jobs for the local data window.
 - New paid work follows quote -> fulfill -> job status. `/v1/vend-token` remains compatibility authorization plumbing for older app paths.
-- Automated validation starts with latest touched surfaces, then recent failures, then high-priority journeys. The validated path for this update was `Journey-APIConnectivity`, `Journey-UX-31DirectValue-FatigueGuard-01Validation`, Business Engine wallet/API coverage, direct-to-value readiness, visual parity, intent guard, and onboarding parity.
-- Android journey automation is Node + ADB/UIAutomator. Playwright MCP is only for Business Engine web/admin surfaces.
-- Home now uses the senior-friendly phrase `uses left`, removes duplicate section-level `View all` actions, protects the bottom row from nav-bar clipping, and keeps the primary paste-to-value card visible without extra navigation.
+- Automated validation order is latest touched surfaces, last failed tests, then highest-risk journeys. Current validation passed Business Engine build, local client-policy smoke, TTTranscribe impact smoke, and in-app browser dashboard checks with no console warnings/errors.
+- Android build/install validation is blocked by local C: drive capacity. Gradle consumed more than 1.35 GB and hit ENOSPC before producing `app-debug.apk`; generated Gradle/Android caches were cleaned afterward.
+- Android journey automation is Node + ADB/UIAutomator. Browser/Playwright validation is reserved for Business Engine web/admin surfaces.
 
 ## ✨ **Key Features**
 

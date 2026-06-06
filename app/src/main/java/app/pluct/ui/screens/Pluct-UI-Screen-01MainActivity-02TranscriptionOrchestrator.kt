@@ -86,7 +86,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                         )
                     }
                     
-                    onDataLoaded(totalCredits, 3) // Default free uses
+                    onDataLoaded(totalCredits, maxOf(0, balance.freeUsesRemaining))
                 },
                 onFailure = { error ->
                     Log.e("TranscriptionOrchestrator", "Failed to load credit balance: ${error.message}")
@@ -117,7 +117,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                         }
                     )
                     
-                    onDataLoaded(0, 3) // Fallback to 0 credits, not -1
+                    onDataLoaded(0, 0) // Keep Business Engine as the source of truth.
                 }
             )
         } catch (e: Exception) {
@@ -141,7 +141,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 }
             )
             
-            onDataLoaded(0, 3) // Fallback to 0 credits, not -1
+            onDataLoaded(0, 0) // Keep Business Engine as the source of truth.
         }
     }
     

@@ -41,7 +41,7 @@ class PluctUIScreen01MainActivity05CreditManager(
         onCtaMessageUpdate: (String?) -> Unit,
         onVendTokenAttempted: () -> Unit
     ) {
-        // Skip vending when free uses are available or balance is zero
+        // Skip vending when a weekly free use can already cover the next request.
         if (freeUsesRemaining > 0) {
             onVendTokenAttempted()
             debugLogManager.logInfo(
@@ -64,18 +64,6 @@ class PluctUIScreen01MainActivity05CreditManager(
             return
         }
 
-        // Avoid spamming vend-token when we already have credits
-        if (creditBalance > 0 && freeUsesRemaining > 0 && reason == "app_launch") {
-            onVendTokenAttempted()
-            debugLogManager.logInfo(
-                category = "CREDIT_CHECK",
-                operation = "vendToken",
-                message = "Skipping vendToken; credits already available",
-                details = "Balance=$creditBalance FreeUses=$freeUsesRemaining"
-            )
-            return
-        }
-
         onVendTokenAttempted()
         debugLogManager.logInfo(
             category = "CREDIT_CHECK",
@@ -91,11 +79,13 @@ class PluctUIScreen01MainActivity05CreditManager(
         vendResult.fold(
             onSuccess = { vend ->
                 val newBalance = maxOf(creditBalance, vend.balanceAfter)
-                val newFreeUses = maxOf(freeUsesRemaining, vend.balanceAfter)
+                val newFreeUses = maxOf(0, vend.freeUsesRemaining)
                 onBalanceUpdate(newBalance, newFreeUses)
                 onCtaMessageUpdate(
-                    if (vend.balanceAfter >= 1) {
-                        "You have ${vend.balanceAfter} free credits"
+                    if (newFreeUses >= 1) {
+                        "You have $newFreeUses weekly free uses left"
+                    } else if (vend.balanceAfter >= 1) {
+                        "You have ${vend.balanceAfter} credits"
                     } else {
                         "Add credits to unlock transcription"
                     }
@@ -109,14 +99,10 @@ class PluctUIScreen01MainActivity05CreditManager(
                     requestMethod = "POST"
                 )
 
-                // UX IMPROVEMENT #5: Ensure balance updates are immediately visible
-                // Refresh balance to show updated gem counter immediately
                 val balanceResult = apiService.checkUserBalance()
                 balanceResult.onSuccess { balance ->
-                    // Force immediate UI update
-                    onBalanceUpdate(balance.balance, freeUsesRemaining)
                     val totalCredits = maxOf(0, balance.main + balance.bonus)
-                    onBalanceUpdate(totalCredits, maxOf(newFreeUses, totalCredits))
+                    onBalanceUpdate(totalCredits, maxOf(0, balance.freeUsesRemaining))
                 }
             },
             onFailure = { error ->

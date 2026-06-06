@@ -73,7 +73,7 @@ import app.pluct.core.permission.PluctCorePermission01Manager
  */
 @Composable
 fun PluctUIComponent03CaptureCard(
-    freeUsesRemaining: Int = 3,
+    freeUsesRemaining: Int = 0,
     creditBalance: Int = 0,
     onTierSubmit: (String, ProcessingTier) -> Unit = { _, _ -> },
     isProcessing: Boolean = false,
@@ -512,7 +512,7 @@ fun PluctUIComponent03CaptureCard(
                 !isSubmitting &&
                 !isAutoSubmitting &&
                 !isProcessing &&
-                (urlText.isBlank() || isUrlValid || !preFilledUrl.isNullOrBlank()) &&
+                (isUrlValid || !preFilledUrl.isNullOrBlank() || currentJobId != null) &&
                 (!progressNotificationsReady || !backgroundProcessingReady)
             if (shouldShowProgressFix) {
                 Spacer(modifier = Modifier.height(8.dp))

@@ -3,7 +3,6 @@ package app.pluct.ui.screens
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.pluct.shared.PluctRequestIds
 import app.pluct.services.PluctCoreUserIdentification
@@ -11,6 +10,7 @@ import app.pluct.core.debug.PluctCoreDebug01LogManager
 import app.pluct.ui.components.PluctUIComponent05Notification01SnackbarManager
 import androidx.compose.material3.SnackbarHostState
 import app.pluct.core.api.PluctCoreAPI00Constants
+import app.pluct.services.PluctCoreAPIUnifiedService
 
 /**
  * Pluct-UI-Screen-01MainActivity-07CreditRequestHandler
@@ -22,6 +22,7 @@ object PluctUIScreen01MainActivity07CreditRequestHandler {
     
     @Composable
     fun createOnRequestCredits(
+        apiService: PluctCoreAPIUnifiedService,
         userIdentification: PluctCoreUserIdentification,
         debugLogManager: PluctCoreDebug01LogManager,
         snackbarHostState: SnackbarHostState
@@ -46,7 +47,7 @@ object PluctUIScreen01MainActivity07CreditRequestHandler {
                     appendLine("Confirmation Text: $confirmation")
                     appendLine("Timestamp: $timestamp")
                 },
-                requestUrl = "${PluctCoreAPI00Constants.BASE_URL}/v1/user/balance",
+                requestUrl = "${PluctCoreAPI00Constants.BASE_URL}/v1/credits/request",
                 requestMethod = "POST",
                 requestPayload = buildString {
                     appendLine("{")
@@ -60,38 +61,41 @@ object PluctUIScreen01MainActivity07CreditRequestHandler {
             
             // Log success (since this is a manual confirmation flow)
             scope.launch {
-                delay(100) // Small delay to ensure log is written
-                debugLogManager.logInfo(
-                    category = "CREDIT_REQUEST",
-                    operation = "requestCredits",
-                    message = "Credit request acknowledged",
-                    details = buildString {
-                        appendLine("Request ID: $requestId")
-                        appendLine("Status: Acknowledged (manual processing)")
-                        appendLine("User will be notified when credits are applied")
-                        appendLine()
-                        appendLine("Response:")
-                        appendLine("{")
-                        appendLine("  \"status\": \"acknowledged\",")
-                        appendLine("  \"message\": \"Request received for manual processing\",")
-                        appendLine("  \"requestId\": \"$requestId\"")
-                        appendLine("}")
+                apiService.requestCreditTopUp(confirmation, requestId).fold(
+                    onSuccess = {
+                        debugLogManager.logInfo(
+                            category = "CREDIT_REQUEST",
+                            operation = "requestCredits",
+                            message = "Credit request acknowledged",
+                            details = buildString {
+                                appendLine("Request ID: $requestId")
+                                appendLine("Status: Pending admin review")
+                                appendLine("User will be notified when credits are applied")
+                            },
+                            requestUrl = "${PluctCoreAPI00Constants.BASE_URL}/v1/credits/request",
+                            requestMethod = "POST"
+                        )
+                        PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
+                            scope,
+                            snackbarHostState,
+                            "Request sent (ID: ${requestId.take(8)}). We'll verify your payment and apply credits."
+                        )
                     },
-                    requestUrl = "${PluctCoreAPI00Constants.BASE_URL}/v1/user/balance",
-                    requestMethod = "POST",
-                    requestPayload = buildString {
-                        appendLine("{")
-                        appendLine("  \"userId\": \"$userId\",")
-                        appendLine("  \"confirmation\": \"$confirmation\",")
-                        appendLine("  \"clientRequestId\": \"$requestId\"")
-                        appendLine("}")
+                    onFailure = { error ->
+                        debugLogManager.logError(
+                            category = "CREDIT_REQUEST",
+                            operation = "requestCredits",
+                            message = error.message ?: "Credit request failed",
+                            exception = error,
+                            requestUrl = "${PluctCoreAPI00Constants.BASE_URL}/v1/credits/request"
+                        )
+                        PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
+                            scope,
+                            snackbarHostState,
+                            "Could not send request. Check your connection and try again.",
+                            actionLabel = null
+                        )
                     }
-                )
-                
-                PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                    scope,
-                    snackbarHostState,
-                    "Request sent (ID: ${requestId.take(8)}). We'll verify your payment and apply credits."
                 )
             }
         }

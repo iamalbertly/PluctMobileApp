@@ -26,6 +26,11 @@ data class CreditBalanceResponse(
     val reservedUnits: Int = 0,
     val main: Int = 0,
     val bonus: Int = 0,
+    val freeUsesRemaining: Int = 0,
+    val freeWeeklyAllowance: Int = 0,
+    val freeWeeklyUsed: Int = 0,
+    val freeWeeklyResetAt: String? = null,
+    val freeWeeklyWeekStart: String? = null,
     val availableCredits: Int = 0,
     val heldCredits: Int = 0,
     val pendingJobs: Int = 0,
@@ -122,6 +127,11 @@ data class VendTokenResponse(
     val pollingToken: String? = null,
     val expiresIn: Int,
     val balanceAfter: Int,
+    val freeUsesRemaining: Int = 0,
+    val freeWeeklyAllowance: Int = 0,
+    val freeWeeklyUsed: Int = 0,
+    val freeWeeklyResetAt: String? = null,
+    val freeWeeklyWeekStart: String? = null,
     val requestId: String,
     val build: BuildInfo? = null
 )

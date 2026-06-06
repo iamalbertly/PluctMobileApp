@@ -33,7 +33,7 @@ fun PluctUIScreen01MainActivity03StateManager(
 ) {
     // State management
     var creditBalance by remember { mutableStateOf(0) }
-    var freeUsesRemaining by remember { mutableStateOf(3) }
+    var freeUsesRemaining by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var hasLoadedBalanceOnce by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }

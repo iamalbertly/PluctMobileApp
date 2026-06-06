@@ -10,7 +10,7 @@ plugins {
 val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
     ?: System.getenv("PLUCT_ENGINE_BASE_URL")
     ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
-val pluctVersionName = "1.0.1"
+val pluctVersionName = "1.0.2"
 
 android {
     namespace = "app.pluct"
@@ -20,7 +20,7 @@ android {
         applicationId = "app.pluct"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
+        versionCode = 4
         versionName = pluctVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

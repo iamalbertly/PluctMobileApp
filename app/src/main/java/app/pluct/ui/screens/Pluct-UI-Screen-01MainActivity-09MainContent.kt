@@ -546,6 +546,7 @@ fun PluctMainContent(
         )
     } else {
         val onRequestCreditsAction = PluctUIScreen01MainActivity07CreditRequestHandler.createOnRequestCredits(
+            apiService = apiService,
             userIdentification = userIdentification,
             debugLogManager = debugLogManager,
             snackbarHostState = snackbarHostState

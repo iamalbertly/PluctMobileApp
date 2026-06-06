@@ -172,6 +172,18 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         return tokenHandler.vendToken(clientRequestId)
     }
 
+    suspend fun requestCreditTopUp(reference: String, clientRequestId: String = PluctRequestIds.generateCreditRequestId()): Result<Unit> {
+        ensureServerTimeWarmup()
+        val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+        val payload = mapOf(
+            "amount" to 0,
+            "reason" to "top-up",
+            "reference" to reference,
+            "clientRequestId" to clientRequestId
+        )
+        return execute<Any>("POST", "/v1/credits/request", payload, token).map { Unit }
+    }
+
     suspend fun getMetadata(url: String, timeoutMs: Long? = null): Result<MetadataResponse> {
         ensureServerTimeWarmup()
         return metadataHandler.getMetadata(url, timeoutMs)
