@@ -14,6 +14,7 @@ This README is the single source of truth for the current mobile/business-engine
 - Paid work remains quote -> fulfill -> job status. A reservation is committed only after usable delivery and released after Pluct/upstream failure. Cache hits and shared-job joins start free.
 - A pasted or shared URL is saved before readiness checks. Offline, sleeping-service, and exhausted-use states therefore preserve the customer's intent instead of discarding it.
 - Browser validation covers the Business Engine dashboard; Node + ADB/UIAutomator covers the installed Android journey with live UI hierarchy, logcat, and request-volume assertions.
+- Home Fit + Fast First Frame now uses a compact one-wallet header, full-width single-line paste action, default Material 3 navigation indicator, compact saved/demo strip, cached-first rendering, and single-flight mobile sync. Compile, unit, debug, and release builds pass; `PASS_FULL_DEVICE` remains blocked until `Journey-UX-32HomeFitFastFirstFrame-Validation.js` runs with the PIN-locked phone unlocked.
 
 ### Prioritized customer-value contracts
 

@@ -429,6 +429,17 @@ fun PluctUIComponent03CaptureCard(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
+            Text(
+                text = "Paste TikTok link",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.semantics {
+                    contentDescription = "Paste TikTok link to get text"
+                    testTag = "capture_primary_title"
+                }
+            )
+            Spacer(modifier = Modifier.height(6.dp))
             ctaHelperMessage?.let { helper ->
                 val canTapCredits = (helper.contains("Add credits", ignoreCase = true) ||
                     helper.contains("Add balance", ignoreCase = true)) && onRequestCredits != null
@@ -490,6 +501,17 @@ fun PluctUIComponent03CaptureCard(
                 metadataPreview = metadataPreview,
                 showClipboardTikTokPasteChip = showClipboardTikTokPasteChip,
                 fieldRowMinHeight = if (isProcessing) 46.dp else 52.dp
+            )
+            Text(
+                text = "Saved before checks",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(top = 5.dp)
+                    .semantics {
+                        contentDescription = "Links are saved before checks"
+                        testTag = "capture_saved_before_checks"
+                    }
             )
 
             // Queue prompt for offline/no-credit scenarios

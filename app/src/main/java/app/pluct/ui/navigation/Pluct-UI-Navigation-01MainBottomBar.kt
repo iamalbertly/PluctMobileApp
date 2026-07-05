@@ -1,6 +1,5 @@
 package app.pluct.ui.navigation
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -32,7 +31,10 @@ fun PluctUIMainShellBottomBar(
 ) {
     val barTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
     NavigationBar(
-        modifier = modifier.height(76.dp),
+        modifier = modifier.semantics {
+            contentDescription = "Main navigation"
+            testTag = "main_bottom_navigation"
+        },
         containerColor = barTint,
         tonalElevation = 0.dp,
         contentColor = MaterialTheme.colorScheme.onSurface
@@ -44,8 +46,6 @@ fun PluctUIMainShellBottomBar(
             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
         )
-        val homeTintUnsel = MaterialTheme.colorScheme.onSurfaceVariant
-        val homeTintSel = MaterialTheme.colorScheme.primary
         val homeSelected = selected == PluctUIMainShellTab.HOME
         NavigationBarItem(
             selected = homeSelected,
@@ -53,17 +53,14 @@ fun PluctUIMainShellBottomBar(
             icon = {
                 Icon(
                     Icons.Default.Home,
-                    contentDescription = null,
-                    tint = if (homeSelected) homeTintSel else homeTintUnsel,
+                    contentDescription = "Home navigation icon",
                     modifier = Modifier.semantics { testTag = "nav_home" }
                 )
             },
-            label = { Text("Home") },
+            label = { Text("Home", maxLines = 1) },
             modifier = Modifier.semantics { contentDescription = "Home tab" },
             colors = colors
         )
-        val libTintUnsel = MaterialTheme.colorScheme.onSurfaceVariant
-        val libTintSel = MaterialTheme.colorScheme.primary
         val libSelected = selected == PluctUIMainShellTab.LIBRARY
         NavigationBarItem(
             selected = libSelected,
@@ -71,17 +68,14 @@ fun PluctUIMainShellBottomBar(
             icon = {
                 Icon(
                     Icons.Default.VideoLibrary,
-                    contentDescription = null,
-                    tint = if (libSelected) libTintSel else libTintUnsel,
+                    contentDescription = "Library navigation icon",
                     modifier = Modifier.semantics { testTag = "nav_library" }
                 )
             },
-            label = { Text("Library") },
+            label = { Text("Library", maxLines = 1) },
             modifier = Modifier.semantics { contentDescription = "Library tab" },
             colors = colors
         )
-        val setTintUnsel = MaterialTheme.colorScheme.onSurfaceVariant
-        val setTintSel = MaterialTheme.colorScheme.primary
         val setSelected = selected == PluctUIMainShellTab.SETTINGS
         NavigationBarItem(
             selected = setSelected,
@@ -89,12 +83,11 @@ fun PluctUIMainShellBottomBar(
             icon = {
                 Icon(
                     Icons.Default.Settings,
-                    contentDescription = null,
-                    tint = if (setSelected) setTintSel else setTintUnsel,
+                    contentDescription = "Settings navigation icon",
                     modifier = Modifier.semantics { testTag = "nav_settings" }
                 )
             },
-            label = { Text("Settings") },
+            label = { Text("Settings", maxLines = 1) },
             modifier = Modifier.semantics { contentDescription = "Settings tab" },
             colors = colors
         )

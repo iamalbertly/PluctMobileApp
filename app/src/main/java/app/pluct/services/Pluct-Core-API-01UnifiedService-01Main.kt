@@ -11,6 +11,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 // TECHNICAL DEBT CLEANUP #2: Removed unused ConcurrentHashMap import (prewarmTimestamps removed)
 import kotlin.jvm.Volatile
 import javax.inject.Inject
@@ -80,7 +85,14 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     private val _transcriptionDebugFlow = MutableStateFlow<TranscriptionDebugInfo?>(null)
     val transcriptionDebugFlow: StateFlow<TranscriptionDebugInfo?> = _transcriptionDebugFlow.asStateFlow()
-    private val _mobileSyncState = MutableStateFlow<MobileSyncResponse?>(null)
+    private val mobileSyncJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    private val mobileSyncPrefs = context.getSharedPreferences("pluct_mobile_sync", Context.MODE_PRIVATE)
+    private val mobileSyncMutex = Mutex()
+    private val _mobileSyncState = MutableStateFlow(
+        mobileSyncPrefs.getString("snapshot_json", null)?.let { raw ->
+            runCatching { mobileSyncJson.decodeFromString<MobileSyncResponse>(raw) }.getOrNull()
+        }
+    )
     val mobileSyncState: StateFlow<MobileSyncResponse?> = _mobileSyncState.asStateFlow()
 
     // Auth retry handler - single source of truth for 401 retry logic
@@ -251,8 +263,8 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         }
     }
 
-    suspend fun refreshMobileSync(force: Boolean = false): Result<MobileSyncResponse> {
-        val prefs = context.getSharedPreferences("pluct_mobile_sync", Context.MODE_PRIVATE)
+    suspend fun refreshMobileSync(force: Boolean = false): Result<MobileSyncResponse> = mobileSyncMutex.withLock {
+        val prefs = mobileSyncPrefs
         val now = System.currentTimeMillis()
         val current = _mobileSyncState.value
         val active = current?.jobs?.changedSinceCursor?.any { it.status in setOf("reserved", "queued", "processing", "joined") } == true
@@ -267,10 +279,11 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                 .putLong("checked_at", now)
                 .putLong("server_time_ms", snapshot.serverTimeMs)
                 .putString("revision", snapshot.revision)
+                .putString("snapshot_json", mobileSyncJson.encodeToString(snapshot))
                 .apply()
             Log.i("PluctSync", "snapshot mode=${snapshot.budgetMode} service=${snapshot.service.state} jobs=${snapshot.jobs.changedSinceCursor.size} next=${snapshot.nextSyncAfterSeconds}s")
         }
-        return result
+        result
     }
 
     /**

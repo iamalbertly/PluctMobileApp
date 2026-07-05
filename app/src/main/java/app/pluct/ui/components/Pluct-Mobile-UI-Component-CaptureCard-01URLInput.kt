@@ -4,27 +4,21 @@ package app.pluct.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
@@ -46,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -53,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +86,9 @@ fun PluctURLInputField(
     val clipboardManager = LocalClipboardManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val view = LocalView.current
+    val configuration = LocalConfiguration.current
+    val fontScale = LocalDensity.current.fontScale
+    val showSecondaryPaste = configuration.screenWidthDp >= 360 && fontScale <= 1.15f
     val sanitizer = remember { PluctCoreValidationInputSanitizer() }
     val isUrlValid = remember(urlText, validationError) {
         urlText.isNotBlank() && (validationError == null || sanitizer.validateUrl(urlText).isValid)
@@ -100,22 +100,6 @@ fun PluctURLInputField(
     val showMetaRow = metadataPreview != null && urlNorm.isNotEmpty() &&
         normalizeUrl(metadataPreview.url) == urlNorm
     val showFab = urlText.isNotEmpty() && isUrlValid && onSubmit != null
-    val walletLabel = when {
-        isLoadingCreditBalance -> "…"
-        freeUsesRemaining > 0 -> "$freeUsesRemaining"
-        else -> "$creditBalance"
-    }
-    val walletUnitsText = when {
-        isLoadingCreditBalance -> ""
-        (freeUsesRemaining + creditBalance) == 1 -> "use"
-        else -> "uses"
-    }
-    val walletDescription = when {
-        isLoadingCreditBalance -> "Loading uses left"
-        freeUsesRemaining > 0 -> "$freeUsesRemaining $walletUnitsText left. Tap to refresh."
-        else -> "$creditBalance $walletUnitsText left. Tap to refresh."
-    }
-
     fun pasteFromClipboard() {
         val clipData = clipboardManager.getText() ?: return
         val pasted = clipData.toString()
@@ -144,70 +128,6 @@ fun PluctURLInputField(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Surface(
-                modifier = Modifier
-                    .widthIn(min = 52.dp, max = 70.dp)
-                    .heightIn(min = 54.dp, max = 64.dp)
-                    .clickable(enabled = onWalletClick != null) { onWalletClick?.invoke() }
-                    .semantics {
-                        testTag = "capture_wallet_chip"
-                        contentDescription = walletDescription
-                    },
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 5.dp, vertical = 5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountBalanceWallet,
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    if (isLoadingCreditBalance) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else if (freeUsesRemaining > 0) {
-                        Text(
-                            text = walletLabel,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = walletUnitsText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
-                        )
-                    } else {
-                        Text(
-                            text = "$walletLabel $walletUnitsText",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(fieldRowMinHeight - 8.dp)
-                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
-            )
-
             Column(modifier = Modifier.weight(1f)) {
                 if (showMetaRow) {
                     val meta = metadataPreview!!
@@ -327,7 +247,9 @@ fun PluctURLInputField(
                                         Text(
                                             "Paste TikTok link",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                     innerTextField()
@@ -347,7 +269,7 @@ fun PluctURLInputField(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-                        } else if (showClipboardTikTokPasteChip) {
+                        } else if (showSecondaryPaste && showClipboardTikTokPasteChip) {
                             AssistChip(
                                 onClick = {
                                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -363,7 +285,7 @@ fun PluctURLInputField(
                                     labelColor = MaterialTheme.colorScheme.primary
                                 )
                             )
-                        } else {
+                        } else if (showSecondaryPaste) {
                             IconButton(
                                 onClick = {
                                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)

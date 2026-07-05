@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +30,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 private fun usesLeftLabel(creditBalance: Int): String =
@@ -38,54 +38,33 @@ private fun usesLeftLabel(creditBalance: Int): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluctHomeShellTopBar(
-    onSettingsClick: () -> Unit,
+    onUsesClick: () -> Unit,
     creditBalance: Int = 0,
-    waitingCount: Int = 0,
+    isCreditBalanceLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     TopAppBar(
         title = {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PluctUIComponent02Branding01LogoMark(size = 30.dp)
+                PluctUIComponent02Branding01LogoMark(size = 28.dp)
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = "Pluct",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1
                 )
-                Text(
-                    text = when {
-                        waitingCount > 0 && creditBalance < 1 -> "$waitingCount waiting"
-                        waitingCount > 0 -> "${usesLeftLabel(creditBalance)} · $waitingCount waiting"
-                        else -> usesLeftLabel(creditBalance)
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        },
-        actions = {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier
-                    .size(44.dp)
-                    .semantics {
-                        contentDescription = "Settings button"
-                        testTag = "settings_button"
-                    }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp)
+                Spacer(Modifier.weight(1f))
+                CreditBalanceChip(
+                    creditBalance = creditBalance,
+                    isLoading = isCreditBalanceLoading,
+                    error = null,
+                    onRefresh = onUsesClick,
+                    refreshable = true
                 )
             }
         },
@@ -94,9 +73,7 @@ fun PluctHomeShellTopBar(
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             actionIconContentColor = MaterialTheme.colorScheme.onBackground
         ),
-        modifier = modifier
-            .padding(horizontal = 16.dp)
-            .semantics {
+        modifier = modifier.semantics {
                 contentDescription = "App header"
                 testTag = "home_shell_top_bar"
             }
@@ -212,7 +189,7 @@ private fun CreditBalanceChip(
     val label = when {
         isLoading -> "..."
         error != null -> "!"
-        else -> usesLeftLabel(creditBalance)
+        else -> "$creditBalance ${if (creditBalance == 1) "use" else "uses"}"
     }
     val description = when {
         isLoading -> "Loading uses left"
@@ -229,6 +206,7 @@ private fun CreditBalanceChip(
         },
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier
+            .heightIn(min = 36.dp)
             .then(if (refreshable) Modifier.clickable { onRefresh() } else Modifier)
             .semantics {
                 testTag = "header_credit_balance_chip"
@@ -237,7 +215,7 @@ private fun CreditBalanceChip(
     ) {
         Row(
             modifier = Modifier
-                .width(136.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {

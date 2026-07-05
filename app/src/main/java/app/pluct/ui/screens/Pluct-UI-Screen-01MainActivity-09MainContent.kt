@@ -93,13 +93,14 @@ fun PluctMainContent(
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(policyUrl)))
     }
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+    val cachedSyncAtComposition = remember(apiService) { apiService.mobileSyncState.value }
     
     // State management - no optimistic fake balance (Speed & Trust)
-    var creditBalance by remember { mutableStateOf(0) }
+    var creditBalance by remember { mutableStateOf(cachedSyncAtComposition?.wallet?.availableUses ?: 0) }
     var freeUsesRemaining by remember { mutableStateOf(0) }
-    var balanceKnown by remember { mutableStateOf(false) }
+    var balanceKnown by remember { mutableStateOf(cachedSyncAtComposition != null) }
     var balanceLoadFailed by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(cachedSyncAtComposition == null) }
     var hasLoadedBalanceOnce by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentError by remember { mutableStateOf<Throwable?>(null) }
@@ -123,6 +124,7 @@ fun PluctMainContent(
         .collectAsState(initial = emptyList())
     val queuedCount = queuedVideos.value.size
     val processingCount = processingVideos.value.size
+    val mobileSyncSnapshot by apiService.mobileSyncState.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -295,64 +297,35 @@ fun PluctMainContent(
         }
     }
     
-    LaunchedEffect(Unit) {
-        isLoading = true
-        onLoadingCreditBalanceChange(true)
-        balanceKnown = false
+    // First frame uses the persisted sync snapshot. The foreground lifecycle refresh updates
+    // this state later; rendering never waits for wallet, policy, service, or Premium I/O.
+    LaunchedEffect(mobileSyncSnapshot) {
+        val snapshot = mobileSyncSnapshot ?: return@LaunchedEffect
+        creditBalance = snapshot.wallet.availableUses
+        freeUsesRemaining = 0
+        balanceKnown = true
         balanceLoadFailed = false
-        Log.i("MainActivity", "Truth-first balance load started (no optimistic credits)")
+        hasLoadedBalanceOnce = true
+        isLoading = false
+        onLoadingCreditBalanceChange(false)
+        hardUpdateRequired = snapshot.policy.hardUpdate ||
+            app.pluct.BuildConfig.VERSION_CODE < snapshot.policy.minimumVersionCode
+        softUpdateAvailable = !hardUpdateRequired &&
+            app.pluct.BuildConfig.VERSION_CODE < snapshot.policy.recommendedVersionCode
+        ctaHelperMessage = when {
+            hardUpdateRequired -> PluctClientPolicyModels.HARD_UPDATE_CTA
+            creditBalance < 1 -> "Add uses to process saved links"
+            else -> null
+        }
+        Log.i("PluctFirstFrame", "cached_snapshot_applied revision=${snapshot.revision.take(12)} uses=$creditBalance")
+    }
 
-        scope.launch {
-            try {
-                fetchCreditBalance()
-                balanceKnown = true
-                balanceLoadFailed = false
-                hasLoadedBalanceOnce = true
-                Log.i(
-                    "MainActivity",
-                    "Balance fetch completed: $creditBalance credits, $freeUsesRemaining free uses; hasLoadedBalanceOnce=true"
-                )
-
-                if (creditBalance < 1 && freeUsesRemaining < 1) {
-                    Log.d("MainActivity", "No credits available, attempting token vend in background")
-                    vendTokenWithBalanceUpdate(reason = "app_launch")
-                } else {
-                    hasVendTokenAttempted = true
-                    ctaHelperMessage = if (creditBalance > 0) null else "Add credits to unlock transcription"
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Background balance fetch failed: ${e.message}", e)
-                Log.i("MainActivity", "Balance fetch ended with error (truth-first, no optimistic credits): ${e.message}")
-                balanceKnown = true
-                balanceLoadFailed = true
-                hasLoadedBalanceOnce = true
-                creditBalance = 0
-                freeUsesRemaining = 0
-                errorMessage = "Could not verify credits"
-                ctaHelperMessage = "Add credits to unlock transcription"
-            } finally {
-                isLoading = false
-                onLoadingCreditBalanceChange(false)
-            }
-
-            val feedback = PluctUserPreferences.getAndClearIntentFeedback(context)
-            feedback?.let {
-                if (it.isError) {
-                    PluctUIComponent05Notification01SnackbarManager.showErrorAsync(
-                        scope, snackbarHostState, it.message
-                    )
-                } else {
-                    val shouldSuppressToast = !prefilledUrl.isNullOrBlank() &&
-                        balanceKnown &&
-                        (creditBalance >= 1 || freeUsesRemaining > 0)
-
-                    if (!shouldSuppressToast) {
-                        PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(
-                            scope, snackbarHostState, it.message
-                        )
-                    }
-                }
-            }
+    LaunchedEffect(Unit) {
+        val feedback = PluctUserPreferences.getAndClearIntentFeedback(context) ?: return@LaunchedEffect
+        if (feedback.isError) {
+            PluctUIComponent05Notification01SnackbarManager.showErrorAsync(scope, snackbarHostState, feedback.message)
+        } else if (prefilledUrl.isNullOrBlank()) {
+            PluctUIComponent05Notification01SnackbarManager.showSuccessAsync(scope, snackbarHostState, feedback.message)
         }
     }
     
@@ -567,9 +540,9 @@ fun PluctMainContent(
             topBar = {
                 when (mainShellTab) {
                     PluctUIMainShellTab.HOME -> PluctHomeShellTopBar(
-                        onSettingsClick = { mainShellTab = PluctUIMainShellTab.SETTINGS },
+                        onUsesClick = { mainShellTab = PluctUIMainShellTab.SETTINGS },
                         creditBalance = creditBalance,
-                        waitingCount = queuedCount
+                        isCreditBalanceLoading = isLoading || !balanceKnown
                     )
                     PluctUIMainShellTab.LIBRARY -> CenterAlignedTopAppBar(
                         title = { Text("Library") }

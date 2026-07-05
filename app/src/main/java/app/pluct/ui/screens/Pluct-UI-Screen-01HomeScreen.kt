@@ -317,9 +317,9 @@ private fun HomeContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             PluctUIComponent09Readiness01Strip(
