@@ -50,6 +50,20 @@ class PluctQueueManager(
                 Log.d(TAG, "Video already completed, not queueing duplicate: $url")
                 return Result.success(existingVideo)
             }
+            if (existingVideo != null) {
+                val queuedExisting = existingVideo.copy(
+                    status = ProcessingStatus.QUEUED,
+                    progress = 0,
+                    tier = tier,
+                    queueReason = reason,
+                    queuedAt = System.currentTimeMillis(),
+                    title = metadata?.title?.takeIf { it.isNotBlank() } ?: existingVideo.title,
+                    thumbnailUrl = metadata?.thumbnail ?: existingVideo.thumbnailUrl,
+                    author = metadata?.author?.removePrefix("@") ?: existingVideo.author,
+                    duration = metadata?.duration?.toLong() ?: existingVideo.duration
+                )
+                return videoRepository.updateVideo(queuedExisting).map { queuedExisting }
+            }
             
             val videoId = System.currentTimeMillis().toString()
             val inferredAuthor = metadata?.author?.takeIf { it.isNotBlank() }

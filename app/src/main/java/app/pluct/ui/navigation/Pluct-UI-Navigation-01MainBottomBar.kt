@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 
@@ -40,9 +41,9 @@ fun PluctUIMainShellBottomBar(
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         val colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
             selectedTextColor = MaterialTheme.colorScheme.primary,
-            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            indicatorColor = MaterialTheme.colorScheme.primary,
             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
         )
@@ -58,7 +59,14 @@ fun PluctUIMainShellBottomBar(
                 )
             },
             label = { Text("Home", maxLines = 1) },
-            modifier = Modifier.semantics { contentDescription = "Home tab" },
+            modifier = Modifier.semantics {
+                contentDescription = if (homeSelected) {
+                    "Home tab selected, Home navigation icon"
+                } else {
+                    "Home tab, Home navigation icon"
+                }
+                this.selected = homeSelected
+            },
             colors = colors
         )
         val libSelected = selected == PluctUIMainShellTab.LIBRARY
@@ -73,7 +81,14 @@ fun PluctUIMainShellBottomBar(
                 )
             },
             label = { Text("Library", maxLines = 1) },
-            modifier = Modifier.semantics { contentDescription = "Library tab" },
+            modifier = Modifier.semantics {
+                contentDescription = if (libSelected) {
+                    "Library tab selected, Library navigation icon"
+                } else {
+                    "Library tab, Library navigation icon"
+                }
+                this.selected = libSelected
+            },
             colors = colors
         )
         val setSelected = selected == PluctUIMainShellTab.SETTINGS
@@ -88,7 +103,14 @@ fun PluctUIMainShellBottomBar(
                 )
             },
             label = { Text("Settings", maxLines = 1) },
-            modifier = Modifier.semantics { contentDescription = "Settings tab" },
+            modifier = Modifier.semantics {
+                contentDescription = if (setSelected) {
+                    "Settings tab selected, Settings navigation icon"
+                } else {
+                    "Settings tab, Settings navigation icon"
+                }
+                this.selected = setSelected
+            },
             colors = colors
         )
     }

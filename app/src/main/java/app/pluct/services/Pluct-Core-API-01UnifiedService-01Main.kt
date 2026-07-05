@@ -272,7 +272,7 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         if (!force && current != null && now - prefs.getLong("checked_at", 0L) < maxAgeMs) return Result.success(current)
         val token = jwtGenerator.generateUserJWT(userIdentification.userId)
         val since = prefs.getLong("server_time_ms", 0L)
-        val result = execute<MobileSyncResponse>("GET", "/v1/mobile/sync?since=$since", null, token)
+        val result = execute<MobileSyncResponse>("GET", "/v1/mobile/sync?since=$since&versionCode=${app.pluct.BuildConfig.VERSION_CODE}", null, token)
         result.onSuccess { snapshot ->
             _mobileSyncState.value = snapshot
             prefs.edit()

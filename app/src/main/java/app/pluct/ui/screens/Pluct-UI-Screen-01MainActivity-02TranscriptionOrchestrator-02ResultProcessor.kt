@@ -113,6 +113,11 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
         
         // UX FIX #3: Extract confidence score from response (check both top-level and result.confidence)
         val confidenceScore = statusResponse.confidence ?: statusResponse.result?.confidence
+        val resolvedTitle = sequenceOf(currentVideoItem?.title, existingVideo.title)
+            .filterNotNull()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() && it != "Getting text..." && it != "Waiting for text" }
+            ?: transcriptText.substringBefore('.').trim().take(56).ifBlank { "TikTok transcript" }
         
         // Update video item with completed status and transcript
         val completedItem = existingVideo.copy(
@@ -121,7 +126,7 @@ object PluctUIScreen01MainActivityTranscriptionOrchestratorResultProcessor {
             transcript = transcriptText,
             duration = (statusResponse.duration ?: statusResponse.result?.duration ?: 0).toLong(),
             jobId = statusResponse.jobId,
-            title = currentVideoItem?.title ?: existingVideo.title,
+            title = resolvedTitle,
             author = currentVideoItem?.author ?: existingVideo.author,
             thumbnailUrl = currentVideoItem?.thumbnailUrl ?: existingVideo.thumbnailUrl,
             description = currentVideoItem?.description ?: existingVideo.description,

@@ -217,47 +217,11 @@ fun PluctUIComponent03CaptureCard(
             processingMessage = "Checking cost..."
             Log.d("CaptureCard", "Set processingMessage: $processingMessage")
 
-            if (apiService != null) {
-                Log.d("CaptureCard", "API service available, calling handleCompleteAPIFlow")
-                PluctUIComponent03CaptureCardAPIFlow.handleCompleteAPIFlow(
-                    normalizedUrl = normalizedUrl,
-                    apiService = apiService,
-                    debugLogManager = debugLogManager,
-                    onSuccess = {
-                        Log.d("CaptureCard", "API flow completed successfully")
-                        persistentError = null
-                        onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
-                        onComplete()
-                    },
-                    onError = { error ->
-                        Log.e("CaptureCard", "API flow failed: $error")
-                        processingMessage = null
-                        if (error.contains("insufficient", ignoreCase = true) ||
-                            error.contains("balance", ignoreCase = true) ||
-                            error.contains("credit", ignoreCase = true)
-                        ) {
-                            onQueueForLater?.invoke(normalizedUrl, QueueReason.INSUFFICIENT_CREDITS)
-                            queuePromptReason = "No uses left - saved"
-                            showQueuePrompt = true
-                        }
-                        val cat = PluctCoreCategorization01ErrorClassifier.categorizeError(null, error)
-                        persistentError = PersistentError(
-                            message = cat.userFriendlyMessage,
-                            url = normalizedUrl,
-                            timestamp = System.currentTimeMillis(),
-                            category = cat.category.name
-                        )
-                        isSubmitting = false
-                        isAutoSubmitting = false
-                    },
-                    context = context,
-                    shouldMinimize = isAutoSubmitting
-                )
-            } else {
-                Log.w("CaptureCard", "API service is NULL, using fallback submit")
-                onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
-                onComplete()
-            }
+            // One owner performs quote -> fulfill -> poll -> persist. The screen
+            // orchestrator also owns offline recovery and result presentation.
+            onTierSubmit(normalizedUrl, ProcessingTier.EXTRACT_SCRIPT)
+            persistentError = null
+            onComplete()
         }
     }
 

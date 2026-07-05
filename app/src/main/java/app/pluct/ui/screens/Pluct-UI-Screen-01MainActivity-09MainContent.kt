@@ -308,8 +308,9 @@ fun PluctMainContent(
         hasLoadedBalanceOnce = true
         isLoading = false
         onLoadingCreditBalanceChange(false)
-        hardUpdateRequired = snapshot.policy.hardUpdate ||
-            app.pluct.BuildConfig.VERSION_CODE < snapshot.policy.minimumVersionCode
+        // Minimum version code is the release contract. `hardUpdate` historically
+        // represented server mode and must never block an equal/current build.
+        hardUpdateRequired = app.pluct.BuildConfig.VERSION_CODE < snapshot.policy.minimumVersionCode
         softUpdateAvailable = !hardUpdateRequired &&
             app.pluct.BuildConfig.VERSION_CODE < snapshot.policy.recommendedVersionCode
         ctaHelperMessage = when {

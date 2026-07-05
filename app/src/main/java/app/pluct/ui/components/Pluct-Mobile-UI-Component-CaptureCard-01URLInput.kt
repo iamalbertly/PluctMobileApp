@@ -352,21 +352,6 @@ fun PluctURLInputField(
             }
         }
 
-        if (!showMetaRow) {
-                Text(
-                    text = "TikTok link: https://vt.tiktok.com/...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.94f),
-                modifier = Modifier
-                    .padding(start = 4.dp, top = 8.dp)
-                    .fillMaxWidth()
-                    .semantics {
-                        testTag = "capture_url_example_hint"
-                        contentDescription = "Example TikTok link"
-                    }
-            )
-        }
-
         if (validationError != null) {
             Text(
                 text = shortValidationMessage(validationError),

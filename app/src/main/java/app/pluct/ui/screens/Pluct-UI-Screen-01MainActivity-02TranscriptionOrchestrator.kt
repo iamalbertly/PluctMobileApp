@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import app.pluct.core.network.PluctNetworkConnectivityChecker
 import app.pluct.data.entity.ProcessingTier
+import app.pluct.data.entity.ProcessingStatus
 import app.pluct.data.entity.QueueReason
 import app.pluct.data.entity.VideoItem
 import app.pluct.data.repository.PluctVideoRepository
@@ -164,6 +165,23 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
     ) {
         try {
             Log.d("TranscriptionOrchestrator", "Orchestrating transcription: $url with tier: $tier")
+            var currentVideoItem = videoRepository.getVideoByUrl(url)
+            if (currentVideoItem == null) {
+                currentVideoItem = VideoItem(
+                    id = System.currentTimeMillis().toString(),
+                    url = url,
+                    title = "Getting text...",
+                    thumbnailUrl = "",
+                    author = "",
+                    duration = 0L,
+                    status = ProcessingStatus.PROCESSING,
+                    progress = 5,
+                    transcript = null,
+                    timestamp = System.currentTimeMillis(),
+                    tier = tier
+                )
+                videoRepository.insertVideo(currentVideoItem)
+            }
             debugLogManager?.logInfo(
                 category = "TRANSCRIPTION",
                 operation = "processVideo_start",
@@ -220,38 +238,12 @@ object PluctUIScreen01MainActivityTranscriptionOrchestrator {
                 return
             }
             
-            // Deduplication is handled by apiService.processTikTokVideo() via unified coordinator
-            // Fetch metadata to populate title and author (fast-fail to avoid blocking UX on slow /meta)
-            val metadataResult = apiService.getMetadata(url, timeoutMs = 8000L)
-            var currentVideoItem: app.pluct.data.entity.VideoItem? = null
-            
             // Use complete processTikTokVideo flow which handles deduplication, metadata, vending, submission, and polling
             // This ensures the transcript is retrieved and can be saved
             // Note: jobId will be available in the response and stored when transcription completes
             // Deduplication is handled internally by the unified coordinator
             Log.d("TranscriptionOrchestrator", "Starting complete transcription flow with processTikTokVideo...")
             val transcriptionResult = apiService.processTikTokVideo(url)
-            
-            // If metadata was fetched, update the video item (if it exists in database)
-            if (metadataResult.isSuccess) {
-                val metadata = metadataResult.getOrNull()
-                if (metadata != null) {
-                    Log.d("TranscriptionOrchestrator", "Metadata fetched: ${metadata.title}")
-                    val existingVideo = videoRepository.getVideoByUrl(url)
-                    if (existingVideo != null) {
-                        currentVideoItem = existingVideo.copy(
-                            title = metadata.title ?: "",
-                            author = metadata.author ?: "",
-                            thumbnailUrl = metadata.thumbnail ?: existingVideo.thumbnailUrl,
-                            duration = metadata.duration.toLong(),
-                            description = metadata.description
-                        )
-                        videoRepository.updateVideo(currentVideoItem)
-                    }
-                }
-            } else {
-                Log.w("TranscriptionOrchestrator", "Failed to fetch metadata: ${metadataResult.exceptionOrNull()?.message}")
-            }
             
             // Process transcription result using extracted result processor
             val processResult = transcriptionResult.fold(
