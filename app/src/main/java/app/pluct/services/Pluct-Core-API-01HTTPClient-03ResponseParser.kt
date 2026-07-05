@@ -111,6 +111,7 @@ class PluctCoreAPIHTTPClientResponseParser {
                 endpoint.contains("/v1/quote") -> json.decodeFromString<QuoteResponse>(responseBody)
                 endpoint.contains("/v1/fulfill") -> json.decodeFromString<FulfillResponse>(responseBody)
                 endpoint.contains("/v1/jobs") -> parseTranscriptionStatusResponse(responseBody, endpoint)
+                endpoint.contains("/v1/mobile/sync") -> json.decodeFromString<MobileSyncResponse>(responseBody)
                 endpoint.contains("/estimate") -> json.decodeFromString<EstimateResponse>(responseBody)
                 endpoint.contains("/vend-token") -> json.decodeFromString<VendTokenResponse>(responseBody)
                 endpoint.contains("/meta") -> json.decodeFromString<MetadataResponse>(responseBody)

@@ -14,3 +14,4 @@ typealias HealthStatus = app.pluct.shared.HealthStatus
 typealias QuoteResponse = app.pluct.shared.QuoteResponse
 typealias FulfillResponse = app.pluct.shared.FulfillResponse
 typealias JobSettlement = app.pluct.shared.JobSettlement
+typealias MobileSyncResponse = app.pluct.shared.MobileSyncResponse

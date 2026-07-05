@@ -17,10 +17,10 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
     private const val TAG = "AdaptivePolling"
 
     data class PollingConfig(
-        val initialIntervalMs: Long = 2000L,      // Start at 2 seconds
-        val scaleFactor: Float = 1.5f,             // Increase by 50% each cycle
-        val maxIntervalMs: Long = 10000L,          // Cap at 10 seconds
-        val scaleIntervalAttempts: Int = 3        // Scale every 3 attempts
+        val initialIntervalMs: Long = 15000L,
+        val scaleFactor: Float = 2f,
+        val maxIntervalMs: Long = 120000L,
+        val scaleIntervalAttempts: Int = 4
     )
 
     /**
@@ -55,7 +55,7 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
 
         // TECH DEBT #1: Background jobs use 50% longer initial interval to reduce battery/resource usage
         val effectiveInitialInterval = if (isBackground) {
-            (config.initialIntervalMs * 1.5).toLong()
+            (config.initialIntervalMs * 2).toLong()
         } else {
             config.initialIntervalMs
         }
@@ -65,8 +65,6 @@ object PluctUIPolling01AdaptiveIntervalCalculator {
 
         // Cap at maximum (background uses same max)
         interval = min(interval, config.maxIntervalMs)
-
-        Log.d(TAG, "Polling interval for attempt $attemptNumber: ${interval}ms (background=$isBackground, scale=$scalingCycles)")
 
         return interval
     }

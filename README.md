@@ -4,19 +4,78 @@
 
 Pluct is a cutting-edge mobile application that provides instant AI-powered transcription services for TikTok videos. Built with modern Android architecture and comprehensive API integration, Pluct delivers seamless video-to-text conversion with real-time processing and intelligent content analysis.
 
-## Current SSOT Status - 2026-06-06
+## Current SSOT Status - 2026-07-05
 
-- This README is the SSOT for the current mobile/business-engine contract; do not create a separate audit/status markdown file for the same scope.
-- Business Engine local Mission Control is validated at `http://127.0.0.1:8788/admin/dashboard`; browser requests to `/` redirect there while API clients still receive JSON.
-- `GET /v1/public/client-policy` is the single app policy source for Android update state, APK/fallback URL, version codes, feature gates, wallet fulfillment, weekly free-use state, and legacy vend-token compatibility.
-- Android source is now `versionName=1.0.2`, `versionCode=4`. Business Engine policy returns `minimumVersionCode=4`, `latestVersionCode=4`, and forces update only for older clients such as installed `versionCode=3`.
-- Weekly free uses are tracked by the Business Engine as the source of truth. The Android app no longer invents optimistic free-use defaults when the server balance is unknown.
-- Top-up requests use `POST /v1/credits/request` and the dashboard credit-request table; approval/denial is persisted by the Business Engine.
-- TTTranscribe outage handling is surfaced in Mission Control through impact counters, affected users, stuck jobs, and a wake action. Local validation on 2026-06-06 reported `0` affected users, `0` recent failures, and `0` stuck jobs for the local data window.
-- New paid work follows quote -> fulfill -> job status. `/v1/vend-token` remains compatibility authorization plumbing for older app paths.
-- Automated validation order is latest touched surfaces, last failed tests, then highest-risk journeys. Current validation passed Business Engine build, local client-policy smoke, TTTranscribe impact smoke, and in-app browser dashboard checks with no console warnings/errors.
-- Android build/install validation is blocked by local C: drive capacity. Gradle consumed more than 1.35 GB and hit ENOSPC before producing `app-debug.apk`; generated Gradle/Android caches were cleaned afterward.
-- Android journey automation is Node + ADB/UIAutomator. Browser/Playwright validation is reserved for Business Engine web/admin surfaces.
+This README is the single source of truth for the current mobile/business-engine product contract. Do not add another audit, status, plan, or validation markdown file for the same scope.
+
+- Android is `versionName=1.0.3`, `versionCode=5`; release policy is controlled by the Business Engine.
+- `GET /v1/mobile/sync` bundles policy, service readiness, wallet, changed jobs, entitlements, Premium eligibility, budget mode, revision, and the next server-directed sync interval.
+- The Business Engine owns money, entitlement, service, queue, job, budget, and recovery truth. Android owns durable local intent and presentation. TTTranscribe executes transcription only.
+- Paid work remains quote -> fulfill -> job status. A reservation is committed only after usable delivery and released after Pluct/upstream failure. Cache hits and shared-job joins start free.
+- A pasted or shared URL is saved before readiness checks. Offline, sleeping-service, and exhausted-use states therefore preserve the customer's intent instead of discarding it.
+- Browser validation covers the Business Engine dashboard; Node + ADB/UIAutomator covers the installed Android journey with live UI hierarchy, logcat, and request-volume assertions.
+
+### Prioritized customer-value contracts
+
+1. Save intent before network/readiness checks so one tap never loses a link.
+2. Persist one client request ID across retry and process death; rotate it only after a terminal outcome.
+3. Reserve first, charge only after delivered value, and refund service failures.
+4. Join one canonical shared video job before any wallet reservation.
+5. Replace repeated mobile calls with one revision-aware `/v1/mobile/sync` request.
+6. Use server-directed polling from 15 seconds through a 120-second cap and stop idle background polling.
+7. Apply NORMAL, CAREFUL, CONSERVE, EMERGENCY, and LOCKDOWN budget modes without client guessing.
+8. Allow one locked, server-side TTTranscribe recovery attempt after corroborated failures; never expose its secret to Android.
+9. Keep WAKING distinct from HEALTHY and release queued work only after a health proof.
+10. Cache successful output for 30 days but never final-cache temporary service failure.
+11. Record delivered-value margin classes for cache, shared, normal, costly, failed, and abusive work.
+12. Keep a privacy-safe flight recorder that removes transcripts, URLs, credentials, and oversized fields.
+13. Gate releases with replay scenarios for sleeping service, storms, unstable networks, mixed plans, and refunds.
+14. Offer Premium only after successful milestones (7, 15, 30), never during failure, active work, or for Premium users.
+15. Use a local house-ad abstraction rather than adding an ad SDK, network dependency, or tracking cost.
+16. Redact support diagnostics by default and require explicit opt-in for sensitive detail.
+17. Keep test deep links in debug builds only; retain normal share/ingest entry points in release.
+18. Enforce hard update before costly work while keeping compatibility endpoints for older clients.
+19. Bound event batches to 100 and let analytics yield to money, delivery, and recovery traffic.
+20. Delete saved content/subscriber links on privacy deletion while naming retained financial audit classes honestly.
+21. Use customer-readable readiness copy: Saved offline, Saved while service wakes, or Saved - add uses.
+22. Fail automation immediately on UI drift, fatal/ANR logs, command errors, or request storms.
+23. Give operators one Doctor command for readiness, queue, wallet leaks, incidents, and explicit safe repair.
+24. Keep the first mobile and desktop viewport focused on the primary action; move secondary settings/signals behind disclosure.
+
+### Ordinary edge cases that must stay solved
+
+- Two taps, an HTTP retry, or a process restart reuse the same request and cannot double-charge.
+- One hundred users requesting the same video create one upstream job; every subscriber receives the outcome.
+- The owner closes the app while shared work runs; subscribers can still retrieve the result.
+- A submit timeout remains reconcilable; an upstream rejection releases the reservation.
+- A service restart reports WAKING until a later probe passes, and concurrent failures acquire one recovery lock.
+- An unchanged sync returns 304; a stale cursor returns a bounded delta rather than an unbounded history dump.
+- Unknown wallet state is displayed as checking, not a fabricated zero; cached state includes its age.
+- A temporary failure has zero final-cache TTL; unsupported/private outcomes use short, distinct TTLs.
+- Premium is suppressed after failure, dismissal, active processing, service outage, and for existing Premium users.
+- Debug deep links are absent from release; share and ingest still work.
+- Offline completion remains readable, and a queued offline link resumes without repeating capture.
+- The ADB harness restores the phone's original Wi-Fi/mobile-data state even when a step fails.
+
+### Technical-debt and de-duplication rules
+
+- One shared API model/parser replaces per-screen policy, wallet, readiness, and entitlement shapes.
+- One readiness-aware submit handler replaces duplicated click-path branching.
+- One normalized-URL history deduper and one shared-job content hash replace duplicate rows and upstream jobs.
+- One persistent request identity replaces tap-, retry-, and process-specific IDs.
+- One Premium eligibility policy and one milestone component replace scattered promotion decisions.
+- One diagnostics redactor replaces call-site-specific secret masking.
+- Mission Control has one refresh action, one visible primary signal strip, and disclosed secondary signals/target controls.
+- Settings order is Credits, Account, Preferences, Support; the home screen removes repeated promise text above the first scroll.
+
+### Fail-fast validation order
+
+1. Latest touched reliability, wallet, policy, Compose, and dashboard surfaces.
+2. The most recently failed compiler/UI journey.
+3. Critical money, deduplication, recovery, privacy, and dashboard browser journeys.
+4. Remaining exhaustive tests only when their broader signal is needed.
+
+The normal release gate intentionally stays below 100 high-signal checks; large parameter matrices are looped inside one contract test instead of inflating the test count. Every stage stops at the first failure.
 
 ## ✨ **Key Features**
 

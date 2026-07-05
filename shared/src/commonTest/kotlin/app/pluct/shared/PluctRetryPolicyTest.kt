@@ -35,6 +35,14 @@ class PluctRetryPolicyTest {
     }
 
     @Test
+    fun hardUpdateModeRequiresLatestVersionCodeEvenWhenMinimumIsSeparate() {
+        val policy = """{"updateMode":"hard","platforms":{"android":{"minimumVersionCode":5,"latestVersionCode":6,"forceUpdate":true}}}"""
+
+        assertTrue(PluctClientPolicyModels.isHardUpdateRequiredByCode(policy, 5))
+        assertFalse(PluctClientPolicyModels.isHardUpdateRequiredByCode(policy, 6))
+    }
+
+    @Test
     fun clientPolicyReadsNestedApkUrlAndFeatureSubmitGate() {
         val policy = """{"platforms":{"android":{"apkUrl":"https://example.test/latest.apk"}},"features":{"transcriptionSubmit":false}}"""
 

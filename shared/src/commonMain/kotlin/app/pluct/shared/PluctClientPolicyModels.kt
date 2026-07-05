@@ -69,12 +69,19 @@ object PluctClientPolicyModels {
         if (raw.isBlank()) return false
         return try {
             val obj = json.parseToJsonElement(raw).jsonObject
+            val mode = obj["updateMode"]?.jsonPrimitive?.content?.lowercase() ?: "soft"
             val rootMinimum = obj["minimumVersionCode"]?.jsonPrimitive?.content?.toIntOrNull()
             val androidMinimum = obj["platforms"]?.jsonObject
                 ?.get("android")?.jsonObject
                 ?.get("minimumVersionCode")?.jsonPrimitive?.content?.toIntOrNull()
-            val minimum = androidMinimum ?: rootMinimum ?: return false
-            minimum > currentVersionCode
+            val rootLatest = obj["latestVersionCode"]?.jsonPrimitive?.content?.toIntOrNull()
+            val android = obj["platforms"]?.jsonObject?.get("android")?.jsonObject
+            val androidLatest = android?.get("latestVersionCode")?.jsonPrimitive?.content?.toIntOrNull()
+            val androidForce = android?.get("forceUpdate")?.jsonPrimitive?.booleanOrNull == true
+            val minimum = androidMinimum ?: rootMinimum
+            val latest = androidLatest ?: rootLatest
+            minimum?.let { if (it > currentVersionCode) return true }
+            (mode == "hard" || androidForce) && latest != null && latest > currentVersionCode
         } catch (_: Exception) {
             false
         }

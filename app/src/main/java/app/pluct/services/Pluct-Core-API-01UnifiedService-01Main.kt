@@ -50,7 +50,8 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
         /** True when BE policy disables transcribe; false on blank or parse failure (fail-open; see log ClientPolicy). */
         fun isPolicyBlockingTranscribe(raw: String): Boolean {
-            return PluctClientPolicyModels.isTranscribeDisabled(raw)
+            return PluctClientPolicyModels.isTranscribeDisabled(raw) ||
+                PluctClientPolicyModels.isHardUpdateRequiredByCode(raw, app.pluct.BuildConfig.VERSION_CODE)
         }
     }
 
@@ -79,6 +80,8 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     private val _transcriptionDebugFlow = MutableStateFlow<TranscriptionDebugInfo?>(null)
     val transcriptionDebugFlow: StateFlow<TranscriptionDebugInfo?> = _transcriptionDebugFlow.asStateFlow()
+    private val _mobileSyncState = MutableStateFlow<MobileSyncResponse?>(null)
+    val mobileSyncState: StateFlow<MobileSyncResponse?> = _mobileSyncState.asStateFlow()
 
     // Auth retry handler - single source of truth for 401 retry logic
     private val authRetryHandler = PluctCoreAPI01UnifiedService15AuthRetry01Handler(tokenRefreshManager)
@@ -237,7 +240,8 @@ class PluctCoreAPIUnifiedService @Inject constructor(
                 return Result.success(it)
             }
         }
-        return execute<Any>("GET", "/v1/public/client-policy").mapCatching { response ->
+        val endpoint = "/v1/public/client-policy?platform=android&versionCode=${app.pluct.BuildConfig.VERSION_CODE}&version=${app.pluct.BuildConfig.VERSION_NAME}"
+        return execute<Any>("GET", endpoint).mapCatching { response ->
             val raw = response.toString()
             prefs.edit()
                 .putLong("client_policy_checked_at", now)
@@ -247,10 +251,33 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         }
     }
 
+    suspend fun refreshMobileSync(force: Boolean = false): Result<MobileSyncResponse> {
+        val prefs = context.getSharedPreferences("pluct_mobile_sync", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val current = _mobileSyncState.value
+        val active = current?.jobs?.changedSinceCursor?.any { it.status in setOf("reserved", "queued", "processing", "joined") } == true
+        val maxAgeMs = if (active) 30_000L else 5 * 60_000L
+        if (!force && current != null && now - prefs.getLong("checked_at", 0L) < maxAgeMs) return Result.success(current)
+        val token = jwtGenerator.generateUserJWT(userIdentification.userId)
+        val since = prefs.getLong("server_time_ms", 0L)
+        val result = execute<MobileSyncResponse>("GET", "/v1/mobile/sync?since=$since", null, token)
+        result.onSuccess { snapshot ->
+            _mobileSyncState.value = snapshot
+            prefs.edit()
+                .putLong("checked_at", now)
+                .putLong("server_time_ms", snapshot.serverTimeMs)
+                .putString("revision", snapshot.revision)
+                .apply()
+            Log.i("PluctSync", "snapshot mode=${snapshot.budgetMode} service=${snapshot.service.state} jobs=${snapshot.jobs.changedSinceCursor.size} next=${snapshot.nextSyncAfterSeconds}s")
+        }
+        return result
+    }
+
     /**
      * Foreground hook: refresh health TTL and emit a single log line for stuck queues (grep `PluctUserPain` / `PluctForeground` in adb logcat).
      */
     suspend fun onAppForegroundedForDiagnostics() {
+        refreshMobileSync(force = false).onFailure { Log.w("PluctSync", "foreground_sync_failed ${it.message}") }
         try {
             val health = healthMonitor.refreshNow(force = true)
             Log.i("PluctForeground", "health_refresh api=${health["api"]} ttt=${health["ttt"]}")
@@ -271,6 +298,10 @@ class PluctCoreAPIUnifiedService @Inject constructor(
 
     suspend fun processTikTokVideo(url: String, isBackground: Boolean = false): Result<TranscriptionStatusResponse> {
         ensureServerTimeWarmup()
+        val control = refreshMobileSync(force = false).getOrNull()
+        if (control != null && (!control.policy.transcriptionEnabled || control.budgetMode in setOf("EMERGENCY", "LOCKDOWN") || !control.service.acceptingJobs)) {
+            return Result.failure(Exception("SAVED_FOR_LATER:${control.service.message}"))
+        }
         val policySnapshot = context.getSharedPreferences("pluct_user_preferences", Context.MODE_PRIVATE).getString("client_policy_snapshot", "") ?: ""
         if (isPolicyBlockingTranscribe(policySnapshot)) {
             return Result.failure(Exception("ACTION_UPDATE_APP"))
@@ -281,20 +312,32 @@ class PluctCoreAPIUnifiedService @Inject constructor(
         } else {
             currentHealth
         }
-        val walletResult = processTikTokVideoWithWallet(url, isBackground)
-        if (walletResult.isSuccess) return walletResult
+        val idempotencyPrefs = context.getSharedPreferences("pluct_active_requests", Context.MODE_PRIVATE)
+        val requestKey = "request_${url.trim().lowercase(Locale.US).hashCode().toUInt()}"
+        val journeyRequestId = idempotencyPrefs.getString(requestKey, null) ?: PluctRequestIds.generate("pluct").also {
+            idempotencyPrefs.edit().putString(requestKey, it).apply()
+        }
+        val walletResult = processTikTokVideoWithWallet(url, isBackground, journeyRequestId)
+        if (walletResult.isSuccess) {
+            idempotencyPrefs.edit().remove(requestKey).apply()
+            return walletResult
+        }
         val walletError = walletResult.exceptionOrNull()
         val detailed = walletError as? PluctCoreAPIDetailedError
         val canUseLegacyFallback = detailed?.technicalDetails?.responseStatusCode == 404 ||
             detailed?.technicalDetails?.errorCode == "route_not_found" ||
             walletError?.message?.contains("quote_not_found", ignoreCase = true) == true
-        if (!canUseLegacyFallback) return walletResult
+        if (!canUseLegacyFallback) {
+            if (walletError?.message?.contains("refunded", ignoreCase = true) == true || walletError?.message?.contains("invalid", ignoreCase = true) == true) {
+                idempotencyPrefs.edit().remove(requestKey).apply()
+            }
+            return walletResult
+        }
         Log.w(TAG, "Wallet fulfillment unavailable, falling back to legacy TTTranscribe flow: ${walletError?.message}")
         return transcriptionFlowHandler.processTikTokVideo(url, isBackground, effectiveHealth)
     }
 
-    private suspend fun processTikTokVideoWithWallet(url: String, isBackground: Boolean): Result<TranscriptionStatusResponse> {
-        val quoteRequestId = PluctRequestIds.generate("quote")
+    private suspend fun processTikTokVideoWithWallet(url: String, isBackground: Boolean, quoteRequestId: String): Result<TranscriptionStatusResponse> {
         val quote = requestQuote(url, quoteRequestId).getOrElse { return Result.failure(it) }
         val reserveUnits = quote.estimated.reserveUnits
         debugLogManager.logInfo(

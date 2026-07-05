@@ -8,14 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,7 +32,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.util.Log
 import java.util.Locale
@@ -53,6 +48,8 @@ import app.pluct.ui.components.PluctDebugLogViewer
 import app.pluct.ui.components.PluctHeaderWithRefreshableBalance
 import app.pluct.ui.components.PluctUIComponent03CaptureCard
 import app.pluct.ui.components.PluctUIComponent09Readiness01Strip
+import app.pluct.ui.components.PluctUIComponent10Premium01MilestoneCard
+import app.pluct.premium.PluctPremiumPromptPolicy
 import app.pluct.ui.readiness.PluctUIReadiness01Kind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -117,6 +114,7 @@ fun PluctHomeScreen(
     }
 
     val debugInfo by (apiService?.transcriptionDebugFlow ?: MutableStateFlow(null)).collectAsState()
+    val mobileSync by (apiService?.mobileSyncState ?: MutableStateFlow(null)).collectAsState()
     val debugLogs by (debugLogManager?.getRecentLogs(100) ?: MutableStateFlow(emptyList())).collectAsState(initial = emptyList())
     val errorLogs = debugLogs.filter { it.level == LogLevel.ERROR }.take(3)
 
@@ -141,6 +139,7 @@ fun PluctHomeScreen(
                 effectivePrefilledUrl = "https://vm.tiktok.com/ZMDRUGT2P/"
             },
             apiService = apiService,
+            mobileSync = mobileSync,
             snackbarHostState = snackbarHostState,
             videoRepository = videoRepository,
             debugInfo = debugInfo,
@@ -281,6 +280,7 @@ private fun HomeContent(
     onVideoClick: (VideoItem) -> Unit,
     prefilledUrl: String?,
     apiService: PluctCoreAPIUnifiedService?,
+    mobileSync: app.pluct.shared.MobileSyncResponse?,
     snackbarHostState: SnackbarHostState,
     videoRepository: PluctVideoRepository?,
     debugInfo: TranscriptionDebugInfo?,
@@ -293,6 +293,9 @@ private fun HomeContent(
     isLoadingCreditBalance: Boolean = false,
     onRefreshCreditBalance: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val premiumPrefs = remember { context.getSharedPreferences("pluct_premium_prompt", android.content.Context.MODE_PRIVATE) }
+    var premiumDismissed by remember { mutableStateOf(false) }
     val activeVideosAll = remember(uniqueVideos) {
         uniqueVideos
             .filter {
@@ -344,36 +347,25 @@ private fun HomeContent(
             )
         }
 
-        item {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { testTag = "home_value_promise_banner" },
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .semantics { testTag = "home_value_promise_line" },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FlashOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Text will appear here.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+        val offer = mobileSync?.premiumOffer
+        val serviceReady = mobileSync?.service?.state == "HEALTHY"
+        val activeTranscription = uniqueVideos.any { it.status == ProcessingStatus.PROCESSING }
+        if (!premiumDismissed && offer?.enabled == true && PluctPremiumPromptPolicy.shouldShow(
+                successfulPlucts = offer.successfulPlucts,
+                plan = mobileSync?.entitlements?.plan ?: "free",
+                serviceReady = serviceReady,
+                activeTranscription = activeTranscription,
+                lastPromptAtMs = premiumPrefs.getLong("last_prompt_at", 0L)
+            )) {
+            item {
+                PluctUIComponent10Premium01MilestoneCard(
+                    count = offer.successfulPlucts,
+                    onSeePremium = onRequestCreditsClick,
+                    onLater = {
+                        premiumPrefs.edit().putLong("last_prompt_at", System.currentTimeMillis()).apply()
+                        premiumDismissed = true
+                    }
+                )
             }
         }
 

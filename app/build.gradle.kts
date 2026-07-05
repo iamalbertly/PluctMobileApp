@@ -10,7 +10,7 @@ plugins {
 val pluctEngineBaseUrl: String = (findProperty("pluctEngineBaseUrl") as String?)
     ?: System.getenv("PLUCT_ENGINE_BASE_URL")
     ?: "https://pluct-business-engine.romeo-lya2.workers.dev"
-val pluctVersionName = "1.0.2"
+val pluctVersionName = "1.0.3"
 
 android {
     namespace = "app.pluct"
@@ -20,7 +20,7 @@ android {
         applicationId = "app.pluct"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
+        versionCode = 5
         versionName = pluctVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -51,10 +51,7 @@ android {
             buildConfigField("String", "VERSION_NAME", "\"$pluctVersionName\"")
             buildConfigField("String", "PLATFORM", "\"android\"")
             buildConfigField("String", "ENGINE_JWT_SECRET", "\"\"")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
     compileOptions {

@@ -75,6 +75,7 @@ class PluctCoreAPIHTTPClientRequestBuilder {
         connection.setRequestProperty("X-Request-ID", requestId)
         connection.setRequestProperty("X-Client-Request-Id", requestId)
         connection.setRequestProperty("X-Client-Version", app.pluct.BuildConfig.VERSION_NAME)
+        connection.setRequestProperty("X-Client-Version-Code", app.pluct.BuildConfig.VERSION_CODE.toString())
         connection.setRequestProperty("X-Client-Platform", app.pluct.BuildConfig.PLATFORM)
         userId?.let {
             connection.setRequestProperty("X-User-Id", it)

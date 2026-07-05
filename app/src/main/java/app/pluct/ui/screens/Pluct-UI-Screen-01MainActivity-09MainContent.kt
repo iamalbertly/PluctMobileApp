@@ -458,25 +458,16 @@ fun PluctMainContent(
         eventHandlers.createOnRetryVideo(creditBalance, freeUsesRemaining)
     }
 
-    val onTierSubmit = remember(readinessKind, rawOnTierSubmit, scope, snackbarHostState, hardUpdateRequired) {
-        { url: String, tier: app.pluct.data.entity.ProcessingTier ->
-            if (hardUpdateRequired) {
-                openUpgradePolicyUrl()
-                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
-                    scope,
-                    snackbarHostState,
-                    "Update Pluct to continue."
-                )
-            } else if (readinessKind != PluctUIReadiness01Kind.READY) {
-                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(
-                    scope,
-                    snackbarHostState,
-                    "Not ready â€” check the bar above."
-                )
-            } else {
-                rawOnTierSubmit(url, tier)
-            }
-        }
+    val onTierSubmit: (String, app.pluct.data.entity.ProcessingTier) -> Unit = remember(readinessKind, rawOnTierSubmit, scope, snackbarHostState, hardUpdateRequired) {
+        pluctCreateReadinessAwareSubmitHandler(
+            hardUpdateRequired = hardUpdateRequired,
+            readinessKind = readinessKind,
+            scope = scope,
+            snackbarHostState = snackbarHostState,
+            queueManager = queueManager,
+            openUpgradePolicyUrl = { openUpgradePolicyUrl() },
+            submitNow = rawOnTierSubmit
+        )
     }
 
     val onRetryVideo = remember(readinessKind, rawOnRetryVideo, scope, snackbarHostState) {
@@ -763,6 +754,43 @@ fun PluctMainContent(
             apiService = apiService,
             onBalanceRefresh = refreshCreditBalance
         )
+    }
+}
+
+private fun pluctCreateReadinessAwareSubmitHandler(
+    hardUpdateRequired: Boolean,
+    readinessKind: PluctUIReadiness01Kind,
+    scope: kotlinx.coroutines.CoroutineScope,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    queueManager: app.pluct.services.PluctQueueManager,
+    openUpgradePolicyUrl: () -> Unit,
+    submitNow: (String, app.pluct.data.entity.ProcessingTier) -> Unit
+): (String, app.pluct.data.entity.ProcessingTier) -> Unit = { url, tier ->
+    if (hardUpdateRequired) {
+        openUpgradePolicyUrl()
+        PluctUIComponent05Notification01SnackbarManager.showInfoAsync(scope, snackbarHostState, "Update Pluct to continue.")
+    } else if (readinessKind == PluctUIReadiness01Kind.READY) {
+        submitNow(url, tier)
+    } else {
+        val reason = when (readinessKind) {
+            PluctUIReadiness01Kind.NO_CREDITS -> app.pluct.data.entity.QueueReason.INSUFFICIENT_CREDITS
+            PluctUIReadiness01Kind.NO_NETWORK -> app.pluct.data.entity.QueueReason.NO_INTERNET
+            else -> app.pluct.data.entity.QueueReason.SERVICE_UNAVAILABLE
+        }
+        scope.launch {
+            val saved = queueManager.queueVideo(url, tier, reason)
+            val message = when (reason) {
+                app.pluct.data.entity.QueueReason.NO_INTERNET -> "Saved offline. Pluct will retry when you're connected."
+                app.pluct.data.entity.QueueReason.INSUFFICIENT_CREDITS -> "Saved. Add uses when you're ready to process it."
+                else -> "Saved. Pluct will process it when the service is ready."
+            }
+            if (saved.isSuccess) {
+                PluctUIComponent05Notification01SnackbarManager.showInfoAsync(scope, snackbarHostState, message)
+                Log.i("PluctJourney", "link_saved_for_later reason=$reason")
+            } else {
+                PluctUIComponent05Notification01SnackbarManager.showErrorAsync(scope, snackbarHostState, "Could not save this link. Try once more.")
+            }
+        }
     }
 }
 

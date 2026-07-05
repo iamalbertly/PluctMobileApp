@@ -115,35 +115,6 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
         }
 
         PluctSettingsGroupedSection(
-            sectionLabel = "Preferences",
-            testTagSuffix = "permissions"
-        ) {
-            PluctUIScreen01HomeScreen04Settings03PermissionsSection(
-                hasNotificationPermission = hasNotificationPermission,
-                hasOverlayPermission = hasOverlayPermission,
-                overlayEnabled = overlayEnabled,
-                permissionLauncherHelper = permissionLauncherHelper,
-                onOverlayEnabledChange = { enabled ->
-                    overlayEnabled = enabled
-                    prefs.setOverlayNotificationsEnabled(enabled)
-                },
-                onNotificationPermissionUpdate = { hasNotificationPermission = it },
-                onOverlayPermissionUpdate = { hasOverlayPermission = it },
-                onThemeModeChange = onThemeModeChange
-            )
-        }
-
-        PluctSettingsGroupedSection(
-            sectionLabel = "Account",
-            testTagSuffix = "account"
-        ) {
-            PluctUIScreen01HomeScreen04Settings02UserInfoSection(
-                userName = userName,
-                creditBalance = creditBalance
-            )
-        }
-
-        PluctSettingsGroupedSection(
             sectionLabel = "Credits",
             testTagSuffix = "credits"
         ) {
@@ -165,6 +136,35 @@ fun PluctUIScreen01HomeScreen04Settings00SharedBody(
                     }
                 },
                 onToggleRequesting = { isRequesting = !isRequesting }
+            )
+        }
+
+        PluctSettingsGroupedSection(
+            sectionLabel = "Account",
+            testTagSuffix = "account"
+        ) {
+            PluctUIScreen01HomeScreen04Settings02UserInfoSection(
+                userName = userName,
+                creditBalance = creditBalance
+            )
+        }
+
+        PluctSettingsGroupedSection(
+            sectionLabel = "Preferences",
+            testTagSuffix = "permissions"
+        ) {
+            PluctUIScreen01HomeScreen04Settings03PermissionsSection(
+                hasNotificationPermission = hasNotificationPermission,
+                hasOverlayPermission = hasOverlayPermission,
+                overlayEnabled = overlayEnabled,
+                permissionLauncherHelper = permissionLauncherHelper,
+                onOverlayEnabledChange = { enabled ->
+                    overlayEnabled = enabled
+                    prefs.setOverlayNotificationsEnabled(enabled)
+                },
+                onNotificationPermissionUpdate = { hasNotificationPermission = it },
+                onOverlayPermissionUpdate = { hasOverlayPermission = it },
+                onThemeModeChange = onThemeModeChange
             )
         }
 

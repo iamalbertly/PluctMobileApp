@@ -105,6 +105,69 @@ data class FulfillResponse(
 )
 
 @Serializable
+data class MobileSyncService(
+    val state: String = "HEALTHY",
+    val acceptingJobs: Boolean = true,
+    val message: String = "Ready",
+    val updatedAt: String = ""
+)
+
+@Serializable
+data class MobileSyncPolicy(
+    val minimumVersionCode: Int = 0,
+    val recommendedVersionCode: Int = 0,
+    val hardUpdate: Boolean = false,
+    val transcriptionEnabled: Boolean = true
+)
+
+@Serializable
+data class MobileSyncWallet(
+    val availableUses: Int = 0,
+    val reservedUses: Int = 0,
+    val displayText: String = "0 uses left"
+)
+
+@Serializable
+data class MobileSyncJobChange(
+    val jobId: String,
+    val status: String,
+    val updatedAt: String = ""
+)
+
+@Serializable
+data class MobileSyncJobs(val changedSinceCursor: List<MobileSyncJobChange> = emptyList())
+
+@Serializable
+data class MobileSyncEntitlements(
+    val plan: String = "free",
+    val adsEnabled: Boolean = true,
+    val priorityQueue: Boolean = false
+)
+
+@Serializable
+data class MobilePremiumOffer(
+    val enabled: Boolean = false,
+    val successfulPlucts: Int = 0,
+    val nextPromptAtSuccessfulPluctCount: Int? = null
+)
+
+@Serializable
+data class MobileSyncResponse(
+    val ok: Boolean = true,
+    val revision: String,
+    val serverTime: String,
+    val serverTimeMs: Long = 0,
+    val nextSyncAfterSeconds: Int = 300,
+    val budgetMode: String = "NORMAL",
+    val policy: MobileSyncPolicy = MobileSyncPolicy(),
+    val service: MobileSyncService = MobileSyncService(),
+    val wallet: MobileSyncWallet = MobileSyncWallet(),
+    val jobs: MobileSyncJobs = MobileSyncJobs(),
+    val entitlements: MobileSyncEntitlements = MobileSyncEntitlements(),
+    val premiumOffer: MobilePremiumOffer = MobilePremiumOffer()
+)
+
+@Serializable
 data class EstimateResponse(
     val ok: Boolean = true,
     val estimatedCredits: Int,

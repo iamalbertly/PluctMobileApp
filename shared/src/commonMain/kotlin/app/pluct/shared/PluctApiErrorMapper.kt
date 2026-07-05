@@ -28,6 +28,8 @@ object PluctApiErrorMapper {
                 PluctApiErrorMapping(PluctApiErrorCategory.NETWORK, "Network issue. Check your connection and retry.", true)
             statusCode == 429 || normalized.contains("rate limit") ->
                 PluctApiErrorMapping(PluctApiErrorCategory.RATE_LIMIT, "Too many requests. Try again shortly.", true)
+            statusCode == 426 || normalized.contains("app_update_required") || normalized.contains("update pluct") ->
+                PluctApiErrorMapping(PluctApiErrorCategory.VALIDATION, "Update Pluct to continue.", false)
             statusCode in 400..499 ->
                 PluctApiErrorMapping(PluctApiErrorCategory.VALIDATION, "This request cannot be processed as sent.", false)
             statusCode != null && statusCode >= 500 ->
